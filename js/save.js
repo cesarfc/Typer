@@ -3,12 +3,15 @@
 // ============================================================
 
 const SAVE = {
-  KEY: "typequest_save_v1",
-  state: null,
+  KEY: "typequest_save_v2",
+  OLD_KEY: "typequest_save_v1",
+  MAX_PLAYERS: 8,
+  root: null,   // { active: id|null, players: { id: state } }
+  state: null,  // the active player's state (everything below operates on it)
 
   defaults() {
     return {
-      v: 1,
+      v: 2,
       profile: null,               // {name, avatar}
       xp: 0,
       stages: {},                  // "w-s" -> best stars (s 0..4 levels, 5 boss)
@@ -21,21 +24,88 @@ const SAVE = {
   },
 
   load() {
+    this.root = null;
     try {
       const raw = localStorage.getItem(this.KEY);
-      this.state = raw ? Object.assign(this.defaults(), JSON.parse(raw)) : this.defaults();
-    } catch (e) {
-      this.state = this.defaults();
+      if (raw) this.root = JSON.parse(raw);
+    } catch (e) { /* corrupted save */ }
+
+    if (!this.root || !this.root.players) {
+      this.root = { active: null, players: {} };
+      // migrate a single-player v1 save into the first slot
+      try {
+        const old = localStorage.getItem(this.OLD_KEY);
+        if (old) {
+          const st = JSON.parse(old);
+          if (st && st.profile) {
+            this.root.players.p1 = st;
+            this.root.active = "p1";
+          }
+          localStorage.removeItem(this.OLD_KEY);
+        }
+      } catch (e) { /* ignore broken v1 data */ }
+      this.save();
     }
+
+    for (const id of Object.keys(this.root.players)) {
+      this.root.players[id] = Object.assign(this.defaults(), this.root.players[id]);
+    }
+    this.state = this.root.active ? this.root.players[this.root.active] || null : null;
     return this.state;
   },
 
   save() {
-    try { localStorage.setItem(this.KEY, JSON.stringify(this.state)); } catch (e) { /* private mode */ }
+    try { localStorage.setItem(this.KEY, JSON.stringify(this.root)); } catch (e) { /* private mode */ }
   },
 
-  reset() {
-    this.state = this.defaults();
+  players() {
+    return Object.entries(this.root.players).map(([id, s]) => ({
+      id,
+      name: s.profile.name,
+      avatar: s.profile.avatar,
+      level: levelFromXp(s.xp).level,
+      creatures: Object.keys(s.dex).length,
+      trophies: Object.keys(s.trophies).length,
+    }));
+  },
+
+  createPlayer(name, avatar) {
+    if (Object.keys(this.root.players).length >= this.MAX_PLAYERS) return null;
+    const id = "p" + Date.now().toString(36) + Math.floor(Math.random() * 100);
+    const st = this.defaults();
+    st.profile = { name, avatar };
+    this.root.players[id] = st;
+    this.root.active = id;
+    this.state = st;
+    this.save();
+    return id;
+  },
+
+  switchTo(id) {
+    if (!this.root.players[id]) return false;
+    this.root.active = id;
+    this.state = this.root.players[id];
+    this.save();
+    return true;
+  },
+
+  deletePlayer(id) {
+    delete this.root.players[id];
+    if (this.root.active === id) {
+      this.root.active = null;
+      this.state = null;
+    }
+    this.save();
+  },
+
+  // erase the current player's progress but keep their name and avatar
+  resetCurrent() {
+    if (!this.state || !this.root.active) return;
+    const profile = this.state.profile;
+    const fresh = this.defaults();
+    fresh.profile = profile;
+    this.root.players[this.root.active] = fresh;
+    this.state = fresh;
     this.save();
   },
 

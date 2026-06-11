@@ -18,6 +18,11 @@ No installs, no internet, no accounts. **Just open `index.html` in a browser.**
 Progress saves automatically in the browser (localStorage), so use the same
 browser on the same computer to keep the save.
 
+**Multiple players:** the title screen asks "Who is playing today?" — up to 8
+players, each with their own worlds, creatures, trophies and streaks. Click
+the player name in the top bar (⇄) any time to switch. Deleting or erasing a
+player never touches the others.
+
 ## The journey (the hidden curriculum)
 
 Each world secretly teaches the next set of keys with proper finger placement,

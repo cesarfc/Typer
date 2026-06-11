@@ -10,13 +10,14 @@
 <div id="app">
 
   <header id="topbar" class="hidden">
-    <div id="player-chip">
+    <div id="player-chip" title="Switch player" role="button" tabindex="0">
       <span id="chip-avatar">🦊</span>
       <div class="chip-info">
         <div id="chip-name">Player</div>
         <div id="chip-title">Rookie · Lv 1</div>
         <div id="chip-xpbar"><div id="chip-xpfill"></div></div>
       </div>
+      <span class="chip-switch">⇄</span>
     </div>
     <nav id="main-nav">
       <button class="navbtn active" data-nav="map">🗺️ Map</button>
@@ -39,18 +40,19 @@
         <h1 class="title-name">Type<span>Quest</span></h1>
         <p class="title-tag">Catch creatures · Beat bosses · Become the Key Master!</p>
 
-        <div id="title-new">
+        <div id="player-select" class="hidden">
+          <label class="field-label">Who is playing today?</label>
+          <div id="player-list"></div>
+          <button id="btn-addplayer" class="mid-btn">➕ New Player</button>
+        </div>
+
+        <div id="title-new" class="hidden">
           <label class="field-label" for="name-input">What is your hero name?</label>
           <input id="name-input" maxlength="12" placeholder="Type your name..." autocomplete="off">
           <label class="field-label">Pick your hero</label>
           <div id="avatar-grid"></div>
           <button id="btn-start" class="big-btn">▶ Start Adventure</button>
-        </div>
-
-        <div id="title-continue" class="hidden">
-          <p id="welcome-back"></p>
-          <button id="btn-continue" class="big-btn">▶ Continue Adventure</button>
-          <button id="btn-newgame" class="link-btn">start a brand new game</button>
+          <button id="btn-backtoselect" class="link-btn hidden">← back to players</button>
         </div>
 
         <p class="title-note">⌨️ Best played on a computer with a real keyboard</p>

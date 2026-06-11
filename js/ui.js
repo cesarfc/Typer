@@ -13,19 +13,33 @@ const UI = {
 
   init() {
     SAVE.load();
-    this.kbHidden = !SAVE.state.settings.hints;
+    this.kbHidden = SAVE.state ? !SAVE.state.settings.hints : false;
     this.buildTitle();
     this.buildKeyboard();
     this.bindButtons();
     this.startFx();
-
-    if (SAVE.state.profile) {
-      this.$("title-new").classList.add("hidden");
-      this.$("title-continue").classList.remove("hidden");
-      this.$("welcome-back").innerHTML =
-        `Welcome back, <b>${SAVE.state.profile.avatar} ${this.esc(SAVE.state.profile.name)}</b>!`;
-    }
+    this.renderTitle();
     this.show("title");
+  },
+
+  // title shows the player list when players exist, else the create form
+  renderTitle() {
+    const players = SAVE.players();
+    const hasPlayers = players.length > 0;
+    this.$("player-select").classList.toggle("hidden", !hasPlayers);
+    this.$("title-new").classList.toggle("hidden", hasPlayers);
+    this.$("btn-backtoselect").classList.toggle("hidden", !hasPlayers);
+    this.$("btn-addplayer").classList.toggle("hidden", players.length >= SAVE.MAX_PLAYERS);
+    if (!hasPlayers) return;
+    this.$("player-list").innerHTML = players.map(p => `
+      <div class="player-card" data-id="${p.id}">
+        <span class="pc-avatar">${p.avatar}</span>
+        <div class="pc-info">
+          <div class="pc-name">${this.esc(p.name)}</div>
+          <div class="pc-sub">Lv ${p.level} ${titleForLevel(p.level)} · 🐾 ${p.creatures} · 🏆 ${p.trophies}</div>
+        </div>
+        <button class="pc-del" data-del="${p.id}" title="Delete this player">✕</button>
+      </div>`).join("");
   },
 
   esc(s) {
@@ -66,13 +80,16 @@ const UI = {
 
   startGameFromTitle() {
     const name = this.$("name-input").value.trim() || "Hero";
-    SAVE.state.profile = { name, avatar: this.selectedAvatar };
-    SAVE.save();
+    if (!SAVE.createPlayer(name, this.selectedAvatar)) { this.renderTitle(); return; }
+    this.$("name-input").value = "";
     this.enterGame();
   },
 
   enterGame() {
     SFX.init();
+    SFX.setEnabled(SAVE.state.settings.sound);
+    this.kbHidden = !SAVE.state.settings.hints;
+    this.applyKbVisibility();
     const streak = SAVE.touchStreak();
     this.show("map");
     if (streak && streak.count > 1) {
@@ -83,7 +100,7 @@ const UI = {
 
   // ---------- topbar ----------
   renderTopbar() {
-    const p = SAVE.state.profile;
+    const p = SAVE.state && SAVE.state.profile;
     if (!p) return;
     const lv = levelFromXp(SAVE.state.xp);
     this.$("chip-avatar").textContent = p.avatar;
@@ -725,12 +742,38 @@ const UI = {
     this.$("name-input").addEventListener("keydown", e => {
       if (e.key === "Enter") this.startGameFromTitle();
     });
-    this.$("btn-continue").addEventListener("click", () => this.enterGame());
-    this.$("btn-newgame").addEventListener("click", () => {
-      if (confirm("Start a brand new game? All progress will be erased!")) {
-        SAVE.reset();
-        location.reload();
+
+    this.$("btn-addplayer").addEventListener("click", () => {
+      SFX.click();
+      this.$("player-select").classList.add("hidden");
+      this.$("title-new").classList.remove("hidden");
+      this.$("name-input").focus();
+    });
+    this.$("btn-backtoselect").addEventListener("click", () => this.renderTitle());
+
+    this.$("player-list").addEventListener("click", e => {
+      const del = e.target.closest(".pc-del");
+      if (del) {
+        e.stopPropagation();
+        const p = SAVE.players().find(x => x.id === del.dataset.del);
+        if (p && confirm(`Delete player ${p.name}? All their progress, creatures and trophies will be gone!`)
+              && confirm("Are you really, really sure?")) {
+          SAVE.deletePlayer(p.id);
+          this.renderTitle();
+        }
+        return;
       }
+      const card = e.target.closest(".player-card");
+      if (card && SAVE.switchTo(card.dataset.id)) {
+        SFX.click();
+        this.enterGame();
+      }
+    });
+
+    this.$("player-chip").addEventListener("click", () => {
+      SFX.click();
+      this.renderTitle();
+      this.show("title");
     });
 
     document.querySelectorAll(".navbtn").forEach(b =>
@@ -767,8 +810,10 @@ const UI = {
     this.$("btn-tomap").addEventListener("click", () => this.show("map"));
 
     this.$("btn-reset").addEventListener("click", () => {
-      if (confirm("Erase ALL progress, creatures and trophies?") && confirm("Are you really, really sure?")) {
-        SAVE.reset();
+      const name = SAVE.state ? SAVE.state.profile.name : "";
+      if (confirm(`Erase ALL of ${name}'s progress, creatures and trophies? (Other players are safe.)`)
+          && confirm("Are you really, really sure?")) {
+        SAVE.resetCurrent();
         location.reload();
       }
     });

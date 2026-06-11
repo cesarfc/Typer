@@ -4,7 +4,7 @@
 
 window.addEventListener("DOMContentLoaded", () => {
   UI.init();
-  SFX.setEnabled(SAVE.state.settings.sound);
+  SFX.setEnabled(SAVE.state ? SAVE.state.settings.sound : true);
 
   window.addEventListener("keydown", e => {
     if (UI.current === "game") {
