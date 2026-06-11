@@ -1,15 +1,17 @@
 // ============================================================
-// TypeQuest — game data: curriculum, worlds, creatures, trophies
+// TypeQuest — game data: curriculum, worlds, Pokemon, trophies
 // Curriculum: home row first, then reaching up/down, then words,
 // phrases, and finally capitals + sentences. Every word in a world
 // only uses keys that have been taught by that point.
+// Catchable Pokemon are matched to worlds so their names use mostly
+// taught keys; the few untaught letters get extra catch time.
 // ============================================================
 
-const AVATARS = ["🦊", "🐱", "🐉", "🥷", "⚡", "⚽", "🦖", "🐼", "🦁", "🚀"];
+const AVATARS = ["🧢", "🦊", "🐱", "🐉", "🥷", "⚡", "⚽", "🦖", "🐼", "🚀"];
 
 const TITLES = [
-  [1, "Rookie"], [3, "Trainer"], [5, "Block Miner"], [7, "Striker"],
-  [9, "Super Typer"], [12, "Slayer"], [15, "Champion"], [18, "Key Master"], [22, "Typing Legend"],
+  [1, "New Trainer"], [3, "Trainer"], [5, "Gym Challenger"], [7, "Badge Collector"],
+  [9, "Ace Trainer"], [12, "Gym Leader"], [15, "Elite Four"], [18, "Champion"], [22, "Pokemon Master"],
 ];
 
 // On-screen keyboard layout
@@ -39,16 +41,16 @@ const FINGER_NAMES = [
 
 const WORLDS = [
   {
-    name: "Pixel Meadow",
-    tagline: "Learn the home row and catch your first creatures!",
+    name: "Pallet Meadow",
+    tagline: "Your journey begins! Learn the home row.",
     emoji: "🌳",
     gradient: ["#123c26", "#2e7d4f"],
     accent: "#7ee787",
-    targets: ["🦊", "🐰", "🐍", "🦌", "🐿️", "🐐", "🕊️", "🐺"],
+    targets: ["🦭", "🐍", "💫", "🥄", "🦕", "🦔", "🐹", "🗝️"],
     projectile: "🔴",
-    hitText: ["Gotcha!", "Caught!", "Nice!", "Wow!"],
+    hitText: ["Gotcha!", "Caught!", "Nice throw!", "Great ball!"],
     sceneEmojis: ["🌸", "🌿", "🍄", "🦋"],
-    boss: { name: "Grumpy Bear", emoji: "🐻", hp: 9, time: 5.5, taunt: "Grrr! Nobody types in MY meadow!" },
+    boss: { name: "Snorlax", emoji: "😴", hp: 9, time: 5.5, taunt: "Zzz... WHO dares wake me?!" },
     levels: [
       { name: "F and J", keys: "fj", time: 6,
         pool: ["f", "j", "ff", "jj", "fj", "jf", "fjf", "jfj", "jjf", "ffj", "fjj", "jff"], count: 10 },
@@ -65,16 +67,16 @@ const WORLDS = [
     bossPool: ["dad", "sad", "lad", "fall", "ask", "salad", "flask", "all", "add", "asks", "lads", "falls"],
   },
   {
-    name: "Blocky Caves",
-    tagline: "Mine blocks with your new keys: E I R U!",
+    name: "Mt. Moon Caves",
+    tagline: "Dig for Moon Stones with your new keys: E I R U!",
     emoji: "⛏️",
     gradient: ["#2a2440", "#52447e"],
     accent: "#b39df1",
-    targets: ["🪨", "🟫", "🧱", "💎", "🟪", "⬜"],
+    targets: ["🪨", "🌑", "💎", "🟫", "⬜", "🦇"],
     projectile: "⛏️",
-    hitText: ["Mined!", "Block get!", "Crafted!", "Diamond!"],
+    hitText: ["Mined!", "Moon Stone!", "Fossil found!", "Sparkle!"],
     sceneEmojis: ["💎", "🕯️", "🪨", "🦇"],
-    boss: { name: "Cave Golem", emoji: "🗿", hp: 10, time: 5, taunt: "I am made of stone. You cannot beat me!" },
+    boss: { name: "Onix", emoji: "🪨", hp: 10, time: 5, taunt: "I am ROCK SOLID. You cannot beat me!" },
     levels: [
       { name: "E and I", keys: "ei", time: 5.5,
         pool: ["e", "i", "ee", "ii", "ei", "ie", "die", "lie", "like", "side", "idea", "aide", "ladies",
@@ -96,7 +98,7 @@ const WORLDS = [
     bossPool: ["fire", "slide", "skill", "drill", "field", "raise", "ruler", "fries", "leader", "sailed", "riddle", "ladder"],
   },
   {
-    name: "Champion Stadium",
+    name: "Battle Stadium",
     tagline: "Score goals with T O W N G H!",
     emoji: "⚽",
     gradient: ["#0c3d2e", "#1e7d5c"],
@@ -105,7 +107,7 @@ const WORLDS = [
     projectile: "⚽",
     hitText: ["GOOOAL!", "Top corner!", "What a shot!", "Screamer!"],
     sceneEmojis: ["🏟️", "📣", "🎉", "⚽"],
-    boss: { name: "Robo Keeper", emoji: "🤖", hp: 10, time: 4.5, taunt: "Beep boop. NO goals allowed!" },
+    boss: { name: "Team Rocket", emoji: "😼", hp: 10, time: 4.5, taunt: "Prepare for trouble! NO goals for you!" },
     levels: [
       { name: "T and O", keys: "to", time: 5,
         pool: ["t", "o", "to", "too", "tot", "lot", "dot", "tool", "took", "look", "foot", "food",
@@ -127,16 +129,16 @@ const WORLDS = [
     bossPool: ["goal", "shoot", "winner", "striker", "header", "strike", "fast", "goalie", "the goal", "we win", "go go go", "net"],
   },
   {
-    name: "Dragon Peaks",
-    tagline: "Power up with M P Y B and unleash energy blasts!",
+    name: "Dragon's Den",
+    tagline: "Learn M P Y B and unleash mighty Pokemon moves!",
     emoji: "🐉",
     gradient: ["#4a1d10", "#a4461c"],
     accent: "#ffb454",
     targets: ["🌪️", "🪨", "🔥", "👊"],
     projectile: "💥",
-    hitText: ["KA-BOOM!", "Power up!", "MEGA HIT!", "Over 9000!"],
+    hitText: ["KA-BOOM!", "Super effective!", "MEGA HIT!", "Over 9000!"],
     sceneEmojis: ["⛰️", "🔥", "☁️", "⚡"],
-    boss: { name: "Shadow Dragon", emoji: "🐲", hp: 11, time: 4.5, taunt: "My power level is OVER 9000!" },
+    boss: { name: "Garchomp", emoji: "🐲", hp: 11, time: 4.5, taunt: "No trainer escapes my den!" },
     levels: [
       { name: "M and P", keys: "mp", time: 4.5,
         pool: ["m", "p", "map", "mop", "team", "jump", "lamp", "pump", "more", "time", "game", "make",
@@ -144,32 +146,32 @@ const WORLDS = [
       { name: "Y and B", keys: "yb", time: 4.5,
         pool: ["y", "b", "by", "my", "boy", "buy", "baby", "body", "yes", "yet", "year", "blue", "bye",
                "berry", "happy", "maybe", "money", "funny", "burst", "yellow"], count: 12 },
-      { name: "Power Up", keys: "", time: 4.5,
-        pool: ["power", "blast", "super", "mega", "beam", "fury", "jump", "fly", "energy", "mighty",
-               "storm", "flame", "thunder", "monkey", "golden", "dragon", "warrior", "fireball",
-               "power up", "mega blast"], count: 12 },
-      { name: "Epic Phrases", keys: "", time: 4.5,
-        pool: ["the dragon roars", "power up now", "we are strong", "feel the power", "jump higher",
-               "mega dragon mode", "the storm is here", "golden warrior", "energy beam",
-               "super dragon fist", "the mighty hero", "blast the storm"], count: 10 },
+      { name: "Battle Moves", keys: "", time: 4.5,
+        pool: ["ember", "surf", "fly", "bite", "slam", "pound", "growl", "stomp", "thunder",
+               "water gun", "psybeam", "body slam", "iron tail", "fire blast", "hyper beam",
+               "dragon rage", "thunderbolt", "flamethrower", "mega drain", "tail whip"], count: 12 },
+      { name: "Trainer Talk", keys: "", time: 4.5,
+        pool: ["gotta type them all", "use thunderbolt", "use hyper beam", "use fire blast",
+               "a wild dragon appeared", "the gym leader awaits", "the battle begins",
+               "power up now", "the dragon roars", "i am the dragon master"], count: 10 },
       { name: "Speed Run", keys: "", time: 3,
         pool: ["up", "my", "by", "yes", "map", "jump", "mega", "beam", "fly", "blue", "bomb", "palm",
-               "pump", "my team", "big jump", "go mega"], count: 14 },
+               "pump", "my team", "big jump", "use surf", "go mega"], count: 14 },
     ],
-    bossPool: ["power", "blast", "super", "mega beam", "dragon fist", "energy", "thunder", "golden fury",
-               "mighty storm", "fireball", "power up", "warrior"],
+    bossPool: ["thunderbolt", "hyper beam", "fire blast", "dragon rage", "flamethrower", "iron tail",
+               "body slam", "mega drain", "water gun", "psybeam", "thunder", "power up"],
   },
   {
-    name: "Demon Forest",
-    tagline: "Master the last letters: C V X Z Q. Total focus!",
-    emoji: "⚔️",
+    name: "Eterna Forest",
+    tagline: "Master the last letters C V X Z Q in the spooky forest!",
+    emoji: "🌲",
     gradient: ["#1c1030", "#5e1f3d"],
     accent: "#ff6e9c",
-    targets: ["👺", "🧟", "👻", "🦇"],
+    targets: ["👻", "🦇", "🕸️", "🌑"],
     projectile: "🗡️",
-    hitText: ["Slash!", "Demon down!", "Full focus!", "Breathe!"],
-    sceneEmojis: ["🌑", "🎋", "🏮", "🌫️"],
-    boss: { name: "Oni King", emoji: "👹", hp: 12, time: 4, taunt: "No slayer has EVER defeated me!" },
+    hitText: ["Slash!", "Super effective!", "Critical hit!", "Stay calm!"],
+    sceneEmojis: ["🌲", "🍃", "🏮", "🌫️"],
+    boss: { name: "Darkrai", emoji: "😈", hp: 12, time: 4, taunt: "Welcome to your NIGHTMARE!" },
     levels: [
       { name: "C and V", keys: "cv", time: 4.5,
         pool: ["c", "v", "cave", "cut", "cool", "nice", "voice", "very", "give", "love", "have",
@@ -177,87 +179,91 @@ const WORLDS = [
       { name: "X Z and Q", keys: "xzq", time: 4.5,
         pool: ["x", "z", "q", "box", "fox", "six", "zoo", "zap", "zoom", "quiz", "quick", "quest",
                "exact", "extra", "zigzag", "queen", "squad", "prize", "zero", "sixty"], count: 12 },
-      { name: "Slayer Training", keys: "", time: 4,
-        pool: ["blade", "slash", "demon", "water", "breath", "quick", "crush", "voice", "focus", "calm",
-               "sword", "shadow", "silent", "strike", "courage", "thunder breath", "water blade",
-               "flame slash", "quick attack", "stay calm"], count: 12 },
-      { name: "Final Forms", keys: "", time: 4,
-        pool: ["the silent blade", "cut the shadow", "breathe and focus", "never look back",
-               "the demon runs away", "full focus mode", "water dragon slash", "quick as thunder",
-               "brave and calm", "the blade of light"], count: 10 },
+      { name: "Expert Moves", keys: "", time: 4,
+        pool: ["quick attack", "shadow ball", "night slash", "razor leaf", "ice beam", "solar beam",
+               "dark pulse", "shadow claw", "focus blast", "aqua jet", "fire punch", "close combat",
+               "giga impact", "x scissor"], count: 12 },
+      { name: "Tall Grass", keys: "", time: 4,
+        pool: ["it is super effective", "a critical hit", "use shadow ball", "use quick attack",
+               "the forest is quiet", "beware the tall grass", "a shiny appeared",
+               "gotta catch them all", "the dark forest calls", "never look back"], count: 10 },
       { name: "Speed Run", keys: "", time: 2.8,
         pool: ["cut", "zap", "box", "fox", "mix", "zoom", "quick", "quiz", "jazz", "quest", "blaze",
                "craze", "pixel", "vivid", "squad", "crazy"], count: 14 },
     ],
-    bossPool: ["slash", "blade", "demon", "quick strike", "water blade", "thunder breath", "focus",
-               "courage", "silent blade", "crush", "victory", "final slash"],
+    bossPool: ["dark pulse", "dark void", "shadow ball", "night slash", "quick attack", "stay calm",
+               "focus", "courage", "ice beam", "silent forest", "never give up", "final slash"],
   },
   {
-    name: "Key Master Arena",
-    tagline: "Capital letters and full sentences. The final test!",
+    name: "Hall of Fame",
+    tagline: "Capital letters and full sentences. Become the Champion!",
     emoji: "👑",
     gradient: ["#241a4f", "#8a6d1d"],
     accent: "#ffd34d",
     targets: ["👾", "🤖", "🛸"],
     projectile: "⭐",
-    hitText: ["Legendary!", "Critical hit!", "Masterful!", "Incredible!"],
+    hitText: ["Legendary!", "Critical hit!", "Masterful!", "One in a million!"],
     sceneEmojis: ["🏆", "✨", "👑", "🎆"],
-    boss: { name: "The Glitch King", emoji: "👾", hp: 10, time: 4, taunt: "I corrupted the keyboard. The world is MINE!" },
+    boss: { name: "MissingNo", emoji: "👾", hp: 10, time: 4, taunt: "I corrupted the Pokedex. The world is MINE!" },
     levels: [
       { name: "Big Letters", keys: "", time: 4.5,
-        pool: ["Max", "Leo", "Kai", "Rex", "Sam", "Ace", "Zoe", "Sky", "Max and Leo", "Kai the Brave",
-               "Queen Zoe", "King Rex"], count: 10 },
+        pool: ["Ash", "Red", "Blue", "Misty", "Brock", "Leon", "May", "Dawn", "Ash and Brock",
+               "Professor Oak", "Team Rocket", "Pikachu and Ash"], count: 10 },
       { name: "Sentences", keys: "", time: 4,
-        pool: ["The sun is hot.", "I like my team.", "We won the game.", "My dog is fast.",
-               "The cat can jump.", "I am a super typer."], count: 6 },
+        pool: ["I choose you.", "The gym battle begins.", "Pikachu used thunderbolt.",
+               "It is super effective.", "The wild Eevee fled.", "I got a gym badge."], count: 6 },
       { name: "Hero Lines", keys: "", time: 4,
-        pool: ["The dragon flies high.", "I will catch them all.", "Never give up.",
-               "Train hard every day.", "The hero saves the day.", "Power comes from focus."], count: 6 },
+        pool: ["I want to be the very best.", "Gotta catch them all.", "A shiny Charizard appeared.",
+               "The Elite Four are waiting.", "Team Rocket is up to no good.",
+               "My Pikachu never gives up."], count: 6 },
       { name: "Master Lines", keys: "", time: 4,
         pool: ["Practice makes perfect.", "Type like the wind.", "Speed comes from calm focus.",
-               "A true master never stops learning.", "The quick brown fox jumps over the lazy dog."], count: 5 },
+               "A true Pokemon Master never stops learning.",
+               "The quick brown fox jumps over the lazy dog."], count: 5 },
       { name: "Speed Run", keys: "", time: 3,
-        pool: ["Go.", "Win.", "Jump.", "Run fast.", "Type fast.", "I am quick.", "We are champions.",
-               "Catch the dragon.", "Be brave.", "Stay calm."], count: 10 },
+        pool: ["Go.", "Run.", "Catch it.", "Throw the ball.", "I choose you.", "Use surf.",
+               "We are champions.", "Catch Mewtwo.", "Be brave.", "Stay calm."], count: 10 },
     ],
-    bossPool: ["I am the Glitch King.", "You cannot type fast.", "My power is unlimited.",
-               "The keyboard obeys me.", "You are too fast for me.", "No. Not my glitches.",
-               "You type like a master.", "The crown is yours now.", "Long live the Key Master.", "GG"],
+    bossPool: ["I am MissingNo.", "I corrupted the Pokedex.", "You cannot type fast.",
+               "My glitch power is unlimited.", "The keyboard obeys me.", "You are too fast for me.",
+               "No. Not my glitches.", "You type like a true master.", "The Pokedex is saved.",
+               "Long live the Pokemon Master."],
   },
 ];
 
-// 8 catchable creatures per world. Names only use keys taught in that world.
+// 8 catchable Pokemon per world, matched so names use mostly-taught keys.
+// Names with a few untaught letters get bonus catch time (see taughtKeys).
 // r: rarity 1 common, 2 rare, 3 epic, 4 legendary
 const CREATURES = [
   [
-    { n: "Flaka", e: "🦊", r: 1 }, { n: "Salsa", e: "🐍", r: 1 }, { n: "Laska", e: "🐰", r: 1 },
-    { n: "Skaff", e: "🐿️", r: 1 }, { n: "Dalla", e: "🦌", r: 2 }, { n: "Fjall", e: "🐐", r: 2 },
-    { n: "Jakal", e: "🐺", r: 2 }, { n: "Alka", e: "🕊️", r: 3 },
+    { n: "Seel", e: "🦭", r: 1 }, { n: "Ekans", e: "🐍", r: 1 }, { n: "Dedenne", e: "🐹", r: 1 },
+    { n: "Sandslash", e: "🦔", r: 1 }, { n: "Abra", e: "💫", r: 2 }, { n: "Lapras", e: "🦕", r: 2 },
+    { n: "Alakazam", e: "🥄", r: 2 }, { n: "Klefki", e: "🗝️", r: 3 },
   ],
   [
-    { n: "Kira", e: "🐱", r: 1 }, { n: "Slider", e: "🦎", r: 1 }, { n: "Jellie", e: "🪼", r: 1 },
-    { n: "Riddle", e: "🦝", r: 1 }, { n: "Ursa", e: "🐻", r: 2 }, { n: "Firefur", e: "🦁", r: 2 },
-    { n: "Skarr", e: "🦅", r: 2 }, { n: "Drake", e: "🐲", r: 3 },
+    { n: "Eevee", e: "🦊", r: 1 }, { n: "Furret", e: "🦦", r: 1 }, { n: "Raichu", e: "🐭", r: 1 },
+    { n: "Dratini", e: "🐉", r: 1 }, { n: "Arcanine", e: "🐕", r: 2 }, { n: "Greninja", e: "🐸", r: 2 },
+    { n: "Raikou", e: "🐯", r: 2 }, { n: "Lucario", e: "🐺", r: 3 },
   ],
   [
-    { n: "Hoot", e: "🦉", r: 1 }, { n: "Otter", e: "🦦", r: 1 }, { n: "Shello", e: "🐢", r: 1 },
-    { n: "Tango", e: "🦩", r: 1 }, { n: "Night", e: "🦇", r: 2 }, { n: "Stinger", e: "🦂", r: 2 },
-    { n: "Growl", e: "🐯", r: 2 }, { n: "Goalio", e: "🐸", r: 3 },
+    { n: "Growlithe", e: "🐶", r: 1 }, { n: "Hoothoot", e: "🦉", r: 1 }, { n: "Wooloo", e: "🐑", r: 1 },
+    { n: "Togepi", e: "🥚", r: 1 }, { n: "Girafarig", e: "🦒", r: 2 }, { n: "Gengar", e: "👻", r: 2 },
+    { n: "Dragonite", e: "🐲", r: 2 }, { n: "Charizard", e: "🔥", r: 3 },
   ],
   [
-    { n: "Boomer", e: "🐗", r: 1 }, { n: "Bolt", e: "🐎", r: 1 }, { n: "Mambo", e: "🦜", r: 1 },
-    { n: "Puma", e: "🐆", r: 1 }, { n: "Pyro", e: "🦎", r: 2 }, { n: "Yeti", e: "🦍", r: 2 },
-    { n: "Mysti", e: "🦄", r: 2 }, { n: "Magma", e: "🦖", r: 3 },
+    { n: "Magikarp", e: "🐟", r: 1 }, { n: "Piplup", e: "🐧", r: 1 }, { n: "Mudkip", e: "🦎", r: 1 },
+    { n: "Gyarados", e: "🐋", r: 2 }, { n: "Mew", e: "💗", r: 2 }, { n: "Lugia", e: "🕊️", r: 2 },
+    { n: "Pikachu", e: "⚡", r: 3 }, { n: "Mewtwo", e: "🧬", r: 3 },
   ],
   [
-    { n: "Cobra", e: "🐍", r: 1 }, { n: "Vixen", e: "🦊", r: 1 }, { n: "Echo", e: "🔮", r: 1 },
-    { n: "Zigzag", e: "⚡", r: 1 }, { n: "Quartz", e: "💎", r: 2 }, { n: "Zephyr", e: "👻", r: 2 },
-    { n: "Vexor", e: "👺", r: 2 }, { n: "Crusher", e: "🦈", r: 3 },
+    { n: "Bulbasaur", e: "🌱", r: 1 }, { n: "Charmander", e: "🕯️", r: 1 }, { n: "Squirtle", e: "🐢", r: 1 },
+    { n: "Vulpix", e: "❄️", r: 1 }, { n: "Umbreon", e: "🐈‍⬛", r: 2 }, { n: "Absol", e: "🌙", r: 2 },
+    { n: "Scizor", e: "🦂", r: 2 }, { n: "Zoroark", e: "🌑", r: 3 },
   ],
   [
-    { n: "King Leo", e: "🦁", r: 2 }, { n: "Queen Zoe", e: "🐈‍⬛", r: 2 }, { n: "Sir Pounce", e: "🐯", r: 2 },
-    { n: "Doctor Hoot", e: "🦉", r: 2 }, { n: "Captain Blaze", e: "🔥", r: 3 }, { n: "Lord Drago", e: "🐉", r: 3 },
-    { n: "Champ Rex", e: "🦖", r: 3 }, { n: "Master Key", e: "🗝️", r: 4 },
+    { n: "Suicune", e: "💠", r: 2 }, { n: "Zacian", e: "⚔️", r: 2 }, { n: "Zekrom", e: "🌩️", r: 2 },
+    { n: "Reshiram", e: "☄️", r: 2 }, { n: "Giratina", e: "🌀", r: 3 }, { n: "Rayquaza", e: "🌌", r: 3 },
+    { n: "Koraidon", e: "🦖", r: 3 }, { n: "Arceus", e: "✨", r: 4 },
   ],
 ];
 
@@ -270,7 +276,7 @@ const RARITY = {
 
 const TROPHIES = [
   { id: "first-level", e: "👣", name: "First Steps", desc: "Finish your first level" },
-  { id: "first-catch", e: "🎯", name: "First Catch", desc: "Catch your first creature" },
+  { id: "first-catch", e: "🎯", name: "First Catch", desc: "Catch your first Pokemon" },
   { id: "combo-10", e: "🔥", name: "On Fire", desc: "Reach a 10 combo" },
   { id: "combo-25", e: "⚡", name: "Super Mode", desc: "Reach a 25 combo" },
   { id: "combo-50", e: "🌟", name: "Unstoppable", desc: "Reach a 50 combo" },
@@ -279,23 +285,23 @@ const TROPHIES = [
   { id: "wpm-35", e: "🚀", name: "Rocket Hands", desc: "Type 35 WPM in a level" },
   { id: "perfect", e: "💯", name: "Perfect!", desc: "Finish a level with 100% accuracy" },
   { id: "ninja", e: "🥷", name: "Keyboard Ninja", desc: "Beat a level in Ninja Mode (hidden keyboard)" },
-  { id: "collect-10", e: "📦", name: "Collector", desc: "Catch 10 creatures" },
-  { id: "collect-25", e: "🧺", name: "Big Collector", desc: "Catch 25 creatures" },
-  { id: "collect-all", e: "👑", name: "Caught Them All", desc: "Catch all 48 creatures" },
-  { id: "shiny", e: "✨", name: "Shiny Hunter", desc: "Catch a shiny creature" },
+  { id: "collect-10", e: "📦", name: "Collector", desc: "Catch 10 Pokemon" },
+  { id: "collect-25", e: "🧺", name: "Big Collector", desc: "Catch 25 Pokemon" },
+  { id: "collect-all", e: "👑", name: "Gotta Catch Them All", desc: "Catch all 48 Pokemon" },
+  { id: "shiny", e: "✨", name: "Shiny Hunter", desc: "Catch a shiny Pokemon" },
   { id: "streak-3", e: "📅", name: "Hat Trick", desc: "Play 3 days in a row" },
   { id: "streak-7", e: "🗓️", name: "Legend Week", desc: "Play 7 days in a row" },
-  { id: "boss-0", e: "🏆", name: "Meadow Champion", desc: "Defeat Grumpy Bear" },
-  { id: "boss-1", e: "🏆", name: "Cave Champion", desc: "Defeat the Cave Golem" },
-  { id: "boss-2", e: "🏆", name: "Stadium Champion", desc: "Defeat the Robo Keeper" },
-  { id: "boss-3", e: "🏆", name: "Peak Champion", desc: "Defeat the Shadow Dragon" },
-  { id: "boss-4", e: "🏆", name: "Forest Champion", desc: "Defeat the Oni King" },
-  { id: "boss-5", e: "🏆", name: "KEY MASTER", desc: "Defeat the Glitch King" },
+  { id: "boss-0", e: "🏆", name: "Rise and Shine", desc: "Wake the giant Snorlax" },
+  { id: "boss-1", e: "🏆", name: "Rock Smasher", desc: "Defeat the wild Onix" },
+  { id: "boss-2", e: "🏆", name: "Blasting Off", desc: "Send Team Rocket blasting off again" },
+  { id: "boss-3", e: "🏆", name: "Dragon Tamer", desc: "Defeat Garchomp" },
+  { id: "boss-4", e: "🏆", name: "Dream Defender", desc: "Defeat Darkrai" },
+  { id: "boss-5", e: "🏆", name: "POKEMON MASTER", desc: "Defeat MissingNo and save the Pokedex" },
 ];
 
 const ENCOURAGE = [
-  "You almost had it!", "So close! Try again!", "Every master was once a beginner!",
-  "Your fingers are getting stronger!", "One more try — you got this!",
+  "You almost had it!", "So close! Try again!", "Even Ash lost his first battles!",
+  "Your Pokemon believe in you!", "Every Master was once a Rookie!", "One more try, Trainer!",
 ];
 
 function shuffle(arr) {
@@ -304,6 +310,17 @@ function shuffle(arr) {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
+}
+
+// all keys taught up to and including world w (drill levels carry `keys`)
+function taughtKeys(w) {
+  const set = new Set([" "]);
+  for (let i = 0; i <= Math.min(w, WORLDS.length - 1); i++) {
+    for (const lvl of WORLDS[i].levels) {
+      for (const k of lvl.keys) set.add(k);
+    }
+  }
+  return set;
 }
 
 function xpNeededFor(level) {

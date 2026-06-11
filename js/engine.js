@@ -202,7 +202,11 @@ const Engine = {
     S.pos = 0;
     S.errorsThisPrompt = 0;
     UI.showCatch(S, creature);
-    this.startTimer((3.5 + S.text.length * 0.7) * 1000);
+    // Pokemon names may use a few letters the player hasn't learned yet —
+    // give bonus time for each so hunting them on the keyboard stays fun
+    const taught = taughtKeys(S.w);
+    const untaught = [...S.text.toLowerCase()].filter(c => !taught.has(c)).length;
+    this.startTimer((3.5 + S.text.length * 0.7 + untaught * 1.2) * 1000);
   },
 
   catchSuccess() {

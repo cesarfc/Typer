@@ -440,6 +440,8 @@ const UI = {
 
   // ---------- catch round ----------
   showCatch(S, creature) {
+    // names can use not-yet-taught letters: always show the glowing keyboard
+    this.$("kb").classList.remove("ninja");
     const wrap = this.$("target-wrap");
     const target = this.$("target");
     target.textContent = creature.e;
@@ -540,7 +542,7 @@ const UI = {
         <div class="caught-card ${res.caught.shiny ? "shiny" : ""}" style="--rc:${rar.color}">
           <div class="caught-emoji">${res.caught.e}</div>
           <div class="caught-name">${res.caught.shiny ? "✨ SHINY " : ""}${this.esc(res.caught.n)}</div>
-          <div class="caught-rar">${rar.label} · added to your Dex!</div>
+          <div class="caught-rar">${rar.label} · added to your Pokedex!</div>
         </div>`;
       setTimeout(() => this.confetti(), 600);
     } else if (res.fled) {
@@ -639,7 +641,7 @@ const UI = {
       <div class="stat-card"><div class="stat-v">${acc}%</div><div class="stat-l">accuracy</div></div>
       <div class="stat-card"><div class="stat-v">x${s.bestCombo}</div><div class="stat-l">best combo</div></div>
       <div class="stat-card"><div class="stat-v">${s.keys.toLocaleString()}</div><div class="stat-l">keys pressed</div></div>
-      <div class="stat-card"><div class="stat-v">${SAVE.caughtCount()}</div><div class="stat-l">creatures</div></div>
+      <div class="stat-card"><div class="stat-v">${SAVE.caughtCount()}</div><div class="stat-l">Pokemon</div></div>
       <div class="stat-card"><div class="stat-v">${SAVE.state.streak.count || 0}</div><div class="stat-l">day streak</div></div>`;
 
     const hist = s.history.slice(-12);
