@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TypeQuest ⌨️⚡</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <header id="topbar" class="hidden">
+    <div id="player-chip">
+      <span id="chip-avatar">🦊</span>
+      <div class="chip-info">
+        <div id="chip-name">Player</div>
+        <div id="chip-title">Rookie · Lv 1</div>
+        <div id="chip-xpbar"><div id="chip-xpfill"></div></div>
+      </div>
+    </div>
+    <nav id="main-nav">
+      <button class="navbtn active" data-nav="map">🗺️ Map</button>
+      <button class="navbtn" data-nav="dex">📕 Dex</button>
+      <button class="navbtn" data-nav="trophies">🏆 Trophies</button>
+      <button class="navbtn" data-nav="stats">📊 Stats</button>
+    </nav>
+    <div id="top-right">
+      <span id="streak-chip" title="Daily play streak">🔥 1</span>
+      <button id="sound-btn" title="Sound on/off">🔊</button>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ============ TITLE ============ -->
+    <section id="screen-title" class="screen">
+      <div class="title-box">
+        <div class="title-logo">⌨️</div>
+        <h1 class="title-name">Type<span>Quest</span></h1>
+        <p class="title-tag">Catch creatures · Beat bosses · Become the Key Master!</p>
+
+        <div id="title-new">
+          <label class="field-label" for="name-input">What is your hero name?</label>
+          <input id="name-input" maxlength="12" placeholder="Type your name..." autocomplete="off">
+          <label class="field-label">Pick your hero</label>
+          <div id="avatar-grid"></div>
+          <button id="btn-start" class="big-btn">▶ Start Adventure</button>
+        </div>
+
+        <div id="title-continue" class="hidden">
+          <p id="welcome-back"></p>
+          <button id="btn-continue" class="big-btn">▶ Continue Adventure</button>
+          <button id="btn-newgame" class="link-btn">start a brand new game</button>
+        </div>
+
+        <p class="title-note">⌨️ Best played on a computer with a real keyboard</p>
+      </div>
+    </section>
+
+    <!-- ============ WORLD MAP ============ -->
+    <section id="screen-map" class="screen hidden">
+      <h2 class="screen-title">Choose your world</h2>
+      <div id="world-list"></div>
+    </section>
+
+    <!-- ============ GAME ============ -->
+    <section id="screen-game" class="screen hidden">
+      <div id="game-hud">
+        <button id="btn-pause" title="Pause (Esc)">⏸</button>
+        <div id="hud-stage">World · Level</div>
+        <div id="hud-progress"><div id="hud-progress-fill"></div></div>
+        <div id="hud-right">
+          <span id="hud-hearts" class="hidden"></span>
+          <span id="hud-combo">x0</span>
+          <span id="hud-score">⭐ 0</span>
+        </div>
+      </div>
+
+      <div id="boss-bar" class="hidden">
+        <span id="boss-bar-name"></span>
+        <div id="boss-hp"><div id="boss-hp-fill"></div></div>
+      </div>
+
+      <div id="arena">
+        <div id="scene-emojis"></div>
+        <div id="target-wrap">
+          <div id="target">🦊</div>
+          <div id="target-label" class="hidden"></div>
+        </div>
+        <div id="player-side"><span id="player-avatar">🦊</span></div>
+        <div id="announce" class="hidden"></div>
+        <canvas id="fx-canvas"></canvas>
+      </div>
+
+      <div id="prompt-area">
+        <div id="prompt-word"></div>
+        <div id="timer-bar"><div id="timer-fill"></div></div>
+        <div id="finger-hint">&nbsp;</div>
+      </div>
+
+      <div id="kb-area">
+        <div id="kb"></div>
+        <div id="kb-footer">
+          <button id="btn-ninja">🥷 Ninja Mode: OFF</button>
+          <span id="capslock-warn" class="hidden">⚠️ CAPS LOCK is on!</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ RESULTS ============ -->
+    <section id="screen-results" class="screen hidden">
+      <div id="results-card">
+        <h2 id="results-title">Level Complete!</h2>
+        <div id="results-stars"><span class="star">★</span><span class="star">★</span><span class="star">★</span></div>
+        <div id="results-grid"></div>
+        <div id="results-xp">
+          <div class="xp-label"><span id="xp-gained"></span><span id="xp-level"></span></div>
+          <div id="results-xpbar"><div id="results-xpfill"></div></div>
+        </div>
+        <div id="results-catch" class="hidden"></div>
+        <div id="results-buttons">
+          <button id="btn-next" class="big-btn">Next ▶</button>
+          <button id="btn-replay" class="mid-btn">↻ Replay</button>
+          <button id="btn-tomap" class="mid-btn">🗺️ Map</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ DEX ============ -->
+    <section id="screen-dex" class="screen hidden">
+      <h2 class="screen-title">Creature Dex <span id="dex-count"></span></h2>
+      <div id="dex-list"></div>
+    </section>
+
+    <!-- ============ TROPHIES ============ -->
+    <section id="screen-trophies" class="screen hidden">
+      <h2 class="screen-title">Trophy Room <span id="trophy-count"></span></h2>
+      <div id="trophy-grid"></div>
+    </section>
+
+    <!-- ============ STATS ============ -->
+    <section id="screen-stats" class="screen hidden">
+      <h2 class="screen-title">My Stats</h2>
+      <div id="stats-cards"></div>
+      <div class="stats-row">
+        <div class="stats-panel">
+          <h3>Last games (speed)</h3>
+          <div id="stats-chart"></div>
+        </div>
+        <div class="stats-panel">
+          <h3>My keys</h3>
+          <div id="stats-keys"></div>
+        </div>
+      </div>
+      <button id="btn-reset" class="danger-btn">🗑 Erase everything and start over</button>
+    </section>
+
+  </main>
+
+  <div id="toasts"></div>
+
+  <div id="pause-overlay" class="hidden">
+    <div class="pause-box">
+      <h2>Paused</h2>
+      <button id="btn-resume" class="big-btn">▶ Keep Playing</button>
+      <button id="btn-restart" class="mid-btn">↻ Restart Level</button>
+      <button id="btn-quit" class="mid-btn">🗺️ Back to Map</button>
+    </div>
+  </div>
+
+</div>
+<script src="js/data.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/save.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
