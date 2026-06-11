@@ -8,11 +8,32 @@ const UI = {
   kbHidden: false,
   fx: { canvas: null, ctx: null, parts: [] },
   selectedAvatar: AVATARS[0],
+  spritesOk: false, // true once local Pokemon artwork is found (see tools/get-sprites.mjs)
 
   $(id) { return document.getElementById(id); },
 
+  // one probe at boot decides images vs emoji for the whole session
+  probeSprites() {
+    const img = new Image();
+    img.onload = () => { this.spritesOk = true; };
+    img.src = spriteUrl(25, false);
+  },
+
+  // big visual spots use real artwork when available, emoji otherwise
+  pokeHtml(id, emoji, { shiny = false, cls = "poke-img" } = {}) {
+    if (!this.spritesOk || !id) return emoji;
+    return `<img class="${cls}" src="${spriteUrl(id, shiny)}" alt="" draggable="false">`;
+  },
+
+  ballHtml() {
+    return this.spritesOk
+      ? `<img class="ball-img" src="img/pokemon/poke-ball.png" alt="" draggable="false">`
+      : "🔴";
+  },
+
   init() {
     SAVE.load();
+    this.probeSprites();
     this.kbHidden = SAVE.state ? !SAVE.state.settings.hints : false;
     this.buildTitle();
     this.buildKeyboard();
@@ -127,7 +148,7 @@ const UI = {
           : "<span class='mini-stars'>" + "★".repeat(st) + "<span class='off'>" + "★".repeat(Math.max(0, 3 - st)) + "</span></span>";
         return `<button class="stage ${isBoss ? "boss" : ""} ${open ? "" : "locked"} ${next ? "next" : ""} ${st > 0 ? "done" : ""}"
           data-w="${wi}" data-s="${s}" ${open ? "" : "disabled"}>
-          <span class="stage-num">${isBoss ? w.boss.emoji : s + 1}</span>${starsHtml}
+          <span class="stage-num">${isBoss ? this.pokeHtml(w.boss.id, w.boss.emoji, { cls: "poke-img stage-img" }) : s + 1}</span>${starsHtml}
         </button>`;
       }).join("");
       const lockMsg = wi > 0 ? `Defeat ${WORLDS[wi - 1].boss.name} ${WORLDS[wi - 1].boss.emoji} to unlock!` : "";
@@ -265,10 +286,16 @@ const UI = {
     const target = this.$("target");
     const wrap = this.$("target-wrap");
     if (S.isBoss) {
-      target.textContent = S.world.boss.emoji;
+      target.innerHTML = this.pokeHtml(S.world.boss.id, S.world.boss.emoji);
       target.className = "boss-size";
     } else {
-      target.textContent = S.world.targets[S.idx % S.world.targets.length];
+      if (S.w === 0) {
+        // wild Pokemon wander the meadow during levels
+        const c = CREATURES[0][S.idx % CREATURES[0].length];
+        target.innerHTML = this.pokeHtml(c.id, c.e);
+      } else {
+        target.textContent = S.world.targets[S.idx % S.world.targets.length];
+      }
       target.className = "";
       wrap.classList.remove("enter");
       void wrap.offsetWidth;
@@ -350,14 +377,18 @@ const UI = {
   },
 
   // ---------- target animations ----------
-  projectile(emoji, cb) {
+  projHtml(S) {
+    return S.world.projectile === "🔴" ? this.ballHtml() : S.world.projectile;
+  },
+
+  projectile(html, cb) {
     const arena = this.$("arena");
     const from = this.$("player-avatar").getBoundingClientRect();
     const to = this.$("target").getBoundingClientRect();
     const ar = arena.getBoundingClientRect();
     const p = document.createElement("div");
     p.className = "projectile";
-    p.textContent = emoji;
+    p.innerHTML = html;
     p.style.left = `${from.left - ar.left + from.width / 2}px`;
     p.style.top = `${from.top - ar.top}px`;
     arena.appendChild(p);
@@ -386,7 +417,7 @@ const UI = {
   targetHit(S) {
     const wrap = this.$("target-wrap");
     const target = this.$("target");
-    this.projectile(S.world.projectile, () => {
+    this.projectile(this.projHtml(S), () => {
       const r = target.getBoundingClientRect();
       this.burst(r.left + r.width / 2, r.top + r.height / 2, [S.world.accent, "#fff", "#ffd34d"], 18, 5);
       const txt = S.world.hitText[Math.floor(Math.random() * S.world.hitText.length)];
@@ -410,7 +441,7 @@ const UI = {
   bossHit(S) {
     const wrap = this.$("target-wrap");
     const target = this.$("target");
-    this.projectile(S.world.projectile, () => {
+    this.projectile(this.projHtml(S), () => {
       const r = target.getBoundingClientRect();
       this.burst(r.left + r.width / 2, r.top + r.height / 2, ["#fff", "#ffd34d", "#ff5e7a"], 24, 6);
       const txt = S.world.hitText[Math.floor(Math.random() * S.world.hitText.length)];
@@ -444,7 +475,7 @@ const UI = {
     this.$("kb").classList.remove("ninja");
     const wrap = this.$("target-wrap");
     const target = this.$("target");
-    target.textContent = creature.e;
+    target.innerHTML = this.pokeHtml(creature.id, creature.e);
     target.className = "catch-size";
     wrap.style.opacity = 1;
     wrap.style.transform = "none";
@@ -462,10 +493,10 @@ const UI = {
     const wrap = this.$("target-wrap");
     const target = this.$("target");
     if (success) {
-      this.projectile("🔴", () => {
+      this.projectile(this.ballHtml(), () => {
         const r = target.getBoundingClientRect();
         this.burst(r.left + r.width / 2, r.top + r.height / 2, ["#ffd34d", "#fff", S.world.accent], 30, 6);
-        target.textContent = "🔴";
+        target.innerHTML = this.ballHtml();
         wrap.classList.add("wobble");
         this.floatText("CAUGHT!", wrap, "big");
         setTimeout(() => { wrap.classList.remove("wobble"); done(); }, 1300);
@@ -540,7 +571,7 @@ const UI = {
       catchBox.className = "catch-result";
       catchBox.innerHTML = `
         <div class="caught-card ${res.caught.shiny ? "shiny" : ""}" style="--rc:${rar.color}">
-          <div class="caught-emoji">${res.caught.e}</div>
+          <div class="caught-emoji">${this.pokeHtml(res.caught.id, res.caught.e, { shiny: res.caught.shiny })}</div>
           <div class="caught-name">${res.caught.shiny ? "✨ SHINY " : ""}${this.esc(res.caught.n)}</div>
           <div class="caught-rar">${rar.label} · added to your Pokedex!</div>
         </div>`;
@@ -609,9 +640,9 @@ const UI = {
       const cards = CREATURES[wi].map((c, ci) => {
         const got = SAVE.state.dex[`${wi}-${ci}`];
         const rar = RARITY[c.r];
-        if (!got) return `<div class="dex-card unknown"><div class="dex-emoji">${c.e}</div><div class="dex-name">???</div></div>`;
+        if (!got) return `<div class="dex-card unknown"><div class="dex-emoji">${this.pokeHtml(c.id, c.e)}</div><div class="dex-name">???</div></div>`;
         return `<div class="dex-card ${got.shiny ? "shiny" : ""}" style="--rc:${rar.color}">
-          <div class="dex-emoji">${c.e}</div>
+          <div class="dex-emoji">${this.pokeHtml(c.id, c.e, { shiny: got.shiny })}</div>
           <div class="dex-name">${got.shiny ? "✨" : ""}${this.esc(c.n)}</div>
           <div class="dex-rar">${rar.label}</div></div>`;
       }).join("");

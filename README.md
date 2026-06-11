@@ -22,6 +22,19 @@ No installs, no internet, no accounts. **Just open `index.html` in a browser.**
 Progress saves automatically in the browser (localStorage), so use the same
 browser on the same computer to keep the save.
 
+## Real Pokemon artwork (one-time setup)
+
+```bash
+node tools/get-sprites.mjs
+```
+
+This downloads the official-artwork images (normal + shiny + bosses,
+~14 MB) from the community [PokeAPI sprites](https://github.com/PokeAPI/sprites)
+repository into `img/pokemon/`. That folder is **gitignored on purpose** —
+the artwork belongs to Nintendo/The Pokemon Company, so it stays on your
+computer rather than in the repository. If you skip this step the game
+still works and shows emoji instead.
+
 **Multiple players:** the title screen asks "Who is playing today?" — up to 8
 players, each with their own worlds, creatures, trophies and streaks. Click
 the player name in the top bar (⇄) any time to switch. Deleting or erasing a

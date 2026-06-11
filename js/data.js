@@ -50,7 +50,7 @@ const WORLDS = [
     projectile: "🔴",
     hitText: ["Gotcha!", "Caught!", "Nice throw!", "Great ball!"],
     sceneEmojis: ["🌸", "🌿", "🍄", "🦋"],
-    boss: { name: "Snorlax", emoji: "😴", hp: 9, time: 5.5, taunt: "Zzz... WHO dares wake me?!" },
+    boss: { name: "Snorlax", emoji: "😴", id: 143, hp: 9, time: 5.5, taunt: "Zzz... WHO dares wake me?!" },
     levels: [
       { name: "F and J", keys: "fj", time: 6,
         pool: ["f", "j", "ff", "jj", "fj", "jf", "fjf", "jfj", "jjf", "ffj", "fjj", "jff"], count: 10 },
@@ -76,7 +76,7 @@ const WORLDS = [
     projectile: "⛏️",
     hitText: ["Mined!", "Moon Stone!", "Fossil found!", "Sparkle!"],
     sceneEmojis: ["💎", "🕯️", "🪨", "🦇"],
-    boss: { name: "Onix", emoji: "🪨", hp: 10, time: 5, taunt: "I am ROCK SOLID. You cannot beat me!" },
+    boss: { name: "Onix", emoji: "🪨", id: 95, hp: 10, time: 5, taunt: "I am ROCK SOLID. You cannot beat me!" },
     levels: [
       { name: "E and I", keys: "ei", time: 5.5,
         pool: ["e", "i", "ee", "ii", "ei", "ie", "die", "lie", "like", "side", "idea", "aide", "ladies",
@@ -107,7 +107,7 @@ const WORLDS = [
     projectile: "⚽",
     hitText: ["GOOOAL!", "Top corner!", "What a shot!", "Screamer!"],
     sceneEmojis: ["🏟️", "📣", "🎉", "⚽"],
-    boss: { name: "Team Rocket", emoji: "😼", hp: 10, time: 4.5, taunt: "Prepare for trouble! NO goals for you!" },
+    boss: { name: "Team Rocket", emoji: "😼", id: 52, hp: 10, time: 4.5, taunt: "Prepare for trouble! NO goals for you!" },
     levels: [
       { name: "T and O", keys: "to", time: 5,
         pool: ["t", "o", "to", "too", "tot", "lot", "dot", "tool", "took", "look", "foot", "food",
@@ -138,7 +138,7 @@ const WORLDS = [
     projectile: "💥",
     hitText: ["KA-BOOM!", "Super effective!", "MEGA HIT!", "Over 9000!"],
     sceneEmojis: ["⛰️", "🔥", "☁️", "⚡"],
-    boss: { name: "Garchomp", emoji: "🐲", hp: 11, time: 4.5, taunt: "No trainer escapes my den!" },
+    boss: { name: "Garchomp", emoji: "🐲", id: 445, hp: 11, time: 4.5, taunt: "No trainer escapes my den!" },
     levels: [
       { name: "M and P", keys: "mp", time: 4.5,
         pool: ["m", "p", "map", "mop", "team", "jump", "lamp", "pump", "more", "time", "game", "make",
@@ -171,7 +171,7 @@ const WORLDS = [
     projectile: "🗡️",
     hitText: ["Slash!", "Super effective!", "Critical hit!", "Stay calm!"],
     sceneEmojis: ["🌲", "🍃", "🏮", "🌫️"],
-    boss: { name: "Darkrai", emoji: "😈", hp: 12, time: 4, taunt: "Welcome to your NIGHTMARE!" },
+    boss: { name: "Darkrai", emoji: "😈", id: 491, hp: 12, time: 4, taunt: "Welcome to your NIGHTMARE!" },
     levels: [
       { name: "C and V", keys: "cv", time: 4.5,
         pool: ["c", "v", "cave", "cut", "cool", "nice", "voice", "very", "give", "love", "have",
@@ -204,7 +204,7 @@ const WORLDS = [
     projectile: "⭐",
     hitText: ["Legendary!", "Critical hit!", "Masterful!", "One in a million!"],
     sceneEmojis: ["🏆", "✨", "👑", "🎆"],
-    boss: { name: "MissingNo", emoji: "👾", hp: 10, time: 4, taunt: "I corrupted the Pokedex. The world is MINE!" },
+    boss: { name: "MissingNo", emoji: "👾", id: null, hp: 10, time: 4, taunt: "I corrupted the Pokedex. The world is MINE!" },
     levels: [
       { name: "Big Letters", keys: "", time: 4.5,
         pool: ["Ash", "Red", "Blue", "Misty", "Brock", "Leon", "May", "Dawn", "Ash and Brock",
@@ -236,36 +236,42 @@ const WORLDS = [
 // r: rarity 1 common, 2 rare, 3 epic, 4 legendary
 const CREATURES = [
   [
-    { n: "Seel", e: "🦭", r: 1 }, { n: "Ekans", e: "🐍", r: 1 }, { n: "Dedenne", e: "🐹", r: 1 },
-    { n: "Sandslash", e: "🦔", r: 1 }, { n: "Abra", e: "💫", r: 2 }, { n: "Lapras", e: "🦕", r: 2 },
-    { n: "Alakazam", e: "🥄", r: 2 }, { n: "Klefki", e: "🗝️", r: 3 },
+    { n: "Seel", e: "🦭", id: 86, r: 1 }, { n: "Ekans", e: "🐍", id: 23, r: 1 }, { n: "Dedenne", e: "🐹", id: 702, r: 1 },
+    { n: "Sandslash", e: "🦔", id: 28, r: 1 }, { n: "Abra", e: "💫", id: 63, r: 2 }, { n: "Lapras", e: "🦕", id: 131, r: 2 },
+    { n: "Alakazam", e: "🥄", id: 65, r: 2 }, { n: "Klefki", e: "🗝️", id: 707, r: 3 },
   ],
   [
-    { n: "Eevee", e: "🦊", r: 1 }, { n: "Furret", e: "🦦", r: 1 }, { n: "Raichu", e: "🐭", r: 1 },
-    { n: "Dratini", e: "🐉", r: 1 }, { n: "Arcanine", e: "🐕", r: 2 }, { n: "Greninja", e: "🐸", r: 2 },
-    { n: "Raikou", e: "🐯", r: 2 }, { n: "Lucario", e: "🐺", r: 3 },
+    { n: "Eevee", e: "🦊", id: 133, r: 1 }, { n: "Furret", e: "🦦", id: 162, r: 1 }, { n: "Raichu", e: "🐭", id: 26, r: 1 },
+    { n: "Dratini", e: "🐉", id: 147, r: 1 }, { n: "Arcanine", e: "🐕", id: 59, r: 2 }, { n: "Greninja", e: "🐸", id: 658, r: 2 },
+    { n: "Raikou", e: "🐯", id: 243, r: 2 }, { n: "Lucario", e: "🐺", id: 448, r: 3 },
   ],
   [
-    { n: "Growlithe", e: "🐶", r: 1 }, { n: "Hoothoot", e: "🦉", r: 1 }, { n: "Wooloo", e: "🐑", r: 1 },
-    { n: "Togepi", e: "🥚", r: 1 }, { n: "Girafarig", e: "🦒", r: 2 }, { n: "Gengar", e: "👻", r: 2 },
-    { n: "Dragonite", e: "🐲", r: 2 }, { n: "Charizard", e: "🔥", r: 3 },
+    { n: "Growlithe", e: "🐶", id: 58, r: 1 }, { n: "Hoothoot", e: "🦉", id: 163, r: 1 }, { n: "Wooloo", e: "🐑", id: 831, r: 1 },
+    { n: "Togepi", e: "🥚", id: 175, r: 1 }, { n: "Girafarig", e: "🦒", id: 203, r: 2 }, { n: "Gengar", e: "👻", id: 94, r: 2 },
+    { n: "Dragonite", e: "🐲", id: 149, r: 2 }, { n: "Charizard", e: "🔥", id: 6, r: 3 },
   ],
   [
-    { n: "Magikarp", e: "🐟", r: 1 }, { n: "Piplup", e: "🐧", r: 1 }, { n: "Mudkip", e: "🦎", r: 1 },
-    { n: "Gyarados", e: "🐋", r: 2 }, { n: "Mew", e: "💗", r: 2 }, { n: "Lugia", e: "🕊️", r: 2 },
-    { n: "Pikachu", e: "⚡", r: 3 }, { n: "Mewtwo", e: "🧬", r: 3 },
+    { n: "Magikarp", e: "🐟", id: 129, r: 1 }, { n: "Piplup", e: "🐧", id: 393, r: 1 }, { n: "Mudkip", e: "🦎", id: 258, r: 1 },
+    { n: "Gyarados", e: "🐋", id: 130, r: 2 }, { n: "Mew", e: "💗", id: 151, r: 2 }, { n: "Lugia", e: "🕊️", id: 249, r: 2 },
+    { n: "Pikachu", e: "⚡", id: 25, r: 3 }, { n: "Mewtwo", e: "🧬", id: 150, r: 3 },
   ],
   [
-    { n: "Bulbasaur", e: "🌱", r: 1 }, { n: "Charmander", e: "🕯️", r: 1 }, { n: "Squirtle", e: "🐢", r: 1 },
-    { n: "Vulpix", e: "❄️", r: 1 }, { n: "Umbreon", e: "🐈‍⬛", r: 2 }, { n: "Absol", e: "🌙", r: 2 },
-    { n: "Scizor", e: "🦂", r: 2 }, { n: "Zoroark", e: "🌑", r: 3 },
+    { n: "Bulbasaur", e: "🌱", id: 1, r: 1 }, { n: "Charmander", e: "🕯️", id: 4, r: 1 }, { n: "Squirtle", e: "🐢", id: 7, r: 1 },
+    { n: "Vulpix", e: "❄️", id: 37, r: 1 }, { n: "Umbreon", e: "🐈‍⬛", id: 197, r: 2 }, { n: "Absol", e: "🌙", id: 359, r: 2 },
+    { n: "Scizor", e: "🦂", id: 212, r: 2 }, { n: "Zoroark", e: "🌑", id: 571, r: 3 },
   ],
   [
-    { n: "Suicune", e: "💠", r: 2 }, { n: "Zacian", e: "⚔️", r: 2 }, { n: "Zekrom", e: "🌩️", r: 2 },
-    { n: "Reshiram", e: "☄️", r: 2 }, { n: "Giratina", e: "🌀", r: 3 }, { n: "Rayquaza", e: "🌌", r: 3 },
-    { n: "Koraidon", e: "🦖", r: 3 }, { n: "Arceus", e: "✨", r: 4 },
+    { n: "Suicune", e: "💠", id: 245, r: 2 }, { n: "Zacian", e: "⚔️", id: 888, r: 2 }, { n: "Zekrom", e: "🌩️", id: 644, r: 2 },
+    { n: "Reshiram", e: "☄️", id: 643, r: 2 }, { n: "Giratina", e: "🌀", id: 487, r: 3 }, { n: "Rayquaza", e: "🌌", id: 384, r: 3 },
+    { n: "Koraidon", e: "🦖", id: 1007, r: 3 }, { n: "Arceus", e: "✨", id: 493, r: 4 },
   ],
 ];
+
+// Local sprite files (downloaded once by tools/get-sprites.mjs, see README).
+// The game silently falls back to emoji when the images are not present.
+function spriteUrl(id, shiny) {
+  return `img/pokemon/${shiny ? "shiny-" : ""}${id}.png`;
+}
 
 const RARITY = {
   1: { label: "Common", color: "#9aa3d0" },

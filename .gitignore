@@ -1,0 +1,4 @@
+# Pokemon artwork stays local (download with: node tools/get-sprites.mjs)
+img/pokemon/
+
+.DS_Store

@@ -311,6 +311,17 @@ button:active { transform: translateY(1px) scale(.98); }
 
 .projectile { position: absolute; font-size: 38px; z-index: 4; pointer-events: none; }
 
+/* real Pokemon artwork (optional local sprites, emoji fallback otherwise) */
+.poke-img { width: auto; user-select: none; }
+#target .poke-img { height: 112px; filter: drop-shadow(0 8px 14px rgba(0,0,0,.45)); }
+#target.boss-size .poke-img { height: 165px; }
+#target.catch-size .poke-img { height: 132px; }
+.ball-img { height: 40px; image-rendering: pixelated; }
+.projectile .ball-img { height: 42px; }
+.caught-emoji .poke-img { height: 112px; }
+.dex-emoji .poke-img { height: 62px; }
+.stage-img { height: 30px; vertical-align: middle; }
+
 .float-text {
   position: absolute;
   transform: translateX(-50%);
