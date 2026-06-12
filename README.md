@@ -138,7 +138,9 @@ Each world = 5 levels + a **boss fight**. Beating the boss unlocks the next worl
 - **DS-style presentation** — the island map is a tilted 3D view with the
   horizon in the distance and trees, towns and Pokemon standing upright on
   the ground, and battles stage your trainer and partner on a near platform
-  facing the enemy on a far one, with a message-box prompt panel.
+  facing the enemy on a far one, with a message-box prompt panel. Towns and
+  forests mix original vector art with openly licensed pixel tiles by
+  Kelvin Shadewing (via the Tuxemon project — see CREDITS.md).
 - **Combos** — 25 correct keys in a row triggers SUPER MODE.
 - **XP, levels and titles** — from Rookie all the way to Typing Legend.
 - **22 trophies**, daily play streaks, and a personal-best speed chart.

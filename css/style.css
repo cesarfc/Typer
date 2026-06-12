@@ -566,6 +566,7 @@ button:active { transform: translateY(1px) scale(.98); }
 }
 .egg-note.ready { border-color: var(--gold); animation: pulseGlow 1.4s ease-in-out infinite; }
 .msprite { display: block; }
+.tile { display: block; image-rendering: pixelated; background-repeat: no-repeat; margin: 0 auto; }
 .map-decor .msprite, .map-city .msprite, .map-school .msprite, .g-rustle .msprite { margin: 0 auto; }
 .map-city { position: absolute; transform: translate(-50%, -50%); text-align: center; pointer-events: none; z-index: 2; }
 .map-city span { font-size: 38px; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)); }

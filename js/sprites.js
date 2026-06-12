@@ -162,3 +162,33 @@ function mapSprite(name, size, opt) {
   const f = MAP_SPRITES[name];
   return f ? f(size, opt) : "";
 }
+
+// ============================================================
+// Pixel tiles cut from openly licensed tilesheets (see CREDITS.md):
+// buildings.png and setpieces.png by Kelvin Shadewing, via the
+// Tuxemon project. Rendered as CSS sprites, scaled and pixelated.
+// ============================================================
+
+const TILE_DEFS = {
+  // sheet, x, y, w, h (source pixels)
+  centerRed:  ["buildings", 0, 96, 64, 48],
+  martBlue:   ["buildings", 80, 96, 72, 48],
+  rowBrown:   ["buildings", 0, 152, 64, 56],
+  fountain:   ["buildings", 272, 336, 48, 56],
+  bushPair:   ["buildings", 272, 86, 32, 28],
+  pine:       ["setpieces", 16, 416, 16, 32],
+  pineBig:    ["setpieces", 32, 400, 32, 48],
+  mushroomT:  ["setpieces", 96, 432, 16, 16],
+  rocksT:     ["setpieces", 352, 480, 32, 16],
+  bench:      ["setpieces", 536, 480, 48, 16],
+};
+
+function tileSprite(name, scale = 2.5) {
+  const d = TILE_DEFS[name];
+  if (!d) return "";
+  const [sheet, x, y, w, h] = d;
+  return `<span class="tile" style="width:${w * scale}px;height:${h * scale}px;` +
+    `background-image:url('img/tiles/${sheet}.png');` +
+    `background-position:${-x * scale}px ${-y * scale}px;` +
+    `background-size:${(sheet === "buildings" ? 320 : 720) * scale}px auto"></span>`;
+}

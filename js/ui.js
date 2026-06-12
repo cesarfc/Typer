@@ -298,9 +298,9 @@ const UI = {
   mapAnchors: [[230, 1190], [660, 640], [1210, 1010], [1730, 430], [2140, 1030], [2480, 560], [2680, 300]],
 
   MAP_CITIES: [
-    { x: 180, y: 1330, sp: "house", s: 60, n: "Pallet Town" },
+    { x: 180, y: 1330, t: "centerRed", sc: 1.9, n: "Pallet Town" },
     { x: 545, y: 455, sp: "mine", s: 64, n: "Moonstone City" },
-    { x: 1340, y: 1165, sp: "gym", s: 78, n: "Victory City" },
+    { x: 1340, y: 1165, t: "martBlue", sc: 1.9, n: "Victory City" },
     { x: 1905, y: 290, sp: "volcano", s: 72, n: "Ember Town" },
     { x: 2010, y: 1190, sp: "lanternpost", s: 48, n: "Lantern Village" },
     { x: 2625, y: 425, sp: "hall", s: 80, n: "Hall of Fame" },
@@ -309,23 +309,29 @@ const UI = {
   ],
   MAP_DECOR: [
     // Pallet Meadow
-    { x: 95, y: 1115, sp: "tree", s: 54 }, { x: 335, y: 1005, sp: "pine", s: 44 }, { x: 470, y: 1265, sp: "flower", s: 26 },
-    { x: 150, y: 950, sp: "tree", s: 44 }, { x: 420, y: 1125, sp: "mushroom", s: 24 }, { x: 300, y: 1330, sp: "flower", s: 24, c: "#ffd34d" },
+    { x: 95, y: 1115, sp: "tree", s: 54 }, { x: 335, y: 1005, t: "pine", sc: 2 }, { x: 470, y: 1265, sp: "flower", s: 26 },
+    { x: 150, y: 950, sp: "tree", s: 44 }, { x: 420, y: 1125, t: "mushroomT", sc: 1.8 }, { x: 300, y: 1330, sp: "flower", s: 24, c: "#ffd34d" },
     { x: 640, y: 1090, sp: "tree", s: 48 }, { x: 250, y: 1180, sp: "sign", s: 26 }, { x: 255, y: 1290, sp: "house", s: 46, c: "#3a6fd8" },
+    { x: 360, y: 1135, t: "bushPair", sc: 1.8 }, { x: 530, y: 1190, t: "pine", sc: 1.8 }, { x: 120, y: 1255, t: "pineBig", sc: 1.7 },
     // Mt. Moon
     { x: 560, y: 835, sp: "rock", s: 36 }, { x: 770, y: 515, sp: "mountain", s: 86 }, { x: 855, y: 720, sp: "mountain", s: 66 },
-    { x: 595, y: 575, sp: "crystal", s: 28 }, { x: 930, y: 555, sp: "rock", s: 30 }, { x: 720, y: 390, sp: "mountain", s: 58 },
+    { x: 595, y: 575, sp: "crystal", s: 28 }, { x: 930, y: 555, t: "rocksT", sc: 2 }, { x: 720, y: 390, sp: "mountain", s: 58 },
+    { x: 640, y: 700, t: "rocksT", sc: 1.8 }, { x: 845, y: 480, t: "pine", sc: 1.7 },
     // Stadium plains
     { x: 1085, y: 860, sp: "wheat", s: 30 }, { x: 1345, y: 885, sp: "tree", s: 50 }, { x: 1145, y: 1190, sp: "flag", s: 30, c: "#3a6fd8" },
     { x: 1430, y: 1065, sp: "flag", s: 30 }, { x: 1240, y: 1280, sp: "sign", s: 28 }, { x: 1500, y: 960, sp: "tree", s: 44 },
+    { x: 1255, y: 1110, t: "fountain", sc: 1.6 }, { x: 1475, y: 1120, t: "rowBrown", sc: 1.5 }, { x: 1295, y: 1235, t: "bench", sc: 1.8 },
+    { x: 1465, y: 1245, t: "bushPair", sc: 1.8 }, { x: 1180, y: 1020, t: "pine", sc: 1.8 },
     // Dragon's Den
-    { x: 1605, y: 555, sp: "mountain", s: 82 }, { x: 1835, y: 555, sp: "rock", s: 30 }, { x: 1955, y: 515, sp: "crystal", s: 24 },
+    { x: 1605, y: 555, sp: "mountain", s: 82 }, { x: 1835, y: 555, t: "rocksT", sc: 2.2 }, { x: 1955, y: 515, sp: "crystal", s: 24 },
     { x: 1690, y: 220, sp: "mountain", s: 70 }, { x: 1840, y: 140, e: "☁️", s: 30 },
     // Eterna Forest
-    { x: 2015, y: 895, sp: "pine", s: 56 }, { x: 2245, y: 1185, sp: "pine", s: 46 }, { x: 2085, y: 1125, sp: "lanternpost", s: 34 },
-    { x: 2305, y: 905, e: "🌫️", s: 30 }, { x: 2200, y: 1320, sp: "pine", s: 40 }, { x: 2450, y: 980, sp: "pine", s: 44 },
+    { x: 2015, y: 895, t: "pineBig", sc: 2 }, { x: 2245, y: 1185, t: "pineBig", sc: 1.8 }, { x: 2085, y: 1125, sp: "lanternpost", s: 34 },
+    { x: 2305, y: 905, e: "🌫️", s: 30 }, { x: 2200, y: 1320, t: "pine", sc: 2 }, { x: 2450, y: 980, t: "pineBig", sc: 1.7 },
+    { x: 2120, y: 1010, t: "pine", sc: 2.1 }, { x: 2330, y: 1100, t: "pine", sc: 1.8 }, { x: 2270, y: 990, t: "mushroomT", sc: 1.8 },
     // Hall of Fame
     { x: 2385, y: 680, e: "✨", s: 18 }, { x: 2565, y: 645, sp: "flag", s: 30, c: "#f5c84c" }, { x: 2705, y: 485, e: "👑", s: 22 },
+    { x: 2530, y: 540, t: "bench", sc: 1.7 },
     // water
     { x: 705, y: 1185, sp: "wave", s: 42 }, { x: 825, y: 1245, sp: "wave", s: 34 }, { x: 1005, y: 1335, sp: "wave", s: 42 },
   ],
@@ -482,9 +488,9 @@ const UI = {
     const chip = this.$("wild-chip");
     if (chip) chip.textContent = `🌿 ${patches.length} · 🎣 ${castsLeft}`;
     html += this.MAP_DECOR.map(o =>
-      `<span class="map-decor" style="left:${o.x}px;top:${o.y}px;${o.e ? `font-size:${o.s}px` : ""}">${o.sp ? mapSprite(o.sp, o.s, o.c) : o.e}</span>`).join("");
+      `<span class="map-decor" style="left:${o.x}px;top:${o.y}px;${o.e ? `font-size:${o.s}px` : ""}">${o.t ? tileSprite(o.t, o.sc) : o.sp ? mapSprite(o.sp, o.s, o.c) : o.e}</span>`).join("");
     html += this.MAP_CITIES.map(c =>
-      `<div class="map-city" style="left:${c.x}px;top:${c.y}px"><span class="city-art">${mapSprite(c.sp, c.s)}</span><b>${c.n}</b></div>`).join("");
+      `<div class="map-city" style="left:${c.x}px;top:${c.y}px"><span class="city-art">${c.t ? tileSprite(c.t, c.sc) : mapSprite(c.sp, c.s)}</span><b>${c.n}</b></div>`).join("");
 
     // Trainer School: practice with no countdown, any time
     html += `<button class="map-school" style="left:430px;top:1330px" title="Trainer School — no countdown, race your records!">
