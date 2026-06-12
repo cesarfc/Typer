@@ -61,7 +61,10 @@ const Engine = {
     S.text = S.prompts[S.idx];
     UI.showPrompt(S);
     // practice runs have no countdown — the "timer" is a count-up stopwatch
-    const ms = S.practice ? Infinity : (S.baseTime + S.text.length * 0.6) * this.difficulty().time * 1000;
+    let ms = S.practice ? Infinity : (S.baseTime + S.text.length * 0.6) * this.difficulty().time * 1000;
+    // the first prompt shares the screen with the level announcement:
+    // grant reading time so the lesson never costs the clock
+    if (S.idx === 0 && isFinite(ms)) ms += 700;
     this.startTimer(ms);
   },
 
@@ -689,9 +692,15 @@ const Engine = {
     const S = this.session;
     this.paused = false;
     this.pendingNext = false;
+    this.stopTimer();
     UI.pauseOverlay(false);
     UI.superMode(false);
-    if (S) this.startStage(S.w, S.s);
+    if (!S) return;
+    // non-story sessions can't restart via startStage (negative stage idx)
+    if (S.practice) { this.startPractice(S.practice.id); return; }
+    if (S.s >= 0) { this.startStage(S.w, S.s); return; }
+    this.session = null;
+    UI.show("map");
   },
 
   quitToMap() {

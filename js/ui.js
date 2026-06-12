@@ -284,8 +284,9 @@ const UI = {
     this.$("sound-btn").textContent = SAVE.state.settings.sound ? "🔊" : "🔇";
     const d = DIFFICULTY[SAVE.state.settings.difficulty] || DIFFICULTY.normal;
     const db = this.$("diff-btn");
-    db.textContent = d.e;
+    db.textContent = `${d.e} ${d.label}`;
     db.title = `Difficulty: ${d.label} — click to change`;
+    db.setAttribute("aria-label", `Difficulty ${d.label}, click to change`);
   },
 
   // ---------- region map (pannable, DS-style tilted view) ----------
@@ -667,9 +668,21 @@ const UI = {
     vp.addEventListener("click", e => {
       if (this._mapDragged) return;
       const b = e.target.closest(".mnode");
-      if (b && !b.classList.contains("locked")) {
+      if (b) {
         SFX.init();
-        Engine.startStage(+b.dataset.w, +b.dataset.s);
+        if (!b.classList.contains("locked")) {
+          Engine.startStage(+b.dataset.w, +b.dataset.s);
+        } else {
+          // locked: never answer a click with silence
+          SFX.error();
+          b.classList.remove("denied");
+          void b.offsetWidth;
+          b.classList.add("denied");
+          const w = +b.dataset.w, s = +b.dataset.s;
+          this.toast(!SAVE.worldUnlocked(w)
+            ? `🔒 Defeat ${WORLDS[w - 1].boss.name} ${WORLDS[w - 1].boss.emoji} to enter ${WORLDS[w].name}!`
+            : `🔒 Beat ${WORLDS[w].name} level ${s} first!`);
+        }
         return;
       }
       const g = e.target.closest(".map-grass");
@@ -722,9 +735,17 @@ const UI = {
 
     this.$("practice-tiers").addEventListener("click", e => {
       const t = e.target.closest(".tier-card");
-      if (t && !t.classList.contains("locked")) {
-        SFX.init();
+      if (!t) return;
+      SFX.init();
+      if (!t.classList.contains("locked")) {
         Engine.startPractice(t.dataset.tier);
+      } else {
+        SFX.error();
+        t.classList.remove("denied");
+        void t.offsetWidth;
+        t.classList.add("denied");
+        const tier = PRACTICE_TIERS.find(x => x.id === t.dataset.tier);
+        if (tier) this.toast(`🔒 Reach ${WORLDS[tier.need].emoji} ${WORLDS[tier.need].name} to unlock ${tier.label} practice!`);
       }
     });
 
@@ -826,7 +847,14 @@ const UI = {
       document.querySelectorAll(`.hand-finger[data-f="${leftHand ? 7 : 0}"]`).forEach(el => el.classList.add("on"));
       txt = `hold ⇧ Shift + ${txt}`;
     }
-    hint.innerHTML = txt ? `👆 ${txt}` : "&nbsp;";
+    // Caps Lock is the #1 kid keyboard accident — warn where they look
+    if (this._capsOn) {
+      hint.innerHTML = "⚠️ Turn off CAPS LOCK!";
+      hint.classList.add("warn");
+    } else {
+      hint.classList.remove("warn");
+      hint.innerHTML = txt ? `👆 ${txt}` : "&nbsp;";
+    }
   },
 
   // ---------- game screen ----------
@@ -841,6 +869,8 @@ const UI = {
     this.$("hud-stage").textContent = S.isBoss
       ? `${w.emoji} ${w.name} · BOSS`
       : `${w.emoji} ${w.name} · ${w.levels[S.s].name}`;
+    // the boss HP bar already shows progress inverted — one meter is enough
+    this.$("hud-progress").classList.toggle("hidden", S.isBoss);
     this.$("hud-progress-fill").style.width = "0%";
     this.$("player-avatar").innerHTML = this.avatarHtml(SAVE.state.profile);
 
@@ -992,7 +1022,8 @@ const UI = {
   },
 
   capsCheck(e) {
-    const on = e.getModifierState && e.getModifierState("CapsLock");
+    const on = !!(e.getModifierState && e.getModifierState("CapsLock"));
+    this._capsOn = on;
     this.$("capslock-warn").classList.toggle("hidden", !on);
   },
 
@@ -1179,7 +1210,9 @@ const UI = {
     this._lastStage = [res.w, res.s];
     this._practiceNext = null;
     this._practiceMode = false;
+    this._resultsAt = performance.now();
     this.$("btn-replay").textContent = "↻ Replay";
+    this.$("btn-replay").classList.remove("hidden");
     this.$("results-stars").classList.remove("hidden");
     const w = WORLDS[res.w];
     const title = this.$("results-title");
@@ -1317,6 +1350,9 @@ const UI = {
     this._lastStage = [S.w, S.s];
     this._practiceNext = null;
     this._practiceMode = false;
+    this._resultsAt = performance.now();
+    this.$("results-egg").className = "hidden";          // no stale egg note
+    this.$("btn-replay").classList.add("hidden");        // same as Try Again
     this.$("btn-replay").textContent = "↻ Replay";
     const card = this.$("results-card");
     card.classList.add("defeat");
@@ -1479,6 +1515,7 @@ const UI = {
     this.applyKbVisibility();
     this.practiceTimerUI(true);
     this.$("hud-stage").textContent = `🏫 Practice · ${S.practice.label}`;
+    this.$("hud-progress").classList.remove("hidden");
     this.$("hud-progress-fill").style.width = "0%";
     this.$("hud-hearts").classList.add("hidden");
     this.$("boss-bar").classList.add("hidden");
@@ -1516,7 +1553,7 @@ const UI = {
       const pbHtml = pb
         ? `⏱ best ${this.fmtTime(pb.time)} · ⚡ best ${pb.wpm} wpm`
         : `no record yet — set one!`;
-      return `<button class="tier-card ${open ? "" : "locked"}" data-tier="${t.id}" ${open ? "" : "disabled"}>
+      return `<button class="tier-card ${open ? "" : "locked"}" data-tier="${t.id}">
         <span class="tier-e">${t.e}</span>
         <span class="tier-info">
           <b>${t.label}</b>
@@ -1534,6 +1571,8 @@ const UI = {
     this._practiceMode = true;
     this._nextTarget = null;
     this._lastStage = null;
+    this._resultsAt = performance.now();
+    this.$("btn-replay").classList.remove("hidden");
     const card = this.$("results-card");
     card.classList.remove("defeat");
     card.style.setProperty("--wa", "#4dc3ff");
@@ -1588,6 +1627,7 @@ const UI = {
     this.$("hud-stage").textContent = fishing ? "🎣 Gone fishing..."
       : legendary ? "🌟 LEGENDARY BATTLE!"
       : `🌿 ${w.name} · Wild encounter!`;
+    this.$("hud-progress").classList.remove("hidden");
     this.$("hud-progress-fill").style.width = "0%";
     this.$("hud-hearts").classList.add("hidden");
     this.$("boss-bar").classList.add("hidden");
@@ -1645,10 +1685,12 @@ const UI = {
     this.$("capslock-warn").classList.add("hidden");
     this.$("kb-flex").classList.remove("ninja");
     this.$("hud-stage").textContent = "🥚 The egg is hatching!";
+    this.$("hud-progress").classList.remove("hidden");
     this.$("hud-progress-fill").style.width = "100%";
     this.$("hud-hearts").classList.add("hidden");
     this.$("boss-bar").classList.add("hidden");
     this.practiceTimerUI(false);
+    this.$("timer-bar").classList.add("hidden"); // "no rush" should look like no rush
     this.showPartner(S);
     this.partnerMeter(S);
     this.$("player-avatar").innerHTML = this.avatarHtml(SAVE.state.profile);
@@ -1729,6 +1771,7 @@ const UI = {
     this.$("capslock-warn").classList.add("hidden");
     this.$("kb-flex").classList.remove("ninja");
     this.$("hud-stage").textContent = `🧬 Evolution time!`;
+    this.$("hud-progress").classList.remove("hidden");
     this.$("hud-progress-fill").style.width = "100%";
     this.$("hud-hearts").classList.add("hidden");
     this.$("boss-bar").classList.add("hidden");
@@ -1837,6 +1880,10 @@ const UI = {
 
   pauseOverlay(on) {
     this.$("pause-overlay").classList.toggle("hidden", !on);
+    // wild battles, hatches and evolutions have nothing to restart
+    const S = Engine.session;
+    const canRestart = !!S && (S.practice || S.s >= 0);
+    this.$("btn-restart").classList.toggle("hidden", !canRestart);
   },
 
   // ---------- particles ----------
@@ -1865,7 +1912,10 @@ const UI = {
     requestAnimationFrame(loop);
   },
 
+  _reducedMotion: typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches,
+
   burst(x, y, colors, n = 12, speed = 4) {
+    if (this._reducedMotion) return;
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2;
       const v = speed * (0.4 + Math.random() * 0.8);
@@ -1879,6 +1929,7 @@ const UI = {
   },
 
   confetti() {
+    if (this._reducedMotion) return;
     const colors = ["#ffd34d", "#43e97b", "#4dc3ff", "#ff5e7a", "#c77bff", "#fff"];
     for (let i = 0; i < 120; i++) {
       this.fx.parts.push({
@@ -1954,6 +2005,12 @@ const UI = {
       SFX.click();
       this.renderTitle();
       this.show("title");
+    });
+    this.$("player-chip").addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        this.$("player-chip").click();
+      }
     });
 
     document.querySelectorAll(".navbtn").forEach(b =>

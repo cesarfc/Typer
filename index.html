@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TypeQuest ⚡ Gotta type them all!</title>
-<link rel="stylesheet" href="css/style.css?v=14">
+<link rel="stylesheet" href="css/style.css?v=15">
 </head>
 <body>
 <div id="app">
@@ -27,9 +27,9 @@
     </nav>
     <div id="top-right">
       <span id="streak-chip" title="Daily play streak">🔥 1</span>
-      <button id="tutorial-btn" title="Replay the typing lesson">🎓</button>
+      <button id="tutorial-btn" title="Replay the typing lesson" aria-label="Replay the typing lesson">🎓</button>
       <button id="diff-btn" title="Difficulty — click to change">🙂</button>
-      <button id="sound-btn" title="Sound on/off">🔊</button>
+      <button id="sound-btn" title="Sound on/off" aria-label="Toggle sound">🔊</button>
     </div>
   </header>
 
@@ -84,7 +84,7 @@
     <!-- ============ GAME ============ -->
     <section id="screen-game" class="screen hidden">
       <div id="game-hud">
-        <button id="btn-pause" title="Pause (Esc)">⏸</button>
+        <button id="btn-pause" title="Pause (Esc)" aria-label="Pause game">⏸</button>
         <div id="hud-stage">World · Level</div>
         <div id="hud-progress"><div id="hud-progress-fill"></div></div>
         <div id="hud-right">
@@ -227,7 +227,7 @@
 
   </main>
 
-  <div id="toasts"></div>
+  <div id="toasts" aria-live="polite"></div>
   <input type="file" id="restore-input" accept=".json,application/json" class="hidden">
 
   <div id="pause-overlay" class="hidden">
@@ -242,13 +242,13 @@
   <div id="evo-chooser" class="hidden"></div>
 
 </div>
-<script src="js/data.js?v=14"></script>
-<script src="js/audio.js?v=14"></script>
-<script src="js/save.js?v=14"></script>
-<script src="js/engine.js?v=14"></script>
-<script src="js/sprites.js?v=14"></script>
-<script src="js/ui.js?v=14"></script>
-<script src="js/tutorial.js?v=14"></script>
-<script src="js/main.js?v=14"></script>
+<script src="js/data.js?v=15"></script>
+<script src="js/audio.js?v=15"></script>
+<script src="js/save.js?v=15"></script>
+<script src="js/engine.js?v=15"></script>
+<script src="js/sprites.js?v=15"></script>
+<script src="js/ui.js?v=15"></script>
+<script src="js/tutorial.js?v=15"></script>
+<script src="js/main.js?v=15"></script>
 </body>
 </html>

@@ -51,6 +51,18 @@ button {
 button:hover { filter: brightness(1.15); transform: translateY(-1px); }
 button:active { transform: translateY(1px) scale(.98); }
 
+/* a typing game lives on the keyboard — focus must be unmistakable */
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; border-radius: 6px; }
+
+/* calm mode for motion-sensitive players (JS also skips confetti/bursts) */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001s !important;
+  }
+}
+
 .big-btn {
   display: block;
   width: 100%;
@@ -171,7 +183,7 @@ button:active { transform: translateY(1px) scale(.98); }
 .diff-opt.sel { background: var(--gold); border-color: var(--gold); color: #1a1404; }
 .diff-opt.sel .diff-desc { color: #4a3a12; }
 
-#diff-btn { font-size: 18px; padding: 7px 11px; border-radius: 999px; }
+#diff-btn { font-size: 13.5px; font-weight: 800; padding: 8px 13px; border-radius: 999px; white-space: nowrap; }
 .title-note { margin-top: 22px; font-size: 12px; color: var(--dim); }
 
 /* player select */
@@ -509,7 +521,10 @@ button:active { transform: translateY(1px) scale(.98); }
   border: 2px solid var(--line);
 }
 .tier-card:hover { border-color: var(--info); }
-.tier-card.locked { opacity: .45; cursor: not-allowed; filter: grayscale(.6); }
+/* locked goals are motivation — dim the icon, keep the text readable */
+.tier-card.locked { cursor: not-allowed; }
+.tier-card.locked .tier-e { opacity: .4; filter: grayscale(1); }
+.tier-card.locked .tier-info b { color: var(--dim); }
 .tier-e { font-size: 36px; flex: none; }
 .tier-info { display: flex; flex-direction: column; gap: 2px; }
 .tier-info b { font-size: 18px; font-weight: 900; }
@@ -828,6 +843,13 @@ button:active { transform: translateY(1px) scale(.98); }
 #timer-fill.low { background: linear-gradient(90deg, var(--bad), #ff8c5e); animation: lowPulse .5s linear infinite; }
 
 #finger-hint { margin-top: 9px; font-size: 15px; font-weight: 700; color: var(--info); min-height: 22px; }
+#finger-hint.warn { color: var(--bad); animation: lowPulse .6s linear infinite; }
+
+/* locked-content click feedback: flash, never transform (billboard-safe) */
+.mnode.denied, .tier-card.denied { animation: deniedFlash .45s ease-out; }
+@keyframes deniedFlash {
+  30% { border-color: var(--bad); box-shadow: 0 0 16px rgba(255, 94, 122, .85); }
+}
 
 /* ============ on-screen keyboard + hand guides ============ */
 #kb-area { padding: 8px 0 2px; }

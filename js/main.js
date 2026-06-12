@@ -15,6 +15,8 @@ window.addEventListener("DOMContentLoaded", () => {
       Tutorial.handleKey(e);
     } else if (UI.current === "results" && (e.key === "Enter" || e.key === " ")) {
       e.preventDefault();
+      // a trailing keystroke from fast typing must not skip the rewards
+      if (performance.now() - (UI._resultsAt || 0) < 800) return;
       UI.$("btn-next").classList.contains("hidden")
         ? UI.show("map")
         : UI.$("btn-next").click();
