@@ -100,6 +100,17 @@ const SFX = {
   trophy() {
     [659, 784, 1047, 1319].forEach((f, i) => this.tone(f, 0.14, { gain: 0.1, when: i * 0.09 }));
   },
+  thump() {
+    this.tone(110, 0.14, { type: "sine", gain: 0.2, slideTo: 55 });
+    this.noise(0.08, { gain: 0.08, freq: 300 });
+  },
+  tick() {
+    this.tone(880, 0.05, { gain: 0.1 });
+  },
+  pop() {
+    this.noise(0.2, { gain: 0.16, freq: 1400 });
+    this.tone(280, 0.28, { gain: 0.12, slideTo: 980 });
+  },
 
   setEnabled(on) {
     this.enabled = on;

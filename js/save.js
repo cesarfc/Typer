@@ -9,9 +9,39 @@ const SAVE = {
   root: null,   // { active: id|null, players: { id: state } }
   state: null,  // the active player's state (everything below operates on it)
 
+  // v2 saves had 5 levels + boss(5) per world; v3 has 8 levels + boss(8).
+  // Old cleared stages map to their new spots, and the new in-between
+  // practice levels are credited with the same stars (the player already
+  // proved those keys) so no progress or unlocks are ever lost.
+  V3_STAGE_MAP: [
+    { 0: [0, 1], 1: [2, 3], 2: [4], 3: [5], 4: [6, 7], 5: [8] },     // Pallet Meadow
+    { 0: [0, 1], 1: [2, 3], 2: [4], 3: [5, 6], 4: [7], 5: [8] },     // Mt. Moon Caves
+    { 0: [0, 1], 1: [2], 2: [3, 4], 3: [5, 6], 4: [7], 5: [8] },     // Battle Stadium
+    { 0: [0], 1: [1, 2], 2: [3, 4], 3: [5, 6], 4: [7], 5: [8] },     // Dragon's Den
+    { 0: [0, 1], 1: [2, 3], 2: [4, 5], 3: [6], 4: [7], 5: [8] },     // Eterna Forest
+    { 0: [0, 1], 1: [2, 3], 2: [4, 5], 3: [6], 4: [7], 5: [8] },     // Hall of Fame
+  ],
+
+  migratePlayer(p) {
+    if ((p.v || 2) >= 3) return;
+    const old = p.stages || {};
+    const next = {};
+    for (const key of Object.keys(old)) {
+      const [w, s] = key.split("-").map(Number);
+      const map = this.V3_STAGE_MAP[w] && this.V3_STAGE_MAP[w][s];
+      if (!map) continue;
+      for (const n of map) {
+        const nk = `${w}-${n}`;
+        next[nk] = Math.max(next[nk] || 0, old[key]);
+      }
+    }
+    p.stages = next;
+    p.v = 3;
+  },
+
   defaults() {
     return {
-      v: 2,
+      v: 3,
       profile: null,               // {name, avatar}
       tutorialDone: false,
       xp: 0,
@@ -49,9 +79,12 @@ const SAVE = {
     }
 
     for (const id of Object.keys(this.root.players)) {
-      const p = this.root.players[id] = Object.assign(this.defaults(), this.root.players[id]);
+      const raw = this.root.players[id];
+      const p = this.root.players[id] = Object.assign(this.defaults(), raw, { v: raw.v || 2 });
       if (!DIFFICULTY[p.settings.difficulty]) p.settings.difficulty = "normal";
+      this.migratePlayer(p);
     }
+    this.save();
     this.state = this.root.active ? this.root.players[this.root.active] || null : null;
     return this.state;
   },
@@ -156,7 +189,7 @@ const SAVE = {
   },
 
   worldUnlocked(w) {
-    return w === 0 || this.stageStars(w - 1, 5) > 0;
+    return w === 0 || this.stageStars(w - 1, WORLDS[w - 1].levels.length) > 0;
   },
 
   stageUnlocked(w, s) {
@@ -166,7 +199,7 @@ const SAVE = {
 
   worldStars(w) {
     let n = 0;
-    for (let s = 0; s <= 5; s++) n += this.stageStars(w, s);
+    for (let s = 0; s <= WORLDS[w].levels.length; s++) n += this.stageStars(w, s);
     return n;
   },
 

@@ -16,7 +16,7 @@ const Engine = {
 
   startStage(w, s) {
     const world = WORLDS[w];
-    const isBoss = s === 5;
+    const isBoss = s === world.levels.length;
     const lvl = isBoss ? null : world.levels[s];
     const pool = isBoss ? world.bossPool : lvl.pool;
     const count = isBoss ? world.boss.hp : lvl.count;
@@ -202,18 +202,26 @@ const Engine = {
 
   startCatch(creature, res) {
     const S = this.session;
-    S.state = "catch";
+    S.state = "reveal";
     S.pendingRes = res;
     S.catchCreature = creature;
-    S.text = S.w === 5 ? creature.n : creature.n.toLowerCase();
+    S.text = S.w === WORLDS.length - 1 ? creature.n : creature.n.toLowerCase();
     S.pos = 0;
     S.errorsThisPrompt = 0;
-    UI.showCatch(S, creature);
     // Pokemon names may use a few letters the player hasn't learned yet —
     // give bonus time for each so hunting them on the keyboard stays fun
     const taught = taughtKeys(S.w);
     const untaught = [...S.text.toLowerCase()].filter(c => !taught.has(c)).length;
-    this.startTimer((3.5 + S.text.length * 0.7 + untaught * 1.2) * this.difficulty().time * 1000);
+    const ms = (3.5 + S.text.length * 0.7 + untaught * 1.2) * this.difficulty().time * 1000;
+    // the ball wobbles, bursts open and the Pokemon pops out — only then
+    // does the name prompt appear and the clock start
+    UI.catchReveal(S, creature, () => {
+      if (this.session !== S || S.state !== "reveal") return;
+      S.state = "catch";
+      UI.showCatch(S, creature);
+      if (this.paused) S.timerRemaining = ms;
+      else this.startTimer(ms);
+    });
   },
 
   catchSuccess() {

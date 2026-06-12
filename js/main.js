@@ -25,5 +25,5 @@ window.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("pointerdown", () => SFX.init(), { once: true });
 
   // Debug / tinkering handle
-  window.TQ = { SAVE, Engine, UI, WORLDS, CREATURES };
+  window.TQ = { SAVE, Engine, UI, SFX, Tutorial, WORLDS, CREATURES };
 });

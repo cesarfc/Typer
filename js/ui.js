@@ -154,44 +154,202 @@ const UI = {
     db.title = `Difficulty: ${d.label} — click to change`;
   },
 
-  // ---------- world map ----------
+  // ---------- region map (pannable live map) ----------
+  MAP_W: 2900,
+  MAP_H: 1560,
+  mapX: 0,
+  mapY: 0,
+  // route anchor per world + final endpoint; stages snake between them
+  mapAnchors: [[230, 1190], [660, 640], [1210, 1010], [1730, 430], [2140, 1030], [2480, 560], [2680, 300]],
+
+  MAP_CITIES: [
+    { x: 180, y: 1330, e: "🏘️", n: "Pallet Town" },
+    { x: 545, y: 455, e: "⛏️", n: "Moonstone City" },
+    { x: 1340, y: 1165, e: "🏟️", n: "Goal City" },
+    { x: 1905, y: 290, e: "🌋", n: "Ember Town" },
+    { x: 2010, y: 1190, e: "🏮", n: "Lantern Village" },
+    { x: 2625, y: 425, e: "🏛️", n: "Hall of Fame" },
+    { x: 905, y: 1300, e: "⛵", n: "Ferry Dock" },
+    { x: 1565, y: 690, e: "🍓", n: "Berry Farm" },
+  ],
+  MAP_DECOR: [
+    { x: 95, y: 1115, e: "🌳", s: 36 }, { x: 335, y: 1005, e: "🌲", s: 30 }, { x: 470, y: 1265, e: "🌸", s: 22 },
+    { x: 150, y: 950, e: "🌳", s: 26 }, { x: 420, y: 1125, e: "🍄", s: 20 }, { x: 300, y: 1330, e: "🌼", s: 20 },
+    { x: 560, y: 835, e: "🪨", s: 26 }, { x: 770, y: 515, e: "⛰️", s: 46 }, { x: 855, y: 720, e: "🗻", s: 42 },
+    { x: 595, y: 575, e: "💎", s: 18 }, { x: 930, y: 555, e: "🪨", s: 22 }, { x: 720, y: 390, e: "⛰️", s: 34 },
+    { x: 1085, y: 860, e: "🌾", s: 24 }, { x: 1345, y: 885, e: "🌳", s: 30 }, { x: 1145, y: 1190, e: "🎉", s: 20 },
+    { x: 1430, y: 1065, e: "⚽", s: 18 }, { x: 1240, y: 1280, e: "📣", s: 20 },
+    { x: 1605, y: 555, e: "⛰️", s: 46 }, { x: 1835, y: 555, e: "🔥", s: 22 }, { x: 1955, y: 515, e: "⚡", s: 18 },
+    { x: 1690, y: 220, e: "🗻", s: 40 }, { x: 1840, y: 140, e: "☁️", s: 30 },
+    { x: 2015, y: 895, e: "🌲", s: 38 }, { x: 2245, y: 1185, e: "🌲", s: 30 }, { x: 2085, y: 1125, e: "🏮", s: 18 },
+    { x: 2305, y: 905, e: "🌫️", s: 30 }, { x: 2200, y: 1320, e: "🌲", s: 26 },
+    { x: 2385, y: 680, e: "✨", s: 18 }, { x: 2565, y: 645, e: "🏆", s: 20 }, { x: 2705, y: 485, e: "👑", s: 22 },
+    { x: 705, y: 1185, e: "🌊", s: 30 }, { x: 825, y: 1245, e: "🌊", s: 26 }, { x: 1005, y: 1335, e: "🌊", s: 30 },
+  ],
+
+  mapNodes() {
+    if (this._mapNodes) return this._mapNodes;
+    const A = this.mapAnchors;
+    this._mapNodes = WORLDS.map((w, wi) => {
+      const [ax, ay] = A[wi], [bx, by] = A[wi + 1];
+      const n = w.levels.length + 1;
+      const dx = bx - ax, dy = by - ay;
+      const len = Math.hypot(dx, dy) || 1;
+      const px = -dy / len, py = dx / len;
+      return Array.from({ length: n }, (_, i) => {
+        const t = 0.05 + (i / (n - 1)) * 0.8;
+        const wig = Math.sin(i * 1.9) * 64;
+        return { x: Math.round(ax + dx * t + px * wig), y: Math.round(ay + dy * t + py * wig) };
+      });
+    });
+    return this._mapNodes;
+  },
+
+  mapFrontier() {
+    for (let w = 0; w < WORLDS.length; w++) {
+      for (let s = 0; s <= WORLDS[w].levels.length; s++) {
+        if (SAVE.stageUnlocked(w, s) && SAVE.stageStars(w, s) === 0) return { w, s };
+      }
+    }
+    return { w: WORLDS.length - 1, s: WORLDS[WORLDS.length - 1].levels.length };
+  },
+
   renderMap() {
-    const list = this.$("world-list");
-    list.innerHTML = WORLDS.map((w, wi) => {
+    const map = this.$("region-map");
+    const nodes = this.mapNodes();
+
+    // winding dashed route through every stage
+    const pts = nodes.flat();
+    let d = `M ${pts[0].x} ${pts[0].y}`;
+    for (let i = 1; i < pts.length - 1; i++) {
+      const mx = (pts[i].x + pts[i + 1].x) / 2, my = (pts[i].y + pts[i + 1].y) / 2;
+      d += ` Q ${pts[i].x} ${pts[i].y} ${mx} ${my}`;
+    }
+    d += ` L ${pts[pts.length - 1].x} ${pts[pts.length - 1].y}`;
+    let html = `<svg id="route-svg" width="${this.MAP_W}" height="${this.MAP_H}" viewBox="0 0 ${this.MAP_W} ${this.MAP_H}"><path d="${d}"/></svg>`;
+
+    html += [0, 1, 2, 3].map(i =>
+      `<span class="map-cloud" style="top:${110 + i * 340}px;animation-duration:${70 + i * 24}s;animation-delay:-${i * 19}s">☁️</span>`).join("");
+    html += this.MAP_DECOR.map(o =>
+      `<span class="map-decor" style="left:${o.x}px;top:${o.y}px;font-size:${o.s}px">${o.e}</span>`).join("");
+    html += this.MAP_CITIES.map(c =>
+      `<div class="map-city" style="left:${c.x}px;top:${c.y}px"><span>${c.e}</span><b>${c.n}</b></div>`).join("");
+
+    WORLDS.forEach((w, wi) => {
+      const ns = nodes[wi];
       const unlocked = SAVE.worldUnlocked(wi);
-      const stars = SAVE.worldStars(wi);
-      const stages = [0, 1, 2, 3, 4, 5].map(s => {
-        const isBoss = s === 5;
+      const maxStars = (w.levels.length + 1) * 3;
+      const mid = ns[Math.floor(ns.length / 2)];
+      html += `<div class="region-label" style="left:${mid.x}px;top:${mid.y - 138}px">
+        <b>${w.emoji} ${w.name}</b><span>★ ${SAVE.worldStars(wi)}/${maxStars}</span></div>`;
+
+      // wild Pokemon living on the map: color when caught, silhouette when not
+      [[1, 1, -100], [4, 4, 105], [6, 7, -110]].forEach(([ci, ni, off], k) => {
+        const c = CREATURES[wi][ci];
+        const got = SAVE.state && SAVE.state.dex[`${wi}-${ci}`];
+        const p = ns[ni];
+        const ox = k === 1 ? off : 0, oy = k === 1 ? 26 : off;
+        html += `<span class="map-poke ${got ? "" : "unknown"}" title="${got ? this.esc(c.n) : "???"}"
+          style="left:${p.x + ox}px;top:${p.y + oy}px">${this.pokeHtml(c.id, c.e, { shiny: got && got.shiny, cls: "poke-img map-poke-img" })}</span>`;
+      });
+
+      ns.forEach((p, s) => {
+        const isBoss = s === w.levels.length;
         const st = SAVE.stageStars(wi, s);
         const open = SAVE.stageUnlocked(wi, s);
         const next = open && st === 0;
         const starsHtml = isBoss
-          ? (st > 0 ? "🏆" : "")
-          : "<span class='mini-stars'>" + "★".repeat(st) + "<span class='off'>" + "★".repeat(Math.max(0, 3 - st)) + "</span></span>";
-        return `<button class="stage ${isBoss ? "boss" : ""} ${open ? "" : "locked"} ${next ? "next" : ""} ${st > 0 ? "done" : ""}"
-          data-w="${wi}" data-s="${s}" ${open ? "" : "disabled"}>
-          <span class="stage-num">${isBoss ? this.pokeHtml(w.boss.id, w.boss.emoji, { cls: "poke-img stage-img" }) : s + 1}</span>${starsHtml}
+          ? (st > 0 ? `<span class="mini-stars">🏆</span>` : "")
+          : `<span class="mini-stars">${"★".repeat(st)}<span class="off">${"★".repeat(Math.max(0, 3 - st))}</span></span>`;
+        html += `<button class="mnode ${isBoss ? "boss" : ""} ${open ? "" : "locked"} ${next ? "next" : ""} ${st > 0 ? "done" : ""}"
+          style="left:${p.x}px;top:${p.y}px" data-w="${wi}" data-s="${s}" ${open ? "" : "disabled"}
+          title="${isBoss ? `BOSS: ${this.esc(w.boss.name)}` : this.esc(w.levels[s].name)}">
+          ${isBoss ? this.pokeHtml(w.boss.id, w.boss.emoji, { cls: "poke-img stage-img" }) : `<span>${s + 1}</span>`}${starsHtml}
         </button>`;
-      }).join("");
-      const lockMsg = wi > 0 ? `Defeat ${WORLDS[wi - 1].boss.name} ${WORLDS[wi - 1].boss.emoji} to unlock!` : "";
-      return `<div class="world-card ${unlocked ? "" : "locked"}" style="--wg1:${w.gradient[0]};--wg2:${w.gradient[1]};--wa:${w.accent}">
-        <div class="world-head">
-          <span class="world-emoji">${w.emoji}</span>
-          <div class="world-info">
-            <h3>${wi + 1}. ${w.name}</h3>
-            <p>${unlocked ? w.tagline : lockMsg}</p>
-          </div>
-          <span class="world-stars">★ ${stars}/18</span>
-        </div>
-        ${unlocked ? `<div class="stage-row">${stages}</div>` : `<div class="world-lock">🔒</div>`}
-      </div>`;
-    }).join("");
+      });
 
-    list.querySelectorAll(".stage").forEach(b => {
-      b.addEventListener("click", () => {
+      if (!unlocked) {
+        const xs = ns.map(p => p.x), ys = ns.map(p => p.y);
+        const x0 = Math.min(...xs) - 140, y0 = Math.min(...ys) - 160;
+        const fw = Math.max(...xs) - x0 + 140, fh = Math.max(...ys) - y0 + 160;
+        html += `<div class="map-fog" style="left:${x0}px;top:${y0}px;width:${fw}px;height:${fh}px">
+          <span>🔒 Defeat ${this.esc(WORLDS[wi - 1].boss.name)} ${WORLDS[wi - 1].boss.emoji}</span></div>`;
+      }
+    });
+
+    // the player stands at their next challenge
+    const f = this.mapFrontier();
+    const fp = nodes[f.w][f.s];
+    const avatar = SAVE.state && SAVE.state.profile ? SAVE.state.profile.avatar : "🧢";
+    html += `<div class="map-marker" style="left:${fp.x}px;top:${fp.y - 62}px">${avatar}<i>▼</i></div>`;
+
+    map.innerHTML = html;
+
+    // soft terrain tint per region
+    const blobs = WORLDS.map((w, i) => {
+      const [ax, ay] = this.mapAnchors[i], [bx, by] = this.mapAnchors[i + 1];
+      const cx = Math.round((ax + bx) / 2), cy = Math.round((ay + by) / 2);
+      return `radial-gradient(740px 580px at ${cx}px ${cy}px, ${w.gradient[1]}59, transparent 72%)`;
+    }).join(",");
+    map.style.backgroundImage = `${blobs}, linear-gradient(180deg, #0d1830, #0c1a14)`;
+
+    this.centerMapOn(fp.x, fp.y);
+  },
+
+  centerMapOn(x, y) {
+    const vp = this.$("region-viewport").getBoundingClientRect();
+    this.setMapPos(vp.width / 2 - x, vp.height / 2 - y);
+  },
+
+  setMapPos(x, y) {
+    const vp = this.$("region-viewport").getBoundingClientRect();
+    this.mapX = Math.min(0, Math.max(vp.width - this.MAP_W, x));
+    this.mapY = Math.min(0, Math.max(vp.height - this.MAP_H, y));
+    this.$("region-map").style.transform = `translate(${this.mapX}px, ${this.mapY}px)`;
+  },
+
+  bindMapPan() {
+    const vp = this.$("region-viewport");
+    let drag = null;
+    vp.addEventListener("pointerdown", e => {
+      drag = { sx: e.clientX, sy: e.clientY, ox: this.mapX, oy: this.mapY, moved: false };
+      vp.classList.add("dragging");
+      try { vp.setPointerCapture(e.pointerId); } catch (_) { /* ok */ }
+    });
+    vp.addEventListener("pointermove", e => {
+      if (!drag) return;
+      const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+      if (Math.abs(dx) + Math.abs(dy) > 7) drag.moved = true;
+      this.setMapPos(drag.ox + dx, drag.oy + dy);
+    });
+    const end = () => {
+      if (drag && drag.moved) {
+        this._mapDragged = true;
+        setTimeout(() => { this._mapDragged = false; }, 60);
+      }
+      drag = null;
+      vp.classList.remove("dragging");
+    };
+    vp.addEventListener("pointerup", end);
+    vp.addEventListener("pointercancel", end);
+    vp.addEventListener("wheel", e => {
+      e.preventDefault();
+      this.setMapPos(this.mapX - e.deltaX, this.mapY - e.deltaY);
+    }, { passive: false });
+    vp.addEventListener("click", e => {
+      if (this._mapDragged) return;
+      const b = e.target.closest(".mnode");
+      if (b && !b.classList.contains("locked")) {
         SFX.init();
         Engine.startStage(+b.dataset.w, +b.dataset.s);
-      });
+      }
+    });
+    this.$("btn-findme").addEventListener("click", e => {
+      e.stopPropagation();
+      SFX.click();
+      const f = this.mapFrontier();
+      const p = this.mapNodes()[f.w][f.s];
+      this.centerMapOn(p.x, p.y);
     });
   },
 
@@ -312,7 +470,7 @@ const UI = {
       if (lvl.keys) {
         this.announce(`✨ New keys: ${lvl.keys.toUpperCase().split("").join(" ")}`, 1800);
       } else {
-        this.announce(S.s === 4 ? "⚡ SPEED RUN! Go go go!" : "Go! 🚀", 1300);
+        this.announce(S.s === w.levels.length - 1 ? "⚡ SPEED RUN! Go go go!" : "Go! 🚀", 1300);
       }
     }
     this.updateHud(S);
@@ -518,23 +676,59 @@ const UI = {
   },
 
   // ---------- catch round ----------
-  showCatch(S, creature) {
+  // suspense intro: the ball drops in, wobbles three times, then bursts
+  // open in a white flash and the Pokemon pops out — like the show
+  catchReveal(S, creature, done) {
     // names can use not-yet-taught letters: always show the glowing keyboard
     this.$("kb-flex").classList.remove("ninja");
     const wrap = this.$("target-wrap");
     const target = this.$("target");
-    target.innerHTML = this.pokeHtml(creature.id, creature.e);
-    target.className = "catch-size";
+    this.$("hud-progress-fill").style.width = "100%";
+    this.$("target-label").classList.add("hidden");
+    // one mystery "?" per letter of the hidden name
+    this.$("prompt-word").innerHTML = [...S.text].map(() => `<span class="ch mystery">?</span>`).join("");
+    const tf = this.$("timer-fill");
+    tf.style.width = "100%";
+    tf.classList.remove("low");
+    this.highlightKey(null);
     wrap.style.opacity = 1;
     wrap.style.transform = "none";
-    wrap.classList.remove("enter");
-    void wrap.offsetWidth;
-    wrap.classList.add("enter");
-    this.announce(`A wild ${creature.n} appeared!`, 1700);
+    wrap.classList.remove("enter", "hit", "flee", "wobble");
+    target.className = "catch-size";
+    target.innerHTML = `<span class="ball-reveal drop">${this.ballHtml()}</span>`;
+    SFX.thump();
+    this.announce("Who is that... ?", 1300);
+    const alive = () => Engine.session === S && S.state === "reveal";
+    setTimeout(() => {
+      if (!alive()) return;
+      const ball = target.querySelector(".ball-reveal");
+      if (ball) ball.classList.add("wobbling");
+      SFX.tick();
+    }, 520);
+    setTimeout(() => { if (alive()) SFX.tick(); }, 980);
+    setTimeout(() => { if (alive()) SFX.tick(); }, 1440);
+    setTimeout(() => {
+      if (!alive()) return;
+      SFX.pop();
+      const r = target.getBoundingClientRect();
+      this.burst(r.left + r.width / 2, r.top + r.height / 2, ["#fff", "#ffd34d", S.world.accent], 28, 6);
+      const flash = document.createElement("div");
+      flash.className = "poke-flash";
+      wrap.appendChild(flash);
+      setTimeout(() => flash.remove(), 550);
+      target.innerHTML = `<span class="poke-pop">${this.pokeHtml(creature.id, creature.e)}</span>`;
+    }, 1780);
+    setTimeout(() => {
+      if (!alive()) return;
+      this.announce(`A wild ${creature.n} appeared!`, 1600);
+      SFX.combo();
+      done();
+    }, 2380);
+  },
+
+  showCatch(S, creature) {
     this.speech(`Type my name to catch me!`, 2600);
-    this.$("hud-progress-fill").style.width = "100%";
     this.renderPromptText(S);
-    SFX.combo();
   },
 
   catchAnim(S, success, done) {
@@ -635,7 +829,7 @@ const UI = {
     // big moments
     if (res.isBoss && res.firstClear) {
       this.confetti();
-      if (res.w < 5) {
+      if (res.w < WORLDS.length - 1) {
         setTimeout(() => this.toast(`🌍 New world unlocked: ${WORLDS[res.w + 1].emoji} ${WORLDS[res.w + 1].name}!`, "gold"), 800);
       } else {
         setTimeout(() => this.toast(`👑 YOU ARE THE KEY MASTER! You beat the whole game!`, "gold"), 800);
@@ -652,11 +846,12 @@ const UI = {
 
     // buttons
     const next = this.$("btn-next");
+    const lastWorld = WORLDS.length - 1;
     next.classList.remove("hidden");
-    if (!res.isBoss) next.textContent = res.s === 4 ? "Boss Fight! 👊" : "Next Level ▶";
-    else if (res.w < 5) next.textContent = `Next World: ${WORLDS[res.w + 1].emoji} ▶`;
+    if (!res.isBoss) next.textContent = res.s === WORLDS[res.w].levels.length - 1 ? "Boss Fight! 👊" : "Next Level ▶";
+    else if (res.w < lastWorld) next.textContent = `Next World: ${WORLDS[res.w + 1].emoji} ▶`;
     else next.classList.add("hidden");
-    this._nextTarget = !res.isBoss ? [res.w, res.s + 1] : res.w < 5 ? [res.w + 1, 0] : null;
+    this._nextTarget = !res.isBoss ? [res.w, res.s + 1] : res.w < lastWorld ? [res.w + 1, 0] : null;
     SFX.fanfare();
   },
 
@@ -863,6 +1058,8 @@ const UI = {
 
     document.querySelectorAll(".navbtn").forEach(b =>
       b.addEventListener("click", () => { SFX.click(); this.show(b.dataset.nav); }));
+
+    this.bindMapPan();
 
     this.$("tutorial-btn").addEventListener("click", () => {
       SFX.click();

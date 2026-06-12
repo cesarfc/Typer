@@ -61,9 +61,17 @@ and every word in a world only uses keys already learned:
 | 🌲 5. Eterna Forest | expert moves | C V X Z Q (full alphabet) |
 | 👑 6. Hall of Fame | final test | Shift, capitals, full sentences |
 
+Each world is **8 levels + a boss**, with extra practice levels between new
+keys so the difficulty climbs gently. The world map is a pannable region —
+drag (or scroll) to explore towns, terrain and the winding route; your
+avatar stands at your next challenge, and wild Pokemon appear along the
+route (silhouettes until you catch them).
+
 Wild Pokemon are matched to each world so their names mostly use the keys
 already learned; any not-yet-taught letter adds bonus catch time and lights
 up on the on-screen keyboard, so early catches double as a sneak preview.
+Catch rounds open with a wobbling Pokeball that bursts open to reveal the
+mystery Pokemon — then the clock starts.
 
 Each world = 5 levels + a **boss fight**. Beating the boss unlocks the next world.
 
