@@ -338,19 +338,19 @@ const UI = {
 
   // tall grass candidates (3 per region) and fishing spots
   GRASS_SPOTS: [
-    [{ x: 350, y: 1240 }, { x: 160, y: 1060 }, { x: 520, y: 1010 }],
-    [{ x: 560, y: 720 }, { x: 820, y: 460 }, { x: 900, y: 640 }],
-    [{ x: 1080, y: 920 }, { x: 1290, y: 1130 }, { x: 1450, y: 940 }],
-    [{ x: 1590, y: 470 }, { x: 1860, y: 360 }, { x: 1950, y: 560 }],
-    [{ x: 2010, y: 950 }, { x: 2270, y: 1080 }, { x: 2150, y: 1250 }],
-    [{ x: 2350, y: 640 }, { x: 2600, y: 690 }, { x: 2550, y: 420 }],
+    [{ x: 350, y: 1240 }, { x: 160, y: 1060 }, { x: 520, y: 1010 }, { x: 450, y: 1160 }],
+    [{ x: 560, y: 720 }, { x: 820, y: 460 }, { x: 900, y: 640 }, { x: 700, y: 560 }],
+    [{ x: 1080, y: 920 }, { x: 1290, y: 1130 }, { x: 1450, y: 940 }, { x: 1190, y: 1010 }],
+    [{ x: 1590, y: 470 }, { x: 1860, y: 360 }, { x: 1950, y: 560 }, { x: 1740, y: 300 }],
+    [{ x: 2010, y: 950 }, { x: 2270, y: 1080 }, { x: 2150, y: 1250 }, { x: 2380, y: 1170 }],
+    [{ x: 2350, y: 640 }, { x: 2600, y: 690 }, { x: 2550, y: 420 }, { x: 2450, y: 560 }],
   ],
   FISH_SPOTS: [
     { x: 945, y: 1295, need: 0 },   // Ferry Dock lake
     { x: 1530, y: 1420, need: 2 },  // south coast pier
     { x: 2245, y: 1185, need: 4 },  // Eterna pond
   ],
-  CASTS_PER_DAY: 2,
+  CASTS_PER_DAY: 3,
 
   // today's rustling patches: deterministic per day, unlocked regions only
   grassSpotsToday() {
@@ -364,7 +364,7 @@ const UI = {
       this.GRASS_SPOTS[wi].forEach((p, k) => candidates.push({ id: `${wi}-${k}`, w: wi, ...p }));
     });
     const order = candidates.map((c, i) => ({ c, r: rng() })).sort((a, b) => a.r - b.r);
-    return order.slice(0, Math.min(4, order.length)).map(o => o.c);
+    return order.slice(0, Math.min(6, order.length)).map(o => o.c);
   },
 
   // closed smooth path through points (for the island coastline)
@@ -545,11 +545,10 @@ const UI = {
         <b>${w.emoji} ${w.name}</b><span>★ ${SAVE.worldStars(wi)}/${maxStars}</span></div>`;
 
       // wild Pokemon living on the map: color when caught, silhouette when not
-      [[1, 1, -100], [4, 4, 105], [6, 7, -110]].forEach(([ci, ni, off], k) => {
+      [[0, 0, -90, -20], [2, 2, 95, 14], [4, 4, -105, 0], [6, 6, 100, 22], [7, 7, -100, 0]].forEach(([ci, ni, ox, oy]) => {
         const c = CREATURES[wi][ci];
         const got = SAVE.state && SAVE.state.dex[`${wi}-${ci}`];
         const p = ns[ni];
-        const ox = k === 1 ? off : 0, oy = k === 1 ? 26 : off;
         html += `<button class="map-poke ${got ? "" : "unknown"}" data-pw="${wi}" data-pi="${ci}"
           title="${got ? this.esc(c.n) : "??? — who could it be?"}"
           style="left:${p.x + ox}px;top:${p.y + oy}px">${this.pokeHtml(c.id, c.e, { shiny: got && got.shiny, cls: "poke-img map-poke-img" })}</button>`;
