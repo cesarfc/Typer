@@ -7,7 +7,7 @@
 // taught keys; the few untaught letters get extra catch time.
 // ============================================================
 
-const AVATARS = ["🧢", "🦊", "🐱", "🐉", "🥷", "⚡", "⚽", "🦖", "🐼", "🚀"];
+const AVATARS = ["🧢", "🦊", "🐱", "🐉", "🥷", "⚡", "🎒", "🦖", "🐼", "🚀"];
 
 // per-player difficulty: scales every prompt/catch timer; Turbo pays bonus XP
 const DIFFICULTY = {
@@ -121,15 +121,15 @@ const WORLDS = [
   },
   {
     name: "Battle Stadium",
-    tagline: "Score goals with T O W N G H!",
-    emoji: "⚽",
+    tagline: "Win gym battles with T O W N G H!",
+    emoji: "🏟️",
     gradient: ["#0c3d2e", "#1e7d5c"],
     accent: "#5dff9d",
-    targets: ["🥅", "🥅", "🧤", "🥅"],
-    projectile: "⚽",
-    hitText: ["GOOOAL!", "Top corner!", "What a shot!", "Screamer!"],
-    sceneEmojis: ["🏟️", "📣", "🎉", "⚽"],
-    boss: { name: "Team Rocket", emoji: "😼", id: 52, hp: 10, time: 4.5, taunt: "Prepare for trouble! NO goals for you!" },
+    targets: ["🎯", "🥊", "🛡️", "🎯"],
+    projectile: "⚡",
+    hitText: ["Direct hit!", "Take that!", "Nice move!", "KO!"],
+    sceneEmojis: ["🏟️", "📣", "🚩", "🎉"],
+    boss: { name: "Team Rocket", emoji: "😼", id: 52, hp: 10, time: 4.5, taunt: "Prepare for trouble! NO badges for you!" },
     levels: [
       { name: "T and O", keys: "to", time: 5,
         pool: ["t", "o", "to", "ot", "tot", "oto", "jot", "kot", "lot", "dot", "fot", "sot"], count: 10 },
@@ -140,23 +140,25 @@ const WORLDS = [
         pool: ["w", "n", "now", "win", "won", "new", "news", "down", "town", "snow", "wind", "want",
                "went", "know", "noon", "winter", "window"], count: 12 },
       { name: "G and H", keys: "gh", time: 5,
-        pool: ["g", "h", "go", "goal", "goat", "high", "hot", "hat", "the", "that", "this", "then",
+        pool: ["g", "h", "go", "glare", "goat", "high", "hot", "hat", "the", "that", "this", "then",
                "light", "night", "right", "fight", "ghost", "laugh", "huge", "hero"], count: 12 },
       { name: "New Words", keys: "", time: 4.8,
         pool: ["town", "snow", "wind", "want", "went", "know", "light", "night", "right", "fight",
                "ghost", "laugh", "huge", "hero", "winter", "window", "tonight", "nothing"], count: 12 },
-      { name: "Match Day", keys: "", time: 4.8,
-        pool: ["goal", "goals", "shoot", "shot", "win", "winner", "net", "goalie", "striker", "strike",
-               "header", "star", "stars", "fast", "faster", "run", "turn", "the great goal", "we win",
-               "go go go", "she shoots", "nine goals"], count: 12 },
-      { name: "Fan Chants", keys: "", time: 4.6,
-        pool: ["go go go", "we win", "the great goal", "she shoots", "nine goals", "what a night",
-               "go for the goal", "the fans sing", "we want a goal", "the winner takes it"], count: 10 },
+      { name: "Gym Training", keys: "", time: 4.8,
+        pool: ["growl", "leer", "glare", "harden", "sing", "roar", "gust", "swift", "rage", "dig",
+               "rest", "snore", "slash", "thrash", "take down", "iron head", "strong", "trainer",
+               "fight", "arena"], count: 12 },
+      { name: "Crowd Roar", keys: "", time: 4.6,
+        pool: ["go go go", "use take down", "use thunder", "the arena roars", "the greatest trainer",
+               "i want to win", "what a great win", "the trainer wins", "the gust hits hard",
+               "go go trainer"], count: 10 },
       { name: "Speed Run", keys: "", time: 3.2,
-        pool: ["go", "win", "net", "hot", "ten", "the", "and", "got", "not", "out", "run", "sun", "fun",
-               "dog", "log", "wing", "king", "ring", "song", "long", "goal"], count: 14 },
+        pool: ["go", "win", "dig", "hot", "ten", "the", "and", "got", "not", "out", "run", "sun", "fun",
+               "dog", "log", "wing", "king", "ring", "song", "long", "roar"], count: 14 },
     ],
-    bossPool: ["goal", "shoot", "winner", "striker", "header", "strike", "fast", "goalie", "the goal", "we win", "go go go", "net"],
+    bossPool: ["take down", "thunder", "slash", "swift", "rage", "roar", "gust", "glare", "iron head",
+               "leer", "fight on", "we win again"],
   },
   {
     name: "Dragon's Den",
@@ -424,7 +426,7 @@ const TROPHIES = [
   { id: "hatch-1", e: "🐣", name: "Hatched!", desc: "Hatch a Mystery Egg" },
   { id: "party-6", e: "🎽", name: "Full Squad", desc: "Put 6 Pokemon in your party" },
   { id: "legend-1", e: "🌟", name: "Legend Catcher", desc: "Catch a roaming legendary" },
-  { id: "streak-3", e: "📅", name: "Hat Trick", desc: "Play 3 days in a row" },
+  { id: "streak-3", e: "📅", name: "Three in a Row", desc: "Play 3 days in a row" },
   { id: "streak-7", e: "🗓️", name: "Legend Week", desc: "Play 7 days in a row" },
   { id: "boss-0", e: "🏆", name: "Rise and Shine", desc: "Wake the giant Snorlax" },
   { id: "boss-1", e: "🏆", name: "Rock Smasher", desc: "Defeat the wild Onix" },

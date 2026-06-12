@@ -1,7 +1,7 @@
 # TypeQuest ⚡ Gotta type them all!
 
 A Pokemon-themed typing adventure for kids: catch Pokemon, dig through
-Mt. Moon, score goals, battle gym-style bosses like Team Rocket and a
+Mt. Moon, win gym battles, and face bosses like Team Rocket and a
 sleeping Snorlax — and secretly learn real touch typing along the way.
 
 (Fan-made for home use. All art is plain emoji — no copyrighted images;
@@ -73,7 +73,7 @@ and every word in a world only uses keys already learned:
 |---|---|---|
 | 🌳 1. Pallet Meadow | first catches | home row: A S D F · J K L ; |
 | ⛏️ 2. Mt. Moon Caves | dig for Moon Stones | E I R U |
-| ⚽ 3. Battle Stadium | score goals | T O W N G H |
+| 🏟️ 3. Battle Stadium | gym battles | T O W N G H |
 | 🐉 4. Dragon's Den | Pokemon moves | M P Y B + space phrases |
 | 🌲 5. Eterna Forest | expert moves | C V X Z Q (full alphabet) |
 | 👑 6. Hall of Fame | final test | Shift, capitals, full sentences |
