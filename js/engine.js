@@ -14,6 +14,13 @@ const Engine = {
     return DIFFICULTY[d] || DIFFICULTY.normal;
   },
 
+  maybePartyToast() {
+    if (!SAVE._justAutoPartied) return;
+    const c = SAVE.creatureByKey(SAVE._justAutoPartied);
+    SAVE._justAutoPartied = null;
+    if (c) setTimeout(() => UI.toast(`🎽 ${c.n} joined your party — it will fight beside you!`, "gold"), 600);
+  },
+
   startStage(w, s) {
     const world = WORLDS[w];
     const isBoss = s === world.levels.length;
@@ -61,7 +68,10 @@ const Engine = {
     S.text = S.prompts[S.idx];
     UI.showPrompt(S);
     // practice runs have no countdown — the "timer" is a count-up stopwatch
-    const ms = S.practice ? Infinity : (S.baseTime + S.text.length * 0.6) * this.difficulty().time * 1000;
+    let ms = S.practice ? Infinity : (S.baseTime + S.text.length * 0.6) * this.difficulty().time * 1000;
+    // the first prompt shares the screen with the level announcement:
+    // grant reading time so the lesson never costs the clock
+    if (S.idx === 0 && isFinite(ms)) ms += 700;
     this.startTimer(ms);
   },
 
@@ -304,12 +314,16 @@ const Engine = {
     const taught = taughtKeys(S.w);
     const untaught = [...S.text.toLowerCase()].filter(c => !taught.has(c)).length;
     const ms = (3.5 + S.text.length * 0.7 + untaught * 1.2) * this.difficulty().time * 1000;
+    // catching right after winning shouldn't sting: no clock on Chill
+    // or anywhere in the first world
+    S.relaxedCatch = this.difficulty().time > 1 || S.w === 0;
     // the ball wobbles, bursts open and the Pokemon pops out — only then
     // does the name prompt appear and the clock start
     UI.catchReveal(S, creature, () => {
       if (this.session !== S || S.state !== "reveal") return;
       S.state = "catch";
       UI.showCatch(S, creature);
+      if (S.relaxedCatch) return;
       if (this.paused) S.timerRemaining = ms;
       else this.startTimer(ms);
     });
@@ -359,6 +373,7 @@ const Engine = {
     }
     res.trophies = (res.trophies || []).concat(more);
     SFX.catchJingle();
+    this.maybePartyToast();
     if (res.wild) {
       SAVE.state.xp += 15;
       SAVE.save();
@@ -470,6 +485,9 @@ const Engine = {
     const taught = taughtKeys(S.w);
     const untaught = [...S.text.toLowerCase()].filter(ch => !taught.has(ch)).length;
     const ms = (3.5 + S.text.length * 0.7 + untaught * 1.2) * this.difficulty().time * 1000;
+    // Chill trainers and first-world catches get no clock — but the
+    // weekly legendary stays a real challenge
+    S.relaxedCatch = (this.difficulty().time > 1 || S.w === 0) && S.wild.source !== "legendary";
     if (S.wild.source === "fish") {
       // what's on the hook?! full pokeball-style reveal
       S.state = "reveal";
@@ -477,6 +495,7 @@ const Engine = {
         if (this.session !== S || S.state !== "reveal") return;
         S.state = "catch";
         UI.showCatch(S, c);
+        if (S.relaxedCatch) return;
         if (this.paused) S.timerRemaining = ms;
         else this.startTimer(ms);
       });
@@ -484,7 +503,8 @@ const Engine = {
       // the grass Pokemon is already out and weakened — go!
       S.state = "catch";
       UI.showCatch(S, c);
-      UI.announce(`Now! Type its name!`, 1400);
+      UI.announce(S.relaxedCatch ? "Type its name — no rush!" : "Now! Type its name!", 1400);
+      if (S.relaxedCatch) return;
       if (this.paused) S.timerRemaining = ms;
       else this.startTimer(ms);
     }
@@ -540,6 +560,7 @@ const Engine = {
         S.hatch.candy = SAVE.addCandy(baseKey);
       } else {
         trophies.push(...SAVE.addCreature(pick.w, pick.i, shiny));
+        this.maybePartyToast();
       }
       st.egg = null;
       SAVE.award("hatch-1", trophies);
@@ -689,9 +710,15 @@ const Engine = {
     const S = this.session;
     this.paused = false;
     this.pendingNext = false;
+    this.stopTimer();
     UI.pauseOverlay(false);
     UI.superMode(false);
-    if (S) this.startStage(S.w, S.s);
+    if (!S) return;
+    // non-story sessions can't restart via startStage (negative stage idx)
+    if (S.practice) { this.startPractice(S.practice.id); return; }
+    if (S.s >= 0) { this.startStage(S.w, S.s); return; }
+    this.session = null;
+    UI.show("map");
   },
 
   quitToMap() {

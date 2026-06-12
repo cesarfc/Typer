@@ -51,6 +51,18 @@ button {
 button:hover { filter: brightness(1.15); transform: translateY(-1px); }
 button:active { transform: translateY(1px) scale(.98); }
 
+/* a typing game lives on the keyboard — focus must be unmistakable */
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; border-radius: 6px; }
+
+/* calm mode for motion-sensitive players (JS also skips confetti/bursts) */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001s !important;
+  }
+}
+
 .big-btn {
   display: block;
   width: 100%;
@@ -122,25 +134,25 @@ button:active { transform: translateY(1px) scale(.98); }
 #sound-btn { font-size: 18px; padding: 7px 11px; border-radius: 999px; }
 
 /* ============ title screen ============ */
-#screen-title { display: flex; align-items: center; justify-content: center; flex: 1; padding: 30px 16px; }
+#screen-title { display: flex; align-items: center; justify-content: center; flex: 1; padding: 12px 16px; }
 .title-box {
   width: min(480px, 100%);
   background: var(--card);
   border: 2px solid var(--line);
   border-radius: 24px;
-  padding: 36px 34px 26px;
+  padding: 20px 28px 16px;
   text-align: center;
   box-shadow: 0 30px 80px rgba(0,0,0,.5);
 }
-.title-logo { font-size: 64px; animation: bob 2.4s ease-in-out infinite; }
-.title-name { font-size: 52px; font-weight: 900; letter-spacing: -1px; margin-top: 4px; }
+.title-logo { font-size: 40px; animation: bob 2.4s ease-in-out infinite; }
+.title-name { font-size: 38px; font-weight: 900; letter-spacing: -1px; margin-top: 4px; }
 .title-name span { color: var(--gold); }
-.title-tag { color: var(--dim); margin: 6px 0 26px; font-size: 15px; }
-.field-label { display: block; text-align: left; font-size: 14px; color: var(--dim); margin: 16px 0 6px; font-weight: 700; }
+.title-tag { color: var(--dim); margin: 4px 0 12px; font-size: 13.5px; }
+.field-label { display: block; text-align: left; font-size: 14px; color: var(--dim); margin: 10px 0 5px; font-weight: 700; }
 #name-input {
   width: 100%;
-  padding: 13px 16px;
-  font-size: 20px;
+  padding: 10px 14px;
+  font-size: 18px;
   font-family: inherit;
   font-weight: 700;
   color: var(--text);
@@ -156,7 +168,7 @@ button:active { transform: translateY(1px) scale(.98); }
 .avatar-opt.sel:hover { transform: scale(1.08) translateY(-1px); }
 
 .field-note { font-weight: 400; opacity: .75; font-size: 12px; }
-#diff-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 22px; }
+#diff-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
 .diff-opt {
   display: flex;
   flex-direction: column;
@@ -165,14 +177,14 @@ button:active { transform: translateY(1px) scale(.98); }
   padding: 10px 6px;
   border-radius: 12px;
 }
-.diff-opt .diff-e { font-size: 26px; }
+.diff-opt .diff-e { font-size: 20px; }
 .diff-opt .diff-name { font-weight: 800; font-size: 14px; }
 .diff-opt .diff-desc { font-size: 10.5px; color: var(--dim); line-height: 1.25; }
 .diff-opt.sel { background: var(--gold); border-color: var(--gold); color: #1a1404; }
 .diff-opt.sel .diff-desc { color: #4a3a12; }
 
-#diff-btn { font-size: 18px; padding: 7px 11px; border-radius: 999px; }
-.title-note { margin-top: 22px; font-size: 12px; color: var(--dim); }
+#diff-btn { font-size: 13.5px; font-weight: 800; padding: 8px 13px; border-radius: 999px; white-space: nowrap; }
+.title-note { margin-top: 10px; font-size: 11.5px; color: var(--dim); }
 
 /* player select */
 #player-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
@@ -345,18 +357,18 @@ button:active { transform: translateY(1px) scale(.98); }
   padding: 12px;
   text-align: left;
 }
-#trainer-preview { flex: none; width: 116px; display: flex; justify-content: center; }
-#trainer-preview .trainer-svg.preview { height: 150px; }
-#trainer-opts { flex: 1; display: flex; flex-direction: column; gap: 7px; min-width: 0; }
-.opt-row { display: flex; align-items: center; gap: 8px; }
-.opt-row > span { font-size: 11px; color: var(--dim); font-weight: 700; width: 62px; text-align: right; flex: none; }
-.opt-swatches { display: flex; gap: 5px; flex-wrap: wrap; }
-.swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); padding: 0; flex: none; }
+#trainer-preview { flex: none; width: 92px; display: flex; justify-content: center; }
+#trainer-preview .trainer-svg.preview { height: 110px; }
+#trainer-opts { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; min-width: 0; align-content: start; }
+.opt-row { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.opt-row > span { font-size: 12.5px; color: var(--dim); font-weight: 700; text-align: left; }
+.opt-swatches { display: grid; grid-template-columns: repeat(6, auto); gap: 5px; justify-content: start; }
+.swatch { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); padding: 0; flex: none; }
 .swatch.sel { border-color: var(--gold); box-shadow: 0 0 8px rgba(255, 211, 77, .5); transform: scale(1.12); }
 .swatch.sel:hover { transform: scale(1.12) translateY(-1px); }
 .swatch.hair-sw {
-  width: 36px;
-  height: 40px;
+  width: 27px;
+  height: 30px;
   border-radius: 10px;
   background: var(--card2);
   display: flex;
@@ -366,7 +378,7 @@ button:active { transform: translateY(1px) scale(.98); }
   font-size: 15px;
   align-items: flex-start;
 }
-.trainer-svg.mini { height: 64px; margin-top: 2px; flex: none; }
+.trainer-svg.mini { height: 40px; margin-top: 2px; flex: none; }
 #btn-random-trainer {
   background: var(--card2);
   border: 2px solid var(--line);
@@ -494,7 +506,7 @@ button:active { transform: translateY(1px) scale(.98); }
    font) — moving pixels under the cursor makes them hard to click.
    Glow instead. */
 /* (pin hover glow lives in the billboard section — background paint only) */
-.map-school b { font-size: 12px; background: rgba(10,13,30,.78); padding: 3px 9px; border-radius: 999px; border: 1px solid var(--info); white-space: nowrap; color: var(--info); }
+.map-school b { font-size: 12px; background: rgba(10,13,30,.78); padding: 3px 9px; border-radius: 999px; border: 1px solid var(--info); white-space: nowrap; color: var(--info); animation: pulseGlow 1.8s ease-in-out infinite; }
 
 .practice-sub { text-align: center; color: var(--dim); margin: -8px 0 20px; font-size: 15px; }
 #practice-tiers { display: flex; flex-direction: column; gap: 12px; width: min(560px, 94%); margin: 0 auto 40px; }
@@ -509,7 +521,10 @@ button:active { transform: translateY(1px) scale(.98); }
   border: 2px solid var(--line);
 }
 .tier-card:hover { border-color: var(--info); }
-.tier-card.locked { opacity: .45; cursor: not-allowed; filter: grayscale(.6); }
+/* locked goals are motivation — dim the icon, keep the text readable */
+.tier-card.locked { cursor: not-allowed; }
+.tier-card.locked .tier-e { opacity: .4; filter: grayscale(1); }
+.tier-card.locked .tier-info b { color: var(--dim); }
 .tier-e { font-size: 36px; flex: none; }
 .tier-info { display: flex; flex-direction: column; gap: 2px; }
 .tier-info b { font-size: 18px; font-weight: 900; }
@@ -555,8 +570,19 @@ button:active { transform: translateY(1px) scale(.98); }
 .map-city { position: absolute; transform: translate(-50%, -50%); text-align: center; pointer-events: none; z-index: 2; }
 .map-city span { font-size: 38px; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)); }
 .map-city b { font-size: 12px; background: rgba(10,13,30,.78); padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; }
-.region-label { position: absolute; transform: translate(-50%, -50%); text-align: center; pointer-events: none; z-index: 3; }
-.region-label b { display: block; font-size: 21px; text-shadow: 0 2px 10px rgba(0,0,0,.85); white-space: nowrap; }
+.region-label { position: absolute; transform: translate(-50%, -50%); text-align: center; pointer-events: auto; cursor: pointer; z-index: 3; }
+.region-label b {
+  display: block;
+  font-size: 21px;
+  text-shadow: 0 2px 10px rgba(0,0,0,.85);
+  white-space: nowrap;
+  background: rgba(10,13,30,.45);
+  border: 2px solid transparent;
+  border-radius: 12px;
+  padding: 3px 14px;
+  transition: background .15s, border-color .15s; /* paint only — pins never animate transforms */
+}
+.region-label:hover b { background: rgba(10,13,30,.9); border-color: var(--gold); }
 .region-label span { font-size: 13px; font-weight: 800; color: var(--gold); background: rgba(10,13,30,.7); padding: 2px 10px; border-radius: 999px; }
 .map-poke { position: absolute; transform: translate(-50%, -50%); z-index: 3; cursor: pointer; background: none; border: none; padding: 4px; }
 .map-poke-img { height: 48px; filter: drop-shadow(0 5px 8px rgba(0,0,0,.5)); }
@@ -767,7 +793,7 @@ button:active { transform: translateY(1px) scale(.98); }
   100% { width: 320px; height: 320px; opacity: 0; }
 }
 .ch.mystery { color: var(--gold); background: rgba(255, 211, 77, .12); }
-.caught-emoji .poke-img { height: 112px; }
+.caught-emoji .poke-img { height: 92px; }
 .dex-emoji .poke-img { height: 62px; }
 .stage-img { height: 30px; vertical-align: middle; }
 
@@ -828,6 +854,13 @@ button:active { transform: translateY(1px) scale(.98); }
 #timer-fill.low { background: linear-gradient(90deg, var(--bad), #ff8c5e); animation: lowPulse .5s linear infinite; }
 
 #finger-hint { margin-top: 9px; font-size: 15px; font-weight: 700; color: var(--info); min-height: 22px; }
+#finger-hint.warn { color: var(--bad); animation: lowPulse .6s linear infinite; }
+
+/* locked-content click feedback: flash, never transform (billboard-safe) */
+.mnode.denied, .tier-card.denied { animation: deniedFlash .45s ease-out; }
+@keyframes deniedFlash {
+  30% { border-color: var(--bad); box-shadow: 0 0 16px rgba(255, 94, 122, .85); }
+}
 
 /* ============ on-screen keyboard + hand guides ============ */
 #kb-area { padding: 8px 0 2px; }
@@ -938,13 +971,13 @@ button:active { transform: translateY(1px) scale(.98); }
   background: var(--card);
   border: 2px solid var(--line);
   border-radius: 24px;
-  padding: 30px 30px 24px;
+  padding: 20px 26px 16px;
   text-align: center;
   box-shadow: 0 30px 80px rgba(0,0,0,.5);
 }
 #results-card.defeat { border-color: #5e2438; }
-#results-title { font-size: 30px; font-weight: 900; }
-#results-stars { font-size: 64px; letter-spacing: 10px; margin: 10px 0 4px; }
+#results-title { font-size: 26px; font-weight: 900; }
+#results-stars { font-size: 52px; letter-spacing: 9px; margin: 6px 0 2px; }
 .star { color: #2e3870; display: inline-block; transition: color .2s; }
 .star.on { color: var(--gold); text-shadow: 0 0 26px rgba(255, 211, 77, .7); }
 .star.bounce { animation: starBounce .5s cubic-bezier(.2, 1.6, .4, 1); }
@@ -960,13 +993,13 @@ button:active { transform: translateY(1px) scale(.98); }
 #results-xpbar { height: 13px; background: #10142c; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
 #results-xpfill { height: 100%; width: 0; background: linear-gradient(90deg, var(--info), var(--good)); border-radius: 8px; }
 
-.catch-result { margin: 16px 0 4px; }
+.catch-result { margin: 10px 0 2px; }
 .caught-card {
   display: inline-block;
   background: #10142c;
   border: 3px solid var(--rc, var(--gold));
   border-radius: 18px;
-  padding: 14px 30px;
+  padding: 10px 24px;
   animation: zoomIn .5s cubic-bezier(.2, 1.4, .4, 1);
 }
 .caught-card.shiny { background: linear-gradient(135deg, #2d2545, #4a3a12); box-shadow: 0 0 30px rgba(255, 211, 77, .45); }
@@ -1165,6 +1198,7 @@ button:active { transform: translateY(1px) scale(.98); }
 .map-grass:hover, .map-grass:active,
 .map-fish:hover, .map-fish:active,
 .map-roamer:hover, .map-roamer:active,
+.region-label:hover, .region-label:active,
 .map-poke:hover, .map-poke:active {
   transform: translate(-50%, -100%) rotateX(calc(-1 * var(--tilt)));
   filter: none; /* never toggle filters on 3D-positioned pins */
@@ -1179,3 +1213,203 @@ button:active { transform: translateY(1px) scale(.98); }
 /* animations also override transforms while running — outer pins must
    never animate (inner spans carry bob/rustle instead) */
 .map-marker, .map-grass { animation: none; }
+
+/* ============ Phase B: small screens, party notes, key hints ============ */
+.key-hint {
+  opacity: .65;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1.5px solid rgba(26, 20, 4, .45);
+  padding: 1px 6px;
+  border-radius: 5px;
+  vertical-align: middle;
+}
+.in-party-note { margin-top: 8px; font-size: 14px; font-weight: 800; color: var(--good); }
+#btn-party-add { margin-top: 8px; font-size: 14px; }
+.btn-party { font-size: 10.5px; font-weight: 800; padding: 3px 7px; border-radius: 999px;
+  background: var(--card2); border: 1px solid var(--line); color: var(--dim); }
+.btn-party.on { color: #1a1404; background: var(--gold); border-color: var(--gold); text-shadow: none; }
+
+#grownups { width: 100%; margin-top: 14px; }
+#grownups summary {
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--dim);
+  padding: 10px 14px;
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: 14px;
+}
+#grownups[open] summary { border-radius: 14px 14px 0 0; }
+#parent-stats { padding: 12px 16px 0; font-size: 13.5px; color: var(--dim); line-height: 1.7; }
+#parent-stats b { color: var(--text); }
+.backup-nudge { color: var(--gold); font-weight: 700; }
+
+/* game screen must fit short viewports without scrolling */
+@media (max-height: 800px) {
+  #arena { min-height: 200px; }
+  #target .poke-img { height: 118px; }
+  #target.boss-size .poke-img { height: 156px; }
+  #target.catch-size .poke-img { height: 136px; }
+  #partner-spot .poke-img { height: 92px; }
+  #player-avatar .trainer-svg { height: 80px; }
+  #target { font-size: 84px; }
+  #target.boss-size { font-size: 112px; }
+  #prompt-word { font-size: 32px; min-height: 44px; }
+  #prompt-word.long { font-size: 26px; }
+  #prompt-area { margin: 6px 2px 4px; padding: 8px 8px 6px; }
+  #finger-hint { margin-top: 5px; font-size: 13px; min-height: 18px; }
+  .key { width: clamp(28px, 3.9vw, 40px); height: clamp(28px, 4.4vh, 40px); font-size: 14px; }
+  .key.space { width: clamp(180px, 25vw, 300px); }
+  .hand { width: 80px; }
+  .plat-far { width: 310px; height: 82px; }
+  .plat-near { width: 350px; height: 94px; }
+  #kb-area { padding: 4px 0 0; }
+  #timer-bar { margin-top: 6px; height: 10px; }
+}
+
+/* ============ Phase C: trophy splash, NEW badges, keyboard map nav ============ */
+#trophy-splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 130;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 211, 77, .12), transparent 60%);
+}
+.ts-card {
+  background: var(--card);
+  border: 3px solid var(--gold);
+  border-radius: 22px;
+  padding: 26px 44px;
+  text-align: center;
+  box-shadow: 0 0 60px rgba(255, 211, 77, .45);
+  animation: zoomIn .45s cubic-bezier(.2, 1.4, .4, 1);
+}
+.ts-card #ts-emoji { font-size: 58px; display: block; }
+.ts-card b { font-size: 24px; font-weight: 900; display: block; margin-top: 6px; }
+.ts-card i { font-style: normal; font-size: 13px; color: var(--gold); font-weight: 800; letter-spacing: 1px; }
+
+.trophy-card { position: relative; }
+.new-chip {
+  position: absolute;
+  top: -8px;
+  right: -6px;
+  background: var(--bad);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 3px 8px;
+  border-radius: 999px;
+  letter-spacing: 1px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.4);
+}
+
+.mnode.kbsel { border-color: var(--gold); box-shadow: 0 0 0 4px rgba(255, 211, 77, .55), 0 8px 18px rgba(0,0,0,.5); }
+
+/* ============ Area spawn guide (who lives here + how to catch) ============ */
+/* fixed overlay, not a map pin — filters/animations are safe in here */
+#area-panel {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 10, 24, .8);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.area-card {
+  position: relative;
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: 20px;
+  padding: 20px 22px 14px;
+  width: min(560px, 92vw);
+  max-height: 84vh;
+  display: flex;
+  flex-direction: column;
+  animation: zoomIn .3s cubic-bezier(.2, 1.4, .4, 1);
+}
+.area-card h3 { font-size: 24px; font-weight: 900; margin: 0 30px 2px 0; }
+.area-sub { font-size: 13px; color: var(--dim); margin: 0 0 12px; font-weight: 700; }
+#area-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: var(--card2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 15px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+#area-close:hover { border-color: var(--gold); }
+.area-list { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; }
+.area-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card2);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 8px 12px;
+}
+.area-row.hi { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(255, 211, 77, .35); }
+.area-sprite { width: 52px; text-align: center; font-size: 36px; flex: none; }
+.area-sprite .poke-img, .area-sprite img { height: 48px; }
+.area-sprite.silh { filter: brightness(0) opacity(.45); }
+.area-info { flex: 1; min-width: 0; }
+.area-info b { font-size: 15px; display: block; }
+.area-srcs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.src-chip {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--dim);
+  background: rgba(10, 13, 30, .55);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+.area-got { color: var(--good); font-weight: 900; font-size: 12.5px; flex: none; }
+.area-miss { color: var(--gold); font-weight: 800; font-size: 12.5px; flex: none; }
+
+/* dex cards: tiny "found in" icon line (hover an icon for details) */
+.dex-where { font-size: 13px; margin-top: 3px; letter-spacing: 2px; cursor: help; }
+
+/* ============ Touch devices (iPad app / Add to Home Screen) ============ */
+/* the invisible input that summons the on-screen keyboard: kept inside the
+   viewport (iOS refuses to open the keyboard for off-screen inputs) but
+   impossible to see or tap; 16px font stops iOS from zooming on focus */
+#kb-catcher {
+  position: fixed;
+  top: 2px; /* top edge: the on-screen keyboard can never cover it, so iOS
+               never auto-scrolls the page trying to "reveal" it */
+  left: 50%;
+  width: 40px;
+  height: 20px;
+  font-size: 16px;
+  opacity: .02;
+  border: none;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  pointer-events: none;
+  z-index: 1;
+}
+#kb-catcher:focus { outline: none; }
+
+/* stop double-tap zoom without breaking the map's pan gestures */
+button, .screen, #topbar { touch-action: manipulation; }
+
+/* keep the UI out of the iPhone notch / iPad rounded corners */
+#app {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  padding-top: env(safe-area-inset-top);
+}

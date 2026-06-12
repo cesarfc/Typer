@@ -65,6 +65,10 @@ const UI = {
   },
 
   downloadBackup() {
+    if (SAVE.state && SAVE.state.flags) {
+      SAVE.state.flags.lastBackupXp = SAVE.state.xp;
+      SAVE.save();
+    }
     const blob = new Blob([SAVE.exportData()], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -127,6 +131,21 @@ const UI = {
     if (name === "stats") this.renderStats();
     if (name === "practice") this.renderPractice();
     if (name !== "title" && name !== "game") this.renderTopbar();
+    this.touchKeyboard(name);
+  },
+
+  // on touch devices the on-screen keyboard only appears while an input is
+  // focused — focus our invisible catcher during play, release it elsewhere.
+  // (focus() summons the keyboard only inside a user gesture, which is why
+  // main.js also re-focuses on taps within the game screens.)
+  _coarse: matchMedia("(pointer: coarse)").matches,
+
+  touchKeyboard(screen) {
+    if (!this._coarse) return;
+    const c = this.$("kb-catcher");
+    if (!c) return;
+    if (screen === "game" || screen === "tutorial") c.focus({ preventScroll: true });
+    else if (document.activeElement === c) c.blur();
   },
 
   // ---------- trainer character (layered SVG) ----------
@@ -284,8 +303,9 @@ const UI = {
     this.$("sound-btn").textContent = SAVE.state.settings.sound ? "🔊" : "🔇";
     const d = DIFFICULTY[SAVE.state.settings.difficulty] || DIFFICULTY.normal;
     const db = this.$("diff-btn");
-    db.textContent = d.e;
+    db.textContent = `${d.e} ${d.label}`;
     db.title = `Difficulty: ${d.label} — click to change`;
+    db.setAttribute("aria-label", `Difficulty ${d.label}, click to change`);
   },
 
   // ---------- region map (pannable, DS-style tilted view) ----------
@@ -527,6 +547,14 @@ const UI = {
     });
     const chip = this.$("wild-chip");
     if (chip) chip.textContent = `🌿 ${patches.length} · 🎣 ${castsLeft}`;
+    // one-time discovery hint the first time grass appears
+    this._hintedThisRender = false;
+    if (patches.length && SAVE.state && SAVE.state.flags && !SAVE.state.flags.grassHint) {
+      SAVE.state.flags.grassHint = true;
+      SAVE.save();
+      this._hintedThisRender = true;
+      this.toast("🌿 See the rustling grass? A wild Pokemon hides there — click it!", "gold");
+    }
     html += this.MAP_DECOR.concat(this.scatterDecor()).map(o =>
       `<span class="map-decor" style="left:${o.x}px;top:${o.y}px;${o.e ? `font-size:${o.s}px` : ""}">${o.t ? tileSprite(o.t, o.sc) : o.sp ? mapSprite(o.sp, o.s, o.c) : o.e}</span>`).join("");
     html += this.MAP_CITIES.map(c =>
@@ -541,7 +569,8 @@ const UI = {
       const unlocked = SAVE.worldUnlocked(wi);
       const maxStars = (w.levels.length + 1) * 3;
       const mid = ns[Math.floor(ns.length / 2)];
-      html += `<div class="region-label" style="left:${mid.x}px;top:${mid.y - 138}px">
+      html += `<div class="region-label" data-rw="${wi}" role="button"
+        title="Who lives in ${this.esc(w.name)}?" style="left:${mid.x}px;top:${mid.y - 138}px">
         <b>${w.emoji} ${w.name}</b><span>★ ${SAVE.worldStars(wi)}/${maxStars}</span></div>`;
 
       // wild Pokemon living on the map: color when caught, silhouette when not
@@ -606,8 +635,114 @@ const UI = {
 
     map.innerHTML = html;
     this.renderPartyBar();
+    this._mapSel = null; // keyboard nav selection resets with the map
+    this.mapHints();
 
     this.centerMapOn(fp.x, fp.y);
+  },
+
+  // one gentle discovery hint per map visit, spread across sessions
+  mapHints() {
+    if (this._hintedThisRender || !SAVE.state || !SAVE.state.flags) return;
+    const f = SAVE.state.flags;
+    if (!f.grassHint) return; // the grass intro always goes first
+    if (!f.schoolHint) {
+      f.schoolHint = true;
+      SAVE.save();
+      this._hintedThisRender = true;
+      this.toast("🏫 The Trainer School near Pallet Town has NO countdown — race your own records!");
+      return;
+    }
+    if (SAVE.state.egg && !f.eggHint) {
+      f.eggHint = true;
+      SAVE.save();
+      this._hintedThisRender = true;
+      this.toast("🥚 You carry a Mystery Egg! Finish levels to warm it, then hatch it from the chip up top.");
+      return;
+    }
+    if (!f.areaHint) {
+      f.areaHint = true;
+      SAVE.save();
+      this._hintedThisRender = true;
+      this.toast("🗺️ Click an area's name sign to see every Pokemon that lives there — and how to catch them!");
+    }
+  },
+
+  // ---------- area spawn guide (who lives here + how to catch them) ----------
+  whereLine(w, i) {
+    const chips = spawnSources(w, i).map(s =>
+      `<span title="${this.esc(s.title)}">${s.icon}</span>`).join("");
+    return chips ? `<div class="dex-where" title="Where to find it">${chips}</div>` : "";
+  },
+
+  openAreaPanel(w, hiKey) {
+    const panel = this.$("area-panel");
+    const rows = CREATURES[w].map((c, i) => {
+      const key = `${w}-${i}`;
+      const got = SAVE.state.dex[key];
+      const chips = spawnSources(w, i).map(s =>
+        `<span class="src-chip" title="${this.esc(s.title)}">${s.icon} ${this.esc(s.label)}</span>`).join("");
+      return `<div class="area-row ${key === hiKey ? "hi" : ""}">
+        <span class="area-sprite ${got ? "" : "silh"}">${this.pokeHtml(c.id, c.e, { shiny: got && got.shiny })}</span>
+        <div class="area-info">
+          <b>${got ? `${got.shiny ? "✨ " : ""}${this.esc(c.n)}` : "???"}</b>
+          <div class="area-srcs">${chips}</div>
+        </div>
+        ${got ? `<span class="area-got">✔ caught</span>` : `<span class="area-miss">not yet!</span>`}
+      </div>`;
+    }).join("");
+    const caught = CREATURES[w].filter((c, i) => SAVE.state.dex[`${w}-${i}`]).length;
+    panel.innerHTML = `<div class="area-card">
+      <button id="area-close" aria-label="Close">✕</button>
+      <h3>${WORLDS[w].emoji} ${this.esc(WORLDS[w].name)}</h3>
+      <p class="area-sub">Pokemon living here · ${caught}/${CREATURES[w].length} caught</p>
+      <div class="area-list">${rows}</div>
+    </div>`;
+    panel.classList.remove("hidden");
+    if (hiKey) {
+      // offsetTop math instead of scrollIntoView: the card's pop-in
+      // animation is mid-scale right now and would skew the measurement
+      const list = panel.querySelector(".area-list");
+      const el = panel.querySelector(".area-row.hi");
+      if (el) list.scrollTop = el.offsetTop - list.clientHeight / 2 + el.clientHeight / 2;
+    }
+  },
+
+  closeAreaPanel() {
+    this.$("area-panel").classList.add("hidden");
+  },
+
+  // ---------- keyboard map navigation (arrows walk the route, Enter starts) ----------
+  mapKeyNav(e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    // while the area guide is open, Escape closes it and arrows stay put
+    if (!this.$("area-panel").classList.contains("hidden")) {
+      if (e.key === "Escape") { e.preventDefault(); this.closeAreaPanel(); }
+      return;
+    }
+    const keys = ["ArrowRight", "ArrowLeft", "ArrowUp", "ArrowDown", "Enter"];
+    if (!keys.includes(e.key)) return;
+    e.preventDefault();
+    const flat = [];
+    WORLDS.forEach((w, wi) => { for (let s = 0; s <= w.levels.length; s++) flat.push({ w: wi, s }); });
+    if (this._mapSel === null || this._mapSel === undefined) {
+      const f = this.mapFrontier();
+      this._mapSel = flat.findIndex(n => n.w === f.w && n.s === f.s);
+      if (this._mapSel < 0) this._mapSel = 0;
+    } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      this._mapSel = Math.min(flat.length - 1, this._mapSel + 1);
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      this._mapSel = Math.max(0, this._mapSel - 1);
+    }
+    const n = flat[this._mapSel];
+    const node = document.querySelector(`.mnode[data-w="${n.w}"][data-s="${n.s}"]`);
+    if (!node) return;
+    if (e.key === "Enter") { node.click(); return; }
+    document.querySelectorAll(".mnode.kbsel").forEach(x => x.classList.remove("kbsel"));
+    node.classList.add("kbsel");
+    SFX.click();
+    const p = this.mapNodes()[n.w][n.s];
+    this.centerMapOn(p.x, p.y);
   },
 
   centerMapOn(x, y, tries = 0) {
@@ -667,9 +802,21 @@ const UI = {
     vp.addEventListener("click", e => {
       if (this._mapDragged) return;
       const b = e.target.closest(".mnode");
-      if (b && !b.classList.contains("locked")) {
+      if (b) {
         SFX.init();
-        Engine.startStage(+b.dataset.w, +b.dataset.s);
+        if (!b.classList.contains("locked")) {
+          Engine.startStage(+b.dataset.w, +b.dataset.s);
+        } else {
+          // locked: never answer a click with silence
+          SFX.error();
+          b.classList.remove("denied");
+          void b.offsetWidth;
+          b.classList.add("denied");
+          const w = +b.dataset.w, s = +b.dataset.s;
+          this.toast(!SAVE.worldUnlocked(w)
+            ? `🔒 Defeat ${WORLDS[w - 1].boss.name} ${WORLDS[w - 1].boss.emoji} to enter ${WORLDS[w].name}!`
+            : `🔒 Beat ${WORLDS[w].name} level ${s} first!`);
+        }
         return;
       }
       const g = e.target.closest(".map-grass");
@@ -700,7 +847,8 @@ const UI = {
         this.show("practice");
         return;
       }
-      // wild Pokemon living on the map: say hi (caught) or tease (mystery)
+      // wild Pokemon living on the map: say hi (caught) or open the
+      // area guide so the mystery shows how it can be caught
       const pk = e.target.closest(".map-poke");
       if (pk) {
         SFX.init();
@@ -715,16 +863,32 @@ const UI = {
           this.toast(`${got.shiny ? "✨ " : ""}<b>${this.esc(c.n)}</b> says hi! It lives near ${WORLDS[w].emoji} ${WORLDS[w].name}.`);
         } else {
           SFX.combo();
-          this.toast(`👀 A mystery Pokemon lives near ${WORLDS[w].emoji} ${WORLDS[w].name} — finish levels there or check the tall grass to catch it!`);
+          this.openAreaPanel(w, `${w}-${i}`);
         }
+        return;
+      }
+      // area name signs open the spawn guide for that region
+      const rl = e.target.closest(".region-label");
+      if (rl) {
+        SFX.init();
+        SFX.word();
+        this.openAreaPanel(+rl.dataset.rw);
       }
     });
 
     this.$("practice-tiers").addEventListener("click", e => {
       const t = e.target.closest(".tier-card");
-      if (t && !t.classList.contains("locked")) {
-        SFX.init();
+      if (!t) return;
+      SFX.init();
+      if (!t.classList.contains("locked")) {
         Engine.startPractice(t.dataset.tier);
+      } else {
+        SFX.error();
+        t.classList.remove("denied");
+        void t.offsetWidth;
+        t.classList.add("denied");
+        const tier = PRACTICE_TIERS.find(x => x.id === t.dataset.tier);
+        if (tier) this.toast(`🔒 Reach ${WORLDS[tier.need].emoji} ${WORLDS[tier.need].name} to unlock ${tier.label} practice!`);
       }
     });
 
@@ -747,6 +911,12 @@ const UI = {
     });
     addEventListener("resize", () => {
       if (this._pendingCenter) this.centerMapOn(this._pendingCenter.x, this._pendingCenter.y);
+    });
+
+    this.$("wild-chip").addEventListener("click", e => {
+      e.stopPropagation();
+      SFX.click();
+      this.toast("🌿 Rustling grass hides wild Pokemon — click a patch to battle! 🎣 shows fishing casts left today.", "gold");
     });
 
     this.$("egg-chip").addEventListener("click", e => {
@@ -826,7 +996,14 @@ const UI = {
       document.querySelectorAll(`.hand-finger[data-f="${leftHand ? 7 : 0}"]`).forEach(el => el.classList.add("on"));
       txt = `hold ⇧ Shift + ${txt}`;
     }
-    hint.innerHTML = txt ? `👆 ${txt}` : "&nbsp;";
+    // Caps Lock is the #1 kid keyboard accident — warn where they look
+    if (this._capsOn) {
+      hint.innerHTML = "⚠️ Turn off CAPS LOCK!";
+      hint.classList.add("warn");
+    } else {
+      hint.classList.remove("warn");
+      hint.innerHTML = txt ? `👆 ${txt}` : "&nbsp;";
+    }
   },
 
   // ---------- game screen ----------
@@ -841,6 +1018,8 @@ const UI = {
     this.$("hud-stage").textContent = S.isBoss
       ? `${w.emoji} ${w.name} · BOSS`
       : `${w.emoji} ${w.name} · ${w.levels[S.s].name}`;
+    // the boss HP bar already shows progress inverted — one meter is enough
+    this.$("hud-progress").classList.toggle("hidden", S.isBoss);
     this.$("hud-progress-fill").style.width = "0%";
     this.$("player-avatar").innerHTML = this.avatarHtml(SAVE.state.profile);
 
@@ -909,13 +1088,8 @@ const UI = {
       target.innerHTML = this.pokeHtml(c.id, c.e);
       target.className = "catch-size";
     } else {
-      if (S.w === 0) {
-        // wild Pokemon wander the meadow during levels
-        const c = CREATURES[0][S.idx % CREATURES[0].length];
-        target.innerHTML = this.pokeHtml(c.id, c.e);
-      } else {
-        target.textContent = S.world.targets[S.idx % S.world.targets.length];
-      }
+      // levels shoot neutral targets — Pokemon are caught, not shot at
+      target.textContent = S.world.targets[S.idx % S.world.targets.length];
       target.className = "";
       wrap.classList.remove("enter");
       void wrap.offsetWidth;
@@ -992,7 +1166,8 @@ const UI = {
   },
 
   capsCheck(e) {
-    const on = e.getModifierState && e.getModifierState("CapsLock");
+    const on = !!(e.getModifierState && e.getModifierState("CapsLock"));
+    this._capsOn = on;
     this.$("capslock-warn").classList.toggle("hidden", !on);
   },
 
@@ -1149,7 +1324,9 @@ const UI = {
 
   showCatch(S, creature) {
     this.$("target-wrap").style.opacity = 1;
-    this.speech(`Type my name to catch me!`, 2600);
+    // relaxed catches (Chill / first world) have no clock at all
+    this.$("timer-bar").classList.toggle("hidden", !!S.relaxedCatch);
+    this.speech(S.relaxedCatch ? "No rush — type my name!" : "Type my name to catch me!", 2600);
     this.renderPromptText(S);
   },
 
@@ -1179,7 +1356,9 @@ const UI = {
     this._lastStage = [res.w, res.s];
     this._practiceNext = null;
     this._practiceMode = false;
+    this._resultsAt = performance.now();
     this.$("btn-replay").textContent = "↻ Replay";
+    this.$("btn-replay").classList.remove("hidden");
     this.$("results-stars").classList.remove("hidden");
     const w = WORLDS[res.w];
     const title = this.$("results-title");
@@ -1236,12 +1415,20 @@ const UI = {
     const catchBox = this.$("results-catch");
     if (res.caught) {
       const rar = RARITY[res.caught.r];
+      const ckey = `${res.caught.w}-${res.caught.i}`;
+      const inParty = SAVE.state.party.includes(ckey);
+      const partyBit = inParty
+        ? `<div class="in-party-note">🎽 In your party!</div>`
+        : SAVE.state.party.length < PARTY_MAX
+          ? `<button id="btn-party-add" class="mid-btn" data-key="${ckey}">🎽 Add to party</button>`
+          : "";
       catchBox.className = "catch-result";
       catchBox.innerHTML = `
         <div class="caught-card ${res.caught.shiny ? "shiny" : ""}" style="--rc:${rar.color}">
           <div class="caught-emoji">${this.pokeHtml(res.caught.id, res.caught.e, { shiny: res.caught.shiny })}</div>
           <div class="caught-name">${res.caught.shiny ? "✨ SHINY " : ""}${this.esc(res.caught.n)}</div>
           <div class="caught-rar">${rar.label} · added to your Pokedex!</div>
+          ${partyBit}
         </div>`;
       setTimeout(() => this.confetti(), 600);
     } else if (res.candy) {
@@ -1304,8 +1491,10 @@ const UI = {
     const next = this.$("btn-next");
     const lastWorld = WORLDS.length - 1;
     next.classList.remove("hidden");
-    if (!res.isBoss) next.textContent = res.s === WORLDS[res.w].levels.length - 1 ? "Boss Fight! 👊" : "Next Level ▶";
-    else if (res.w < lastWorld) next.textContent = `Next World: ${WORLDS[res.w + 1].emoji} ▶`;
+    let nextLabel = null;
+    if (!res.isBoss) nextLabel = res.s === WORLDS[res.w].levels.length - 1 ? "Boss Fight! 👊" : "Next Level ▶";
+    else if (res.w < lastWorld) nextLabel = `Next World: ${WORLDS[res.w + 1].emoji} ▶`;
+    if (nextLabel) next.innerHTML = `${nextLabel} <small class="key-hint">Enter</small>`;
     else next.classList.add("hidden");
     this._nextTarget = !res.isBoss ? [res.w, res.s + 1] : res.w < lastWorld ? [res.w + 1, 0] : null;
     SFX.fanfare();
@@ -1317,6 +1506,9 @@ const UI = {
     this._lastStage = [S.w, S.s];
     this._practiceNext = null;
     this._practiceMode = false;
+    this._resultsAt = performance.now();
+    this.$("results-egg").className = "hidden";          // no stale egg note
+    this.$("btn-replay").classList.add("hidden");        // same as Try Again
     this.$("btn-replay").textContent = "↻ Replay";
     const card = this.$("results-card");
     card.classList.add("defeat");
@@ -1331,7 +1523,7 @@ const UI = {
     this.$("results-catch").className = "hidden";
     const next = this.$("btn-next");
     next.classList.remove("hidden");
-    next.textContent = "⚔️ Try Again!";
+    next.innerHTML = `⚔️ Try Again! <small class="key-hint">Enter</small>`;
     this._nextTarget = [S.w, S.s];
   },
 
@@ -1350,7 +1542,7 @@ const UI = {
             (f.chain || f.choices || []).includes(key)) : null;
           const hint = fam ? `evolves from ${this.esc(CREATURES[fam.base.split("-")[0]][fam.base.split("-")[1]].n)}` : "???";
           return `<div class="dex-card unknown"><div class="dex-emoji">${this.pokeHtml(c.id, c.e)}</div>
-            <div class="dex-name ${fam ? "evo-hint" : ""}">${hint}</div></div>`;
+            <div class="dex-name ${fam ? "evo-hint" : ""}">${hint}</div>${fam ? "" : this.whereLine(wi, ci)}</div>`;
         }
         const candy = SAVE.state.candy[key] || 0;
         const fam = SAVE.familyFor(key);
@@ -1360,11 +1552,11 @@ const UI = {
           ? `<button class="btn-evolve" data-base="${key}">EVOLVE!</button>` : "";
         const inParty = SAVE.state.party.includes(key);
         const partyBtn = `<button class="btn-party ${inParty ? "on" : ""}" data-pkey="${key}"
-          title="${inParty ? "Remove from party" : "Add to party"}">${inParty ? "★" : "☆"}</button>`;
+          title="${inParty ? "Remove from party" : "Add to party"}">${inParty ? "✔ Party" : "+ Party"}</button>`;
         return `<div class="dex-card ${got.shiny ? "shiny" : ""}" style="--rc:${rar.color}">${partyBtn}
           <div class="dex-emoji">${this.pokeHtml(c.id, c.e, { shiny: got.shiny })}</div>
           <div class="dex-name">${got.shiny ? "✨" : ""}${this.esc(c.n)}</div>
-          <div class="dex-rar">${rar.label}</div>${candyHtml}${evoBtn}</div>`;
+          <div class="dex-rar">${rar.label}</div>${this.whereLine(wi, ci)}${candyHtml}${evoBtn}</div>`;
       }).join("");
       const caught = CREATURES[wi].filter((c, ci) => SAVE.state.dex[`${wi}-${ci}`]).length;
       return `<div class="dex-world"><h3>${w.emoji} ${w.name} <span>${caught}/${CREATURES[wi].length}</span></h3><div class="dex-grid">${cards}</div></div>`;
@@ -1479,6 +1671,7 @@ const UI = {
     this.applyKbVisibility();
     this.practiceTimerUI(true);
     this.$("hud-stage").textContent = `🏫 Practice · ${S.practice.label}`;
+    this.$("hud-progress").classList.remove("hidden");
     this.$("hud-progress-fill").style.width = "0%";
     this.$("hud-hearts").classList.add("hidden");
     this.$("boss-bar").classList.add("hidden");
@@ -1516,7 +1709,7 @@ const UI = {
       const pbHtml = pb
         ? `⏱ best ${this.fmtTime(pb.time)} · ⚡ best ${pb.wpm} wpm`
         : `no record yet — set one!`;
-      return `<button class="tier-card ${open ? "" : "locked"}" data-tier="${t.id}" ${open ? "" : "disabled"}>
+      return `<button class="tier-card ${open ? "" : "locked"}" data-tier="${t.id}">
         <span class="tier-e">${t.e}</span>
         <span class="tier-info">
           <b>${t.label}</b>
@@ -1534,6 +1727,8 @@ const UI = {
     this._practiceMode = true;
     this._nextTarget = null;
     this._lastStage = null;
+    this._resultsAt = performance.now();
+    this.$("btn-replay").classList.remove("hidden");
     const card = this.$("results-card");
     card.classList.remove("defeat");
     card.style.setProperty("--wa", "#4dc3ff");
@@ -1562,7 +1757,7 @@ const UI = {
 
     const next = this.$("btn-next");
     next.classList.remove("hidden");
-    next.textContent = "⏱ Try Again";
+    next.innerHTML = `⏱ Try Again <small class="key-hint">Enter</small>`;
     this.$("btn-replay").textContent = "🎚 Difficulty";
     (res.newTrophies || []).forEach((t, i) => setTimeout(() => this.trophyToast(t), 900 + i * 800));
     if (record) {
@@ -1588,6 +1783,7 @@ const UI = {
     this.$("hud-stage").textContent = fishing ? "🎣 Gone fishing..."
       : legendary ? "🌟 LEGENDARY BATTLE!"
       : `🌿 ${w.name} · Wild encounter!`;
+    this.$("hud-progress").classList.remove("hidden");
     this.$("hud-progress-fill").style.width = "0%";
     this.$("hud-hearts").classList.add("hidden");
     this.$("boss-bar").classList.add("hidden");
@@ -1645,10 +1841,12 @@ const UI = {
     this.$("capslock-warn").classList.add("hidden");
     this.$("kb-flex").classList.remove("ninja");
     this.$("hud-stage").textContent = "🥚 The egg is hatching!";
+    this.$("hud-progress").classList.remove("hidden");
     this.$("hud-progress-fill").style.width = "100%";
     this.$("hud-hearts").classList.add("hidden");
     this.$("boss-bar").classList.add("hidden");
     this.practiceTimerUI(false);
+    this.$("timer-bar").classList.add("hidden"); // "no rush" should look like no rush
     this.showPartner(S);
     this.partnerMeter(S);
     this.$("player-avatar").innerHTML = this.avatarHtml(SAVE.state.profile);
@@ -1729,6 +1927,7 @@ const UI = {
     this.$("capslock-warn").classList.add("hidden");
     this.$("kb-flex").classList.remove("ninja");
     this.$("hud-stage").textContent = `🧬 Evolution time!`;
+    this.$("hud-progress").classList.remove("hidden");
     this.$("hud-progress-fill").style.width = "100%";
     this.$("hud-hearts").classList.add("hidden");
     this.$("boss-bar").classList.add("hidden");
@@ -1775,13 +1974,20 @@ const UI = {
   // ---------- trophies ----------
   renderTrophies() {
     const got = SAVE.state.trophies;
+    const fresh = (SAVE.state.flags && SAVE.state.flags.newTrophies) || {};
     this.$("trophy-count").textContent = `${Object.keys(got).length} / ${TROPHIES.length}`;
     this.$("trophy-grid").innerHTML = TROPHIES.map(t => `
       <div class="trophy-card ${got[t.id] ? "on" : ""}">
+        ${fresh[t.id] ? `<span class="new-chip">NEW</span>` : ""}
         <div class="trophy-emoji">${t.e}</div>
         <div class="trophy-name">${t.name}</div>
         <div class="trophy-desc">${t.desc}</div>
       </div>`).join("");
+    // visiting the room marks everything as seen
+    if (SAVE.state.flags && Object.keys(fresh).length) {
+      SAVE.state.flags.newTrophies = {};
+      SAVE.save();
+    }
   },
 
   // ---------- stats ----------
@@ -1804,6 +2010,22 @@ const UI = {
           <div class="bar" style="height:${Math.max(6, 100 * h.wpm / max)}%"></div><span>${h.wpm}</span></div>`).join("")
       : `<p class="dim">Play some levels to see your speed grow! 📈</p>`;
 
+    // grown-ups corner: recent form + backup nudge
+    const ps = this.$("parent-stats");
+    if (ps) {
+      const recent = s.history.slice(-7);
+      const avgW = recent.length ? Math.round(recent.reduce((a, h) => a + h.wpm, 0) / recent.length) : 0;
+      const avgA = recent.length ? Math.round(100 * recent.reduce((a, h) => a + h.acc, 0) / recent.length) : 0;
+      let totalStars = 0;
+      WORLDS.forEach((w, wi) => { totalStars += SAVE.worldStars(wi); });
+      const sinceBackup = SAVE.state.xp - ((SAVE.state.flags && SAVE.state.flags.lastBackupXp) || 0);
+      ps.innerHTML = recent.length
+        ? `Recent form (last ${recent.length === 1 ? "game" : `${recent.length} games`}): <b>${avgW} wpm</b> at <b>${avgA}%</b> accuracy.<br>
+           Total stars: <b>${totalStars}</b> · Pokemon: <b>${SAVE.caughtCount()}</b> · Day streak: <b>${SAVE.state.streak.count || 0}</b>.
+           ${sinceBackup > 150 ? `<br><span class="backup-nudge">📥 Lots of new progress since the last backup — a download is wise!</span>` : ""}`
+        : `No games played yet — the trend will appear here.`;
+    }
+
     const entries = Object.entries(s.perKey)
       .map(([k, v]) => ({ k, total: v.ok + v.miss, acc: v.ok / (v.ok + v.miss) }))
       .filter(e => e.total >= 8);
@@ -1819,24 +2041,68 @@ const UI = {
       : `<p class="dim">Type more to discover your power keys! 🔑</p>`;
   },
 
-  // ---------- toasts ----------
+  // ---------- toasts (queued: kids read slowly — max 2 at once, ~5s) ----------
+  _toastQ: [],
+  _toastsShowing: 0,
+
   toast(html, cls = "") {
+    this._toastQ.push({ html, cls });
+    this._pumpToasts();
+  },
+
+  _pumpToasts() {
+    if (this._toastsShowing >= 2 || !this._toastQ.length) return;
+    const { html, cls } = this._toastQ.shift();
+    this._toastsShowing++;
     const box = this.$("toasts");
     const t = document.createElement("div");
     t.className = `toast ${cls}`;
     t.innerHTML = html;
     box.appendChild(t);
-    setTimeout(() => t.classList.add("out"), 3400);
-    setTimeout(() => t.remove(), 3900);
+    setTimeout(() => t.classList.add("out"), 4800);
+    setTimeout(() => {
+      t.remove();
+      this._toastsShowing--;
+      this._pumpToasts();
+    }, 5300);
   },
 
   trophyToast(t) {
     SFX.trophy();
-    this.toast(`🏆 Trophy unlocked: <b>${t.e} ${t.name}</b>`, "gold");
+    if (SAVE.state && SAVE.state.flags) {
+      SAVE.state.flags.newTrophies = SAVE.state.flags.newTrophies || {};
+      SAVE.state.flags.newTrophies[t.id] = true;
+      SAVE.save();
+    }
+    // trophies deserve a moment, not just a toast
+    if (!this._splashBusy) {
+      this._splashBusy = true;
+      this.$("ts-emoji").textContent = t.e;
+      this.$("ts-name").textContent = t.name;
+      const sp = this.$("trophy-splash");
+      sp.classList.remove("hidden");
+      setTimeout(() => {
+        sp.classList.add("hidden");
+        this._splashBusy = false;
+      }, 1800);
+    } else {
+      this.toast(`🏆 Trophy unlocked: <b>${t.e} ${t.name}</b>`, "gold");
+    }
+  },
+
+  // erasing progress is a grown-up action: typing the player's name is a
+  // higher bar than clicking through confirm dialogs (fitting for a typing game)
+  guardErase(name) {
+    const typed = window.prompt(`Grown-up check — to erase ${name}'s progress forever, type their name:`);
+    return typed !== null && typed.trim().toLowerCase() === String(name).toLowerCase();
   },
 
   pauseOverlay(on) {
     this.$("pause-overlay").classList.toggle("hidden", !on);
+    // wild battles, hatches and evolutions have nothing to restart
+    const S = Engine.session;
+    const canRestart = !!S && (S.practice || S.s >= 0);
+    this.$("btn-restart").classList.toggle("hidden", !canRestart);
   },
 
   // ---------- particles ----------
@@ -1865,7 +2131,10 @@ const UI = {
     requestAnimationFrame(loop);
   },
 
+  _reducedMotion: typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches,
+
   burst(x, y, colors, n = 12, speed = 4) {
+    if (this._reducedMotion) return;
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2;
       const v = speed * (0.4 + Math.random() * 0.8);
@@ -1879,6 +2148,7 @@ const UI = {
   },
 
   confetti() {
+    if (this._reducedMotion) return;
     const colors = ["#ffd34d", "#43e97b", "#4dc3ff", "#ff5e7a", "#c77bff", "#fff"];
     for (let i = 0; i < 120; i++) {
       this.fx.parts.push({
@@ -1936,8 +2206,7 @@ const UI = {
       if (del) {
         e.stopPropagation();
         const p = SAVE.players().find(x => x.id === del.dataset.del);
-        if (p && confirm(`Delete player ${p.name}? All their progress, creatures and trophies will be gone!`)
-              && confirm("Are you really, really sure?")) {
+        if (p && this.guardErase(p.name)) {
           SAVE.deletePlayer(p.id);
           this.renderTitle();
         }
@@ -1954,6 +2223,12 @@ const UI = {
       SFX.click();
       this.renderTitle();
       this.show("title");
+    });
+    this.$("player-chip").addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        this.$("player-chip").click();
+      }
     });
 
     document.querySelectorAll(".navbtn").forEach(b =>
@@ -2047,6 +2322,26 @@ const UI = {
         this.$("evo-chooser").classList.add("hidden");
       }
     });
+    this.$("area-panel").addEventListener("click", e => {
+      if (e.target.closest("#area-close") || e.target.id === "area-panel") {
+        SFX.click();
+        this.closeAreaPanel();
+      }
+    });
+
+    this.$("results-catch").addEventListener("click", e => {
+      const b = e.target.closest("#btn-party-add");
+      if (!b) return;
+      SFX.click();
+      const r = SAVE.toggleParty(b.dataset.key);
+      if (r.added) {
+        const c = SAVE.creatureByKey(b.dataset.key);
+        b.outerHTML = `<div class="in-party-note">🎽 ${c ? this.esc(c.n) : ""} is in your party!</div>`;
+        (r.newTrophies || []).forEach(t => this.trophyToast(t));
+      } else if (r.full) {
+        this.toast("🎽 Party is full (6)! Swap someone out in the Pokedex.");
+      }
+    });
 
     this.$("btn-backup").addEventListener("click", () => { SFX.click(); this.downloadBackup(); });
     const pickRestore = () => { SFX.click(); this.$("restore-input").click(); };
@@ -2060,8 +2355,7 @@ const UI = {
 
     this.$("btn-reset").addEventListener("click", () => {
       const name = SAVE.state ? SAVE.state.profile.name : "";
-      if (confirm(`Erase ALL of ${name}'s progress, creatures and trophies? (Other players are safe.)`)
-          && confirm("Are you really, really sure?")) {
+      if (this.guardErase(name)) {
         SAVE.resetCurrent();
         location.reload();
       }

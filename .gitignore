@@ -1,4 +1,9 @@
 # Pokemon artwork stays local (download with: node tools/get-sprites.mjs)
 img/pokemon/
 
+# Xcode build output
+ios/build/
+ios/TypeQuest.xcodeproj/xcuserdata/
+ios/TypeQuest.xcodeproj/project.xcworkspace/xcuserdata/
+
 .DS_Store
