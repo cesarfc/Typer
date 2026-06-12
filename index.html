@@ -59,6 +59,7 @@
           <button id="btn-backtoselect" class="link-btn hidden">← back to players</button>
         </div>
 
+        <button id="btn-restore-title" class="link-btn">💾 restore from a backup file</button>
         <p class="title-note">⌨️ Best played on a computer with a real keyboard</p>
       </div>
     </section>
@@ -188,12 +189,23 @@
           <div id="stats-keys"></div>
         </div>
       </div>
+      <div class="stats-panel" id="backup-panel">
+        <h3>💾 Save data</h3>
+        <p class="backup-note">Progress lives in this browser. Download a backup and keep
+          <b>typequest-save.json</b> inside the game folder — the game finds it automatically
+          on a new computer or browser, and restoring never erases newer progress.</p>
+        <div class="backup-buttons">
+          <button id="btn-backup" class="mid-btn">⬇ Download backup</button>
+          <button id="btn-restore" class="mid-btn">📂 Restore from file</button>
+        </div>
+      </div>
       <button id="btn-reset" class="danger-btn">🗑 Erase everything and start over</button>
     </section>
 
   </main>
 
   <div id="toasts"></div>
+  <input type="file" id="restore-input" accept=".json,application/json" class="hidden">
 
   <div id="pause-overlay" class="hidden">
     <div class="pause-box">

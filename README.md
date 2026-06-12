@@ -35,6 +35,23 @@ the artwork belongs to Nintendo/The Pokemon Company, so it stays on your
 computer rather than in the repository. If you skip this step the game
 still works and shows emoji instead.
 
+## Never lose progress (backup → commit)
+
+Progress autosaves in the browser, but browsers can lose it (cache clears,
+different browser, new computer). To make it permanent:
+
+1. Open **Stats → 💾 Save data → ⬇ Download backup**.
+2. Move the downloaded `typequest-save.json` into this game folder
+   (replacing the old one if present).
+3. Commit it: `git add typequest-save.json && git commit -m "Save progress"`
+
+On any fresh browser or computer, the game **finds that file automatically**
+and restores everyone's progress (when run via the local server; with
+`file://` use the "💾 restore from a backup file" link on the title screen).
+Restoring is always safe: it merges by player and keeps whichever copy has
+more XP, so an old backup never erases newer progress. Repeat the backup
+once in a while — like saving at a Pokemon Center. 
+
 **Multiple players:** the title screen asks "Who is playing today?" — up to 8
 players, each with their own worlds, creatures, trophies and streaks. Click
 the player name in the top bar (⇄) any time to switch. Deleting or erasing a

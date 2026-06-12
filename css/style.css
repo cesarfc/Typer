@@ -68,6 +68,11 @@ button:active { transform: translateY(1px) scale(.98); }
 
 .mid-btn { padding: 11px 20px; font-size: 16px; font-weight: 700; }
 .link-btn { background: none; border: none; color: var(--dim); text-decoration: underline; font-size: 14px; margin-top: 12px; }
+#backup-panel { margin-top: 14px; }
+.backup-note { font-size: 13.5px; color: var(--dim); line-height: 1.5; margin-bottom: 12px; }
+.backup-note b { color: var(--text); }
+.backup-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+
 .danger-btn {
   margin: 26px auto 30px;
   display: block;

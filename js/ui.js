@@ -42,6 +42,48 @@ const UI = {
     this.startFx();
     this.renderTitle();
     this.show("title");
+    if (!SAVE.players().length) this.autoRestore();
+  },
+
+  // ---------- save backup / restore ----------
+  // a typequest-save.json checked into the game folder restores
+  // progress automatically on any fresh browser or computer
+  autoRestore() {
+    fetch("typequest-save.json", { cache: "no-store" })
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        if (!data) return;
+        const res = SAVE.importData(data);
+        if (res.ok && (res.added || res.updated)) {
+          this.kbHidden = SAVE.state ? !SAVE.state.settings.hints : this.kbHidden;
+          this.applyKbVisibility();
+          this.renderTitle();
+          this.toast("💾 Progress restored from the backup file!", "gold");
+        }
+      })
+      .catch(() => { /* no backup file — that's fine */ });
+  },
+
+  downloadBackup() {
+    const blob = new Blob([SAVE.exportData()], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "typequest-save.json";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    this.toast("💾 Backup downloaded! Move <b>typequest-save.json</b> into the game folder to keep it safe.", "gold");
+  },
+
+  restoreFromFile(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      let res = { ok: false };
+      try { res = SAVE.importData(JSON.parse(reader.result)); } catch (e) { /* bad json */ }
+      if (!res.ok) { alert("That file does not look like a TypeQuest backup."); return; }
+      alert(`Restored! ${res.added} player(s) added, ${res.updated} updated, ${res.kept} already up to date.`);
+      location.reload();
+    };
+    reader.readAsText(file);
   },
 
   // title shows the player list when players exist, else the create form
@@ -1107,6 +1149,16 @@ const UI = {
       if (this._lastStage) Engine.startStage(this._lastStage[0], this._lastStage[1]);
     });
     this.$("btn-tomap").addEventListener("click", () => this.show("map"));
+
+    this.$("btn-backup").addEventListener("click", () => { SFX.click(); this.downloadBackup(); });
+    const pickRestore = () => { SFX.click(); this.$("restore-input").click(); };
+    this.$("btn-restore").addEventListener("click", pickRestore);
+    this.$("btn-restore-title").addEventListener("click", pickRestore);
+    this.$("restore-input").addEventListener("change", e => {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = "";
+      if (file) this.restoreFromFile(file);
+    });
 
     this.$("btn-reset").addEventListener("click", () => {
       const name = SAVE.state ? SAVE.state.profile.name : "";

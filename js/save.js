@@ -78,15 +78,49 @@ const SAVE = {
       this.save();
     }
 
+    this.normalizePlayers();
+    this.save();
+    this.state = this.root.active ? this.root.players[this.root.active] || null : null;
+    return this.state;
+  },
+
+  normalizePlayers() {
     for (const id of Object.keys(this.root.players)) {
       const raw = this.root.players[id];
       const p = this.root.players[id] = Object.assign(this.defaults(), raw, { v: raw.v || 2 });
       if (!DIFFICULTY[p.settings.difficulty]) p.settings.difficulty = "normal";
       this.migratePlayer(p);
     }
-    this.save();
+  },
+
+  // ---- backup file (typequest-save.json): keep it in the game folder
+  // and commit it — the game auto-restores from it on a fresh browser ----
+  exportData() {
+    return JSON.stringify({ ...this.root, exportedAt: new Date().toISOString() }, null, 2);
+  },
+
+  // merge policy: new players are added; a player that exists in both
+  // places keeps whichever copy has more XP, so a stale backup can
+  // never erase newer live progress
+  importData(data) {
+    if (!data || typeof data !== "object" || !data.players || typeof data.players !== "object") {
+      return { ok: false };
+    }
+    let added = 0, updated = 0, kept = 0;
+    for (const [id, p] of Object.entries(data.players)) {
+      if (!p || !p.profile || !p.profile.name) continue;
+      const mine = this.root.players[id];
+      if (!mine) { this.root.players[id] = p; added++; }
+      else if ((p.xp || 0) > (mine.xp || 0)) { this.root.players[id] = p; updated++; }
+      else kept++;
+    }
+    if (!this.root.active && data.active && this.root.players[data.active]) {
+      this.root.active = data.active;
+    }
+    this.normalizePlayers();
     this.state = this.root.active ? this.root.players[this.root.active] || null : null;
-    return this.state;
+    this.save();
+    return { ok: true, added, updated, kept };
   },
 
   save() {
