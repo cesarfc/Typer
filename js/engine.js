@@ -60,7 +60,8 @@ const Engine = {
     S.errorsThisPrompt = 0;
     S.text = S.prompts[S.idx];
     UI.showPrompt(S);
-    const ms = (S.baseTime + S.text.length * 0.6) * this.difficulty().time * 1000;
+    // practice runs have no countdown — the "timer" is a count-up stopwatch
+    const ms = S.practice ? Infinity : (S.baseTime + S.text.length * 0.6) * this.difficulty().time * 1000;
     this.startTimer(ms);
   },
 
@@ -71,6 +72,11 @@ const Engine = {
     S.promptStart = performance.now();
     const tick = () => {
       const el = performance.now() - S.promptStart;
+      if (!isFinite(S.timerMs)) {
+        UI.setStopwatch(S);
+        this.timerRAF = requestAnimationFrame(tick);
+        return;
+      }
       const frac = 1 - el / S.timerMs;
       UI.setTimer(Math.max(0, frac));
       if (frac <= 0) { this.timerRAF = null; this.onTimeout(); return; }
@@ -198,9 +204,54 @@ const Engine = {
     setTimeout(() => { this.paused ? this.pendingNext = true : this.nextPrompt(); }, gap);
   },
 
+  // ---- Trainer School: no countdown, race your own best ----
+  startPractice(tierId) {
+    const tier = PRACTICE_TIERS.find(t => t.id === tierId);
+    if (!tier || !SAVE.worldUnlocked(tier.need)) return;
+    const pool = new Set();
+    tier.worlds.forEach(w => WORLDS[w].levels.forEach(l =>
+      l.pool.forEach(p => { if (p.length >= 3) pool.add(p); })));
+    let prompts = [];
+    while (prompts.length < tier.count) prompts = prompts.concat(shuffle([...pool]));
+    prompts = prompts.slice(0, tier.count);
+
+    this.paused = false;
+    this.pendingNext = false;
+    this.session = {
+      w: tier.need, s: -4, isBoss: false,
+      world: {
+        name: "Trainer School", gradient: ["#1b2142", "#3a3f6e"], accent: "#4dc3ff",
+        targets: ["🎯", "🥊", "🛡️"], projectile: "⚡",
+        hitText: ["Nice!", "Sharp!", "Clean!", "Quick!"],
+        sceneEmojis: ["🎯", "💪", "⭐", "🏫"], levels: [],
+      },
+      prompts, idx: -1, text: "", pos: 0,
+      score: 0, combo: 0, bestCombo: 0,
+      hits: 0, errors: 0, errorsThisPrompt: 0, timeouts: 0, hearts: 3,
+      typingMs: 0, promptStart: 0, timerMs: 0, timerRemaining: 0,
+      baseTime: 0, state: "play", practice: tier,
+      partner: SAVE.leadCreature(), charge: 0, partnerReady: false, meterOn: false,
+      ninjaEligible: false, pendingRes: null, catchCreature: null,
+    };
+    UI.practiceScene(this.session);
+    this.nextPrompt();
+  },
+
   finishStage() {
     const S = this.session;
     this.stopTimer();
+    if (S.practice) {
+      S.state = "done";
+      const total = S.hits + S.errors;
+      const acc = total ? S.hits / total : 1;
+      const timeMs = Math.round(Math.max(1000, S.typingMs));
+      const wpm = Math.round((S.hits / 5) / (timeMs / 60000));
+      const applied = SAVE.applyPractice(S.practice.id, timeMs, wpm, acc, S.bestCombo);
+      UI.showPracticeResults({
+        tier: S.practice, timeMs, wpm, acc, bestCombo: S.bestCombo, ...applied,
+      });
+      return;
+    }
     if (S.wild) { S.state = "between"; this.startWildCatch(); return; }
     S.state = "done";
 

@@ -398,6 +398,15 @@ const WATER_POKEMON = ["0-0", "0-5", "3-0", "3-1", "3-2", "3-3", "4-2", "5-0"];
 const PARTNER_MOVES = { 1: "Tackle", 2: "Take Down", 3: "Hyper Beam", 4: "Judgment" };
 const PARTY_MAX = 6;
 
+// Trainer School practice: no countdown, race your own records.
+// Tiers draw words from story worlds and unlock with them (need = world idx).
+const PRACTICE_TIERS = [
+  { id: "easy",   label: "Easy",   e: "🐣", desc: "Short words · Meadow & Mt. Moon",      worlds: [0, 1], count: 12, need: 0 },
+  { id: "medium", label: "Medium", e: "⭐", desc: "Words & moves · Stadium & Dragon's Den", worlds: [2, 3], count: 12, need: 2 },
+  { id: "hard",   label: "Hard",   e: "🔥", desc: "Expert moves & long phrases · Eterna",  worlds: [4],    count: 10, need: 4 },
+  { id: "expert", label: "Expert", e: "👑", desc: "Capitals & full sentences · Hall of Fame", worlds: [5], count: 6,  need: 5 },
+];
+
 const RARITY = {
   1: { label: "Common", color: "#9aa3d0" },
   2: { label: "Rare", color: "#4dc3ff" },

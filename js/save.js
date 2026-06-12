@@ -52,6 +52,7 @@ const SAVE = {
       eggDate: null,               // last day an egg was granted (one per day)
       party: [],                   // up to 6 dex keys; first one is the lead partner
       roamer: null,                // { week, done } — weekly legendary attempt
+      practice: {},                // tier id -> { time: bestMs, wpm: best }
       trophies: {},                // id -> true
       settings: { sound: true, hints: true, difficulty: "normal" },
       streak: { last: null, count: 0 },
@@ -454,6 +455,38 @@ const SAVE = {
     if (combo >= 50) this.award("combo-50", newTrophies);
     this.save();
     return newTrophies;
+  },
+
+  // ---- Trainer School practice: personal bests per tier ----
+  applyPractice(tierId, timeMs, wpm, acc, bestCombo) {
+    const st = this.state;
+    const prev = st.practice[tierId] || {};
+    const betterTime = !prev.time || timeMs < prev.time;
+    const betterWpm = !prev.wpm || wpm > prev.wpm;
+    const result = { betterTime, betterWpm, prevTime: prev.time || null, prevWpm: prev.wpm || null };
+    st.practice[tierId] = {
+      time: betterTime ? timeMs : prev.time,
+      wpm: betterWpm ? wpm : prev.wpm,
+    };
+
+    const newTrophies = [];
+    st.stats.bestWpm = Math.max(st.stats.bestWpm, wpm);
+    st.stats.bestCombo = Math.max(st.stats.bestCombo, bestCombo);
+    st.stats.history.push({ d: new Date().toISOString().slice(0, 10), wpm, acc });
+    if (st.stats.history.length > 30) st.stats.history = st.stats.history.slice(-30);
+    if (bestCombo >= 10) this.award("combo-10", newTrophies);
+    if (bestCombo >= 25) this.award("combo-25", newTrophies);
+    if (bestCombo >= 50) this.award("combo-50", newTrophies);
+    if (wpm >= 15) this.award("wpm-15", newTrophies);
+    if (wpm >= 25) this.award("wpm-25", newTrophies);
+    if (wpm >= 35) this.award("wpm-35", newTrophies);
+    if (acc >= 1) this.award("perfect", newTrophies);
+
+    result.xp = 10 + Math.min(15, wpm) + (betterTime || betterWpm ? 10 : 0);
+    st.xp += result.xp;
+    result.newTrophies = newTrophies;
+    this.save();
+    return result;
   },
 
   // ---- Mystery Egg: what hatches depends on streak (better odds when

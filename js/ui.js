@@ -124,6 +124,7 @@ const UI = {
     if (name === "dex") this.renderDex();
     if (name === "trophies") this.renderTrophies();
     if (name === "stats") this.renderStats();
+    if (name === "practice") this.renderPractice();
     if (name !== "title" && name !== "game") this.renderTopbar();
   },
 
@@ -385,6 +386,10 @@ const UI = {
     html += this.MAP_CITIES.map(c =>
       `<div class="map-city" style="left:${c.x}px;top:${c.y}px"><span>${c.e}</span><b>${c.n}</b></div>`).join("");
 
+    // Trainer School: practice with no countdown, any time
+    html += `<button class="map-school" style="left:430px;top:1330px" title="Trainer School — no countdown, race your records!">
+      <span>🏫</span><b>Trainer School</b></button>`;
+
     WORLDS.forEach((w, wi) => {
       const ns = nodes[wi];
       const unlocked = SAVE.worldUnlocked(wi);
@@ -531,6 +536,20 @@ const UI = {
       if (ro) {
         SFX.init();
         Engine.startLegendary();
+        return;
+      }
+      const sc = e.target.closest(".map-school");
+      if (sc) {
+        SFX.init();
+        this.show("practice");
+      }
+    });
+
+    this.$("practice-tiers").addEventListener("click", e => {
+      const t = e.target.closest(".tier-card");
+      if (t && !t.classList.contains("locked")) {
+        SFX.init();
+        Engine.startPractice(t.dataset.tier);
       }
     });
 
@@ -638,6 +657,7 @@ const UI = {
     document.body.classList.remove("super-mode");
     this.$("capslock-warn").classList.add("hidden");
     this.applyKbVisibility();
+    this.practiceTimerUI(false);
 
     this.$("hud-stage").textContent = S.isBoss
       ? `${w.emoji} ${w.name} · BOSS`
@@ -978,6 +998,10 @@ const UI = {
     this.show("results");
     this.renderTopbar();
     this._lastStage = [res.w, res.s];
+    this._practiceNext = null;
+    this._practiceMode = false;
+    this.$("btn-replay").textContent = "↻ Replay";
+    this.$("results-stars").classList.remove("hidden");
     const w = WORLDS[res.w];
     const title = this.$("results-title");
     const card = this.$("results-card");
@@ -1112,6 +1136,9 @@ const UI = {
     this.show("results");
     this.renderTopbar();
     this._lastStage = [S.w, S.s];
+    this._practiceNext = null;
+    this._practiceMode = false;
+    this.$("btn-replay").textContent = "↻ Replay";
     const card = this.$("results-card");
     card.classList.add("defeat");
     this.$("results-title").textContent = `${S.world.boss.emoji} ${S.world.boss.name} wins this round...`;
@@ -1242,6 +1269,132 @@ const UI = {
     bar.innerHTML = html + `<span class="party-label">${party.length ? "your party" : "add Pokemon from the Pokedex!"}</span>`;
   },
 
+  // ---------- Trainer School practice ----------
+  fmtTime(ms) {
+    const s = ms / 1000;
+    if (s >= 60) {
+      const m = Math.floor(s / 60);
+      return `${m}:${(s - m * 60).toFixed(1).padStart(4, "0")}`;
+    }
+    return `${s.toFixed(1)}s`;
+  },
+
+  // swap the countdown bar for the count-up stopwatch (and back)
+  practiceTimerUI(on) {
+    this.$("timer-bar").classList.toggle("hidden", on);
+    this.$("stopwatch").classList.toggle("hidden", !on);
+  },
+
+  setStopwatch(S) {
+    const ms = S.typingMs + (performance.now() - S.promptStart);
+    this.$("stopwatch-time").textContent = this.fmtTime(ms);
+    const wpm = ms > 2000 ? Math.round((S.hits / 5) / (ms / 60000)) : 0;
+    this.$("stopwatch-wpm").textContent = `${wpm} wpm`;
+  },
+
+  practiceScene(S) {
+    this.show("game");
+    const w = S.world;
+    document.body.classList.remove("super-mode");
+    this.$("capslock-warn").classList.add("hidden");
+    this.applyKbVisibility();
+    this.practiceTimerUI(true);
+    this.$("hud-stage").textContent = `🏫 Practice · ${S.practice.label}`;
+    this.$("hud-progress-fill").style.width = "0%";
+    this.$("hud-hearts").classList.add("hidden");
+    this.$("boss-bar").classList.add("hidden");
+    this.$("player-avatar").textContent = SAVE.state.profile.avatar;
+    this.showPartner(S);
+    this.partnerMeter(S);
+    const arena = this.$("arena");
+    arena.style.background = `linear-gradient(160deg, ${w.gradient[0]}, ${w.gradient[1]})`;
+    arena.style.setProperty("--wa", w.accent);
+    const scene = this.$("scene-emojis");
+    scene.innerHTML = "";
+    w.sceneEmojis.forEach((e2, i) => {
+      const sp = document.createElement("span");
+      sp.textContent = e2;
+      sp.style.left = `${12 + i * 24}%`;
+      sp.style.top = `${15 + (i % 2) * 55}%`;
+      sp.style.fontSize = "20px";
+      scene.appendChild(sp);
+    });
+    this.$("target-label").classList.add("hidden");
+    const wrap = this.$("target-wrap");
+    wrap.style.opacity = 1;
+    wrap.style.transform = "none";
+    wrap.classList.remove("enter", "hit", "flee", "wobble");
+    this.$("stopwatch-time").textContent = "0.0s";
+    this.$("stopwatch-wpm").textContent = "0 wpm";
+    this.announce(`⏱ No countdown — beat your record!`, 1800);
+  },
+
+  renderPractice() {
+    const list = this.$("practice-tiers");
+    list.innerHTML = PRACTICE_TIERS.map(t => {
+      const open = SAVE.worldUnlocked(t.need);
+      const pb = SAVE.state.practice[t.id];
+      const pbHtml = pb
+        ? `⏱ best ${this.fmtTime(pb.time)} · ⚡ best ${pb.wpm} wpm`
+        : `no record yet — set one!`;
+      return `<button class="tier-card ${open ? "" : "locked"}" data-tier="${t.id}" ${open ? "" : "disabled"}>
+        <span class="tier-e">${t.e}</span>
+        <span class="tier-info">
+          <b>${t.label}</b>
+          <i>${open ? t.desc : `Reach ${WORLDS[t.need].emoji} ${WORLDS[t.need].name} to unlock`}</i>
+          <em>${open ? `${t.count} words · ${pbHtml}` : "🔒"}</em>
+        </span>
+      </button>`;
+    }).join("");
+  },
+
+  showPracticeResults(res) {
+    this.show("results");
+    this.renderTopbar();
+    this._practiceNext = res.tier.id;
+    this._practiceMode = true;
+    this._nextTarget = null;
+    this._lastStage = null;
+    const card = this.$("results-card");
+    card.classList.remove("defeat");
+    card.style.setProperty("--wa", "#4dc3ff");
+    this.$("results-title").textContent = `🏫 Practice · ${res.tier.label}`;
+    this.$("results-stars").classList.add("hidden");
+    this.$("results-grid").innerHTML = `
+      <div class="rstat"><div class="rstat-v">${this.fmtTime(res.timeMs)}</div><div class="rstat-l">your time</div></div>
+      <div class="rstat"><div class="rstat-v">${res.wpm}</div><div class="rstat-l">words/min</div></div>
+      <div class="rstat"><div class="rstat-v">${Math.round(res.acc * 100)}%</div><div class="rstat-l">accuracy</div></div>
+      <div class="rstat"><div class="rstat-v">x${res.bestCombo}</div><div class="rstat-l">best combo</div></div>`;
+
+    const record = res.betterTime || res.betterWpm;
+    const lines = [];
+    if (res.betterTime) lines.push(`⏱ <b>NEW BEST TIME!</b>${res.prevTime ? ` (was ${this.fmtTime(res.prevTime)})` : ""}`);
+    if (res.betterWpm) lines.push(`⚡ <b>NEW BEST SPEED!</b>${res.prevWpm ? ` (was ${res.prevWpm} wpm)` : ""}`);
+    if (!record) lines.push(`Your records: ⏱ ${this.fmtTime(res.prevTime)} · ⚡ ${res.prevWpm} wpm — so close!`);
+    const catchBox = this.$("results-catch");
+    catchBox.className = "catch-result";
+    catchBox.innerHTML = `<div class="record-note ${record ? "gold" : ""}">${lines.join("<br>")}</div>`;
+    this.$("results-egg").className = "hidden";
+
+    this.$("xp-gained").textContent = `+${res.xp} XP`;
+    const lv = levelFromXp(SAVE.state.xp);
+    this.$("xp-level").textContent = `Lv ${lv.level} · ${titleForLevel(lv.level)}`;
+    this.$("results-xpfill").style.width = `${100 * lv.into / lv.need}%`;
+
+    const next = this.$("btn-next");
+    next.classList.remove("hidden");
+    next.textContent = "⏱ Try Again";
+    this.$("btn-replay").textContent = "🎚 Difficulty";
+    (res.newTrophies || []).forEach((t, i) => setTimeout(() => this.trophyToast(t), 900 + i * 800));
+    if (record) {
+      this.confetti();
+      SFX.fanfare();
+      setTimeout(() => this.toast(`🏫 New ${res.tier.label} record! Can you beat it?`, "gold"), 700);
+    } else {
+      SFX.word();
+    }
+  },
+
   // ---------- wild encounter scene (grass + fishing + legendary) ----------
   wildScene(S) {
     this.show("game");
@@ -1252,6 +1405,7 @@ const UI = {
     document.body.classList.remove("super-mode");
     this.$("capslock-warn").classList.add("hidden");
     this.applyKbVisibility();
+    this.practiceTimerUI(false);
     this.$("hud-stage").textContent = fishing ? "🎣 Gone fishing..."
       : legendary ? "🌟 LEGENDARY BATTLE!"
       : `🌿 ${w.name} · Wild encounter!`;
@@ -1315,6 +1469,7 @@ const UI = {
     this.$("hud-progress-fill").style.width = "100%";
     this.$("hud-hearts").classList.add("hidden");
     this.$("boss-bar").classList.add("hidden");
+    this.practiceTimerUI(false);
     this.showPartner(S);
     this.partnerMeter(S);
     this.$("player-avatar").textContent = SAVE.state.profile.avatar;
@@ -1398,6 +1553,7 @@ const UI = {
     this.$("hud-progress-fill").style.width = "100%";
     this.$("hud-hearts").classList.add("hidden");
     this.$("boss-bar").classList.add("hidden");
+    this.practiceTimerUI(false);
     this.showPartner(S);
     this.partnerMeter(S);
     this.$("player-avatar").textContent = SAVE.state.profile.avatar;
@@ -1644,11 +1800,13 @@ const UI = {
     });
 
     this.$("btn-next").addEventListener("click", () => {
-      if (this._nextTarget) Engine.startStage(this._nextTarget[0], this._nextTarget[1]);
+      if (this._practiceNext) Engine.startPractice(this._practiceNext);
+      else if (this._nextTarget) Engine.startStage(this._nextTarget[0], this._nextTarget[1]);
       else this.show("map");
     });
     this.$("btn-replay").addEventListener("click", () => {
-      if (this._lastStage) Engine.startStage(this._lastStage[0], this._lastStage[1]);
+      if (this._practiceMode) this.show("practice");
+      else if (this._lastStage) Engine.startStage(this._lastStage[0], this._lastStage[1]);
     });
     this.$("btn-tomap").addEventListener("click", () => this.show("map"));
 

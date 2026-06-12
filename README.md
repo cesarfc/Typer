@@ -126,6 +126,11 @@ Each world = 5 levels + a **boss fight**. Beating the boss unlocks the next worl
   attempt per week: three battle words at a faster pace, then its name.
   Catch it for the Legend Catcher trophy; a duplicate legendary turns
   your copy ✨ shiny.
+- **🏫 Trainer School (practice mode)** — a building on the map with **no
+  countdown at all**: a stopwatch counts up (only while you type) and you
+  race your own best time and best WPM. Four difficulties — Easy, Medium,
+  Hard, Expert — unlock alongside the story worlds and keep separate
+  records. New records pay bonus XP; relaxed practice, real progress.
 - **Combos** — 25 correct keys in a row triggers SUPER MODE.
 - **XP, levels and titles** — from Rookie all the way to Typing Legend.
 - **22 trophies**, daily play streaks, and a personal-best speed chart.
