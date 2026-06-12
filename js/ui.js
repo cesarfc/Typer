@@ -304,8 +304,8 @@ const UI = {
           ? (st > 0 ? `<span class="mini-stars">🏆</span>` : "")
           : `<span class="mini-stars">${"★".repeat(st)}<span class="off">${"★".repeat(Math.max(0, 3 - st))}</span></span>`;
         html += `<button class="mnode ${isBoss ? "boss" : ""} ${open ? "" : "locked"} ${next ? "next" : ""} ${st > 0 ? "done" : ""}"
-          style="left:${p.x}px;top:${p.y}px" data-w="${wi}" data-s="${s}" ${open ? "" : "disabled"}
-          title="${isBoss ? `BOSS: ${this.esc(w.boss.name)}` : this.esc(w.levels[s].name)}">
+          style="left:${p.x}px;top:${p.y}px" data-w="${wi}" data-s="${s}"
+          title="${open ? (isBoss ? `BOSS: ${this.esc(w.boss.name)}` : this.esc(w.levels[s].name)) : "Locked"}">
           ${isBoss ? this.pokeHtml(w.boss.id, w.boss.emoji, { cls: "poke-img stage-img" }) : `<span>${s + 1}</span>`}${starsHtml}
         </button>`;
       });
@@ -354,15 +354,19 @@ const UI = {
     const vp = this.$("region-viewport");
     let drag = null;
     vp.addEventListener("pointerdown", e => {
-      drag = { sx: e.clientX, sy: e.clientY, ox: this.mapX, oy: this.mapY, moved: false };
-      vp.classList.add("dragging");
-      try { vp.setPointerCapture(e.pointerId); } catch (_) { /* ok */ }
+      drag = { id: e.pointerId, sx: e.clientX, sy: e.clientY, ox: this.mapX, oy: this.mapY, moved: false };
     });
     vp.addEventListener("pointermove", e => {
       if (!drag) return;
       const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
-      if (Math.abs(dx) + Math.abs(dy) > 7) drag.moved = true;
-      this.setMapPos(drag.ox + dx, drag.oy + dy);
+      if (!drag.moved && Math.abs(dx) + Math.abs(dy) > 7) {
+        drag.moved = true;
+        vp.classList.add("dragging");
+        // capture only once a real drag starts — capturing on pointerdown
+        // would steal the click from the stage buttons
+        try { vp.setPointerCapture(drag.id); } catch (_) { /* ok */ }
+      }
+      if (drag.moved) this.setMapPos(drag.ox + dx, drag.oy + dy);
     });
     const end = () => {
       if (drag && drag.moved) {
