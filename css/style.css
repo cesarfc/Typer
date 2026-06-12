@@ -333,7 +333,6 @@ button:active { transform: translateY(1px) scale(.98); }
 .pc-avatar .trainer-svg { height: 46px; display: block; }
 #player-avatar .trainer-svg { height: 112px; filter: drop-shadow(0 6px 10px rgba(0,0,0,.45)); }
 .map-marker .trainer-svg { height: 50px; filter: drop-shadow(0 6px 10px rgba(0,0,0,.6)); }
-#partner-spot .poke-img { height: 96px; transform: scaleX(-1); }
 
 #trainer-builder {
   display: flex;
@@ -426,7 +425,11 @@ button:active { transform: translateY(1px) scale(.98); }
 #partner-bar .partner-hint { font-size: 11px; color: var(--dim); white-space: nowrap; }
 
 #partner-spot { display: inline-block; margin-left: 6px; vertical-align: bottom; animation: bob 1.8s ease-in-out infinite; }
-#partner-spot .poke-img { height: 46px; filter: drop-shadow(0 5px 8px rgba(0,0,0,.5)); }
+#partner-spot .poke-img {
+  height: 132px;
+  transform: scaleX(-1); /* face the enemy */
+  filter: drop-shadow(0 5px 8px rgba(0,0,0,.5));
+}
 .partner-proj { font-size: 34px; }
 
 /* roaming legendary */
@@ -735,9 +738,9 @@ button:active { transform: translateY(1px) scale(.98); }
 
 /* real Pokemon artwork (optional local sprites, emoji fallback otherwise) */
 .poke-img { width: auto; user-select: none; }
-#target .poke-img { height: 170px; filter: drop-shadow(0 8px 14px rgba(0,0,0,.45)); }
-#target.boss-size .poke-img { height: 230px; }
-#target.catch-size .poke-img { height: 190px; }
+#target .poke-img { height: 150px; filter: drop-shadow(0 8px 14px rgba(0,0,0,.45)); }
+#target.boss-size .poke-img { height: 205px; }
+#target.catch-size .poke-img { height: 175px; }
 .ball-img { height: 40px; image-rendering: pixelated; }
 .projectile .ball-img { height: 42px; }
 
