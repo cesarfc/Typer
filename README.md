@@ -131,6 +131,14 @@ Each world = 5 levels + a **boss fight**. Beating the boss unlocks the next worl
   race your own best time and best WPM. Four difficulties — Easy, Medium,
   Hard, Expert — unlock alongside the story worlds and keep separate
   records. New records pay bonus XP; relaxed practice, real progress.
+- **Create your own trainer** — pick skin tone, hair style and color, hat
+  and shirt when making a player (🎲 randomizes). Your trainer appears in
+  the top bar, standing on the map, and in every battle. Existing players
+  can redesign theirs with the 👤 button on the "Who is playing" screen.
+- **DS-style presentation** — the island map is a tilted 3D view with the
+  horizon in the distance and trees, towns and Pokemon standing upright on
+  the ground, and battles stage your trainer and partner on a near platform
+  facing the enemy on a far one, with a message-box prompt panel.
 - **Combos** — 25 correct keys in a row triggers SUPER MODE.
 - **XP, levels and titles** — from Rookie all the way to Typing Legend.
 - **22 trophies**, daily play streaks, and a personal-best speed chart.

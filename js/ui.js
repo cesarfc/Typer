@@ -97,11 +97,12 @@ const UI = {
     if (!hasPlayers) return;
     this.$("player-list").innerHTML = players.map(p => `
       <div class="player-card" data-id="${p.id}">
-        <span class="pc-avatar">${p.avatar}</span>
+        <span class="pc-avatar">${this.avatarHtml(p)}</span>
         <div class="pc-info">
           <div class="pc-name">${this.esc(p.name)}</div>
           <div class="pc-sub">Lv ${p.level} ${titleForLevel(p.level)} · 🐾 ${p.creatures} · 🏆 ${p.trophies} · ${DIFFICULTY[p.difficulty].e} ${DIFFICULTY[p.difficulty].label}</div>
         </div>
+        <button class="pc-edit" data-editt="${p.id}" title="Edit trainer look">👤</button>
         <button class="pc-del" data-del="${p.id}" title="Delete this player">✕</button>
       </div>`).join("");
   },
@@ -128,18 +129,81 @@ const UI = {
     if (name !== "title" && name !== "game") this.renderTopbar();
   },
 
+  // ---------- trainer character (layered SVG) ----------
+  trainerSvg(t, cls = "trainer-svg") {
+    const skin = TRAINER_OPTS.skin[t.skin] || TRAINER_OPTS.skin[0];
+    const hairC = TRAINER_OPTS.hairColor[t.hairColor] || TRAINER_OPTS.hairColor[0];
+    const shirt = TRAINER_OPTS.shirt[t.shirt] || TRAINER_OPTS.shirt[1];
+    const hatC = TRAINER_OPTS.hatColor[t.hatColor] || TRAINER_OPTS.hatColor[0];
+    const hat = TRAINER_OPTS.hat[t.hat] || "none";
+    const hair = TRAINER_OPTS.hair[t.hair] || "spiky";
+
+    let hairBack = "", hairFront = "";
+    if (hair === "spiky") {
+      hairFront = `<path d="M27 40 L31 20 L38 28 L45 14 L52 27 L60 16 L68 28 L73 40 Q50 26 27 40 Z" fill="${hairC}"/>`;
+    } else if (hair === "bowl") {
+      hairFront = `<path d="M27 42 Q27 13 50 13 Q73 13 73 42 Q66 30 50 30 Q34 30 27 42 Z" fill="${hairC}"/>`;
+    } else if (hair === "long") {
+      hairBack = `<path d="M29 28 Q26 66 33 76 L67 76 Q74 66 71 28 Z" fill="${hairC}"/>`;
+      hairFront = `<path d="M27 40 Q27 13 50 13 Q73 13 73 40 Q50 24 27 40 Z" fill="${hairC}"/>`;
+    } else if (hair === "curls") {
+      hairFront = `<g fill="${hairC}"><circle cx="31" cy="26" r="9"/><circle cx="41" cy="18" r="9"/>
+        <circle cx="50" cy="15" r="9"/><circle cx="59" cy="18" r="9"/><circle cx="69" cy="26" r="9"/>
+        <circle cx="27" cy="35" r="7"/><circle cx="73" cy="35" r="7"/></g>`;
+    }
+
+    let hatSvg = "";
+    if (hat === "cap") {
+      hatSvg = `<path d="M28 29 Q28 11 50 11 Q72 11 72 29 Q50 21 28 29 Z" fill="${hatC}"/>
+        <ellipse cx="58" cy="28" rx="21" ry="4.5" fill="${hatC}"/>
+        <circle cx="50" cy="19" r="4" fill="#fff"/>`;
+    } else if (hat === "beanie") {
+      hatSvg = `<path d="M28 33 Q28 9 50 9 Q72 9 72 33 L72 35 L28 35 Z" fill="${hatC}"/>
+        <rect x="28" y="31" width="44" height="6" rx="3" fill="#fff" opacity=".35"/>
+        <circle cx="50" cy="9" r="4.5" fill="#fff" opacity=".8"/>`;
+    }
+
+    return `<svg class="${cls}" viewBox="0 0 100 118" aria-hidden="true">
+      ${hairBack}
+      <rect x="38" y="88" width="9" height="21" rx="4" fill="#27314f"/>
+      <rect x="53" y="88" width="9" height="21" rx="4" fill="#27314f"/>
+      <ellipse cx="42" cy="111" rx="8" ry="4.5" fill="#1b2142"/>
+      <ellipse cx="58" cy="111" rx="8" ry="4.5" fill="#1b2142"/>
+      <rect x="31" y="56" width="38" height="36" rx="13" fill="${shirt}"/>
+      <rect x="23" y="58" width="10" height="25" rx="5" fill="${shirt}"/>
+      <rect x="67" y="58" width="10" height="25" rx="5" fill="${shirt}"/>
+      <circle cx="28" cy="85" r="4.5" fill="${skin}"/>
+      <circle cx="72" cy="85" r="4.5" fill="${skin}"/>
+      <circle cx="50" cy="36" r="22" fill="${skin}"/>
+      ${hairFront}
+      ${hatSvg}
+      <circle cx="42" cy="39" r="2.6" fill="#1d2030"/>
+      <circle cx="58" cy="39" r="2.6" fill="#1d2030"/>
+      <path d="M44 48 Q50 53 56 48" stroke="#1d2030" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+    </svg>`;
+  },
+
+  avatarHtml(p, cls = "") {
+    if (p && p.trainer) return this.trainerSvg(p.trainer, `trainer-svg ${cls}`);
+    return `<span class="avatar-emoji ${cls}">${p && p.avatar ? p.avatar : "🧢"}</span>`;
+  },
+
   // ---------- title ----------
   buildTitle() {
-    const grid = this.$("avatar-grid");
-    grid.innerHTML = AVATARS.map((a, i) =>
-      `<button class="avatar-opt${i === 0 ? " sel" : ""}" data-av="${a}">${a}</button>`).join("");
-    grid.addEventListener("click", e => {
-      const b = e.target.closest(".avatar-opt");
+    this.builder = defaultTrainer();
+    this.renderBuilder();
+    this.$("trainer-opts").addEventListener("click", e => {
+      const b = e.target.closest(".swatch");
       if (!b) return;
-      grid.querySelectorAll(".avatar-opt").forEach(x => x.classList.remove("sel"));
-      b.classList.add("sel");
-      this.selectedAvatar = b.dataset.av;
+      this.builder[b.dataset.k] = +b.dataset.i;
       SFX.click();
+      this.renderBuilder();
+    });
+    this.$("btn-random-trainer").addEventListener("click", e => {
+      e.preventDefault();
+      this.builder = randomTrainer();
+      SFX.combo();
+      this.renderBuilder();
     });
 
     const dgrid = this.$("diff-grid");
@@ -159,9 +223,36 @@ const UI = {
     });
   },
 
+  renderBuilder() {
+    const t = this.builder;
+    this.$("trainer-preview").innerHTML = this.trainerSvg(t, "trainer-svg preview");
+    const row = (label, inner) =>
+      `<div class="opt-row"><span>${label}</span><div class="opt-swatches">${inner}</div></div>`;
+    const colorSw = (key, colors) => colors.map((c, i) =>
+      `<button class="swatch ${t[key] === i ? "sel" : ""}" data-k="${key}" data-i="${i}" style="background:${c}"></button>`).join("");
+    let html = row("Skin", colorSw("skin", TRAINER_OPTS.skin));
+    html += row("Hair", TRAINER_OPTS.hair.map((h, i) =>
+      `<button class="swatch hair-sw ${t.hair === i ? "sel" : ""}" data-k="hair" data-i="${i}">${this.trainerSvg({ ...t, hair: i, hat: 0 }, "trainer-svg mini")}</button>`).join(""));
+    html += row("Hair color", colorSw("hairColor", TRAINER_OPTS.hairColor));
+    html += row("Hat", TRAINER_OPTS.hat.map((h, i) =>
+      `<button class="swatch hair-sw ${t.hat === i ? "sel" : ""}" data-k="hat" data-i="${i}">${h === "none" ? "✖" : this.trainerSvg({ ...t, hat: i }, "trainer-svg mini")}</button>`).join(""));
+    if (TRAINER_OPTS.hat[t.hat] !== "none") html += row("Hat color", colorSw("hatColor", TRAINER_OPTS.hatColor));
+    html += row("Shirt", colorSw("shirt", TRAINER_OPTS.shirt));
+    this.$("trainer-opts").innerHTML = html;
+  },
+
   startGameFromTitle() {
+    if (this._editTrainer) {
+      SAVE.setTrainer(this._editTrainer, { ...this.builder });
+      this._editTrainer = null;
+      this.$("name-input").parentNode.classList.remove("editing-trainer");
+      this.$("btn-start").textContent = "▶ Start Adventure";
+      this.toast("👤 Trainer updated!", "gold");
+      this.renderTitle();
+      return;
+    }
     const name = this.$("name-input").value.trim() || "Hero";
-    if (!SAVE.createPlayer(name, this.selectedAvatar, this.selectedDiff)) { this.renderTitle(); return; }
+    if (!SAVE.createPlayer(name, "🧢", this.selectedDiff, { ...this.builder })) { this.renderTitle(); return; }
     this.$("name-input").value = "";
     this.enterGame();
   },
@@ -185,7 +276,7 @@ const UI = {
     const p = SAVE.state && SAVE.state.profile;
     if (!p) return;
     const lv = levelFromXp(SAVE.state.xp);
-    this.$("chip-avatar").textContent = p.avatar;
+    this.$("chip-avatar").innerHTML = this.avatarHtml(p);
     this.$("chip-name").textContent = p.name;
     this.$("chip-title").textContent = `${titleForLevel(lv.level)} · Lv ${lv.level}`;
     this.$("chip-xpfill").style.width = `${Math.round(100 * lv.into / lv.need)}%`;
@@ -197,9 +288,10 @@ const UI = {
     db.title = `Difficulty: ${d.label} — click to change`;
   },
 
-  // ---------- region map (pannable live map) ----------
+  // ---------- region map (pannable, DS-style tilted view) ----------
   MAP_W: 2900,
   MAP_H: 1560,
+  TILT: 34 * Math.PI / 180, // matches --tilt in CSS
   mapX: 0,
   mapY: 0,
   // route anchor per world + final endpoint; stages snake between them
@@ -374,7 +466,7 @@ const UI = {
     const wild = SAVE.wildToday();
     const patches = this.grassSpotsToday().filter(s => !wild.grassUsed.includes(s.id));
     html += patches.map(s =>
-      `<button class="map-grass" data-spot="${s.id}" data-w="${s.w}" style="left:${s.x}px;top:${s.y}px" title="Something is rustling in the grass!">🌿</button>`).join("");
+      `<button class="map-grass" data-spot="${s.id}" data-w="${s.w}" style="left:${s.x}px;top:${s.y}px" title="Something is rustling in the grass!"><span class="g-rustle">🌿</span></button>`).join("");
     const castsLeft = Math.max(0, this.CASTS_PER_DAY - wild.casts);
     this.FISH_SPOTS.filter(f => SAVE.worldUnlocked(f.need)).forEach(f => {
       html += `<button class="map-fish ${castsLeft ? "" : "spent"}" style="left:${f.x}px;top:${f.y}px" title="${castsLeft ? "Fishing spot — cast a line!" : "No more bites today"}">🎣</button>`;
@@ -435,9 +527,9 @@ const UI = {
     // the player stands at their next challenge (carrying any egg)
     const f = this.mapFrontier();
     const fp = nodes[f.w][f.s];
-    const avatar = SAVE.state && SAVE.state.profile ? SAVE.state.profile.avatar : "🧢";
     const egg = SAVE.state && SAVE.state.egg;
-    html += `<div class="map-marker" style="left:${fp.x}px;top:${fp.y - 62}px">${avatar}${egg ? `<span class="marker-egg">🥚</span>` : ""}<i>▼</i></div>`;
+    html += `<div class="map-marker" style="left:${fp.x}px;top:${fp.y - 30}px">
+      <span class="mk-bob">${this.avatarHtml(SAVE.state && SAVE.state.profile)}${egg ? `<span class="marker-egg">🥚</span>` : ""}</span><i>▼</i></div>`;
 
     const eggChip = this.$("egg-chip");
     eggChip.classList.toggle("hidden", !egg);
@@ -466,13 +558,15 @@ const UI = {
 
   centerMapOn(x, y) {
     const vp = this.$("region-viewport").getBoundingClientRect();
-    this.setMapPos(vp.width / 2 - x, vp.height / 2 - y);
+    // the tilted camera looks slightly past the focus point, so aim a bit low
+    this.setMapPos(vp.width / 2 - x, vp.height * 0.58 - y);
   },
 
   setMapPos(x, y) {
     const vp = this.$("region-viewport").getBoundingClientRect();
-    this.mapX = Math.min(0, Math.max(vp.width - this.MAP_W, x));
-    this.mapY = Math.min(0, Math.max(vp.height - this.MAP_H, y));
+    const slack = 220; // the tilted plane shows past its edges; allow over-pan
+    this.mapX = Math.min(slack, Math.max(vp.width - this.MAP_W - slack, x));
+    this.mapY = Math.min(slack, Math.max(vp.height - this.MAP_H - slack, y));
     this.$("region-map").style.transform = `translate(${this.mapX}px, ${this.mapY}px)`;
   },
 
@@ -492,7 +586,8 @@ const UI = {
         // would steal the click from the stage buttons
         try { vp.setPointerCapture(drag.id); } catch (_) { /* ok */ }
       }
-      if (drag.moved) this.setMapPos(drag.ox + dx, drag.oy + dy);
+      // vertical screen distance is foreshortened on the tilted plane
+      if (drag.moved) this.setMapPos(drag.ox + dx, drag.oy + dy / Math.cos(this.TILT));
     });
     const end = () => {
       if (drag && drag.moved) {
@@ -506,7 +601,7 @@ const UI = {
     vp.addEventListener("pointercancel", end);
     vp.addEventListener("wheel", e => {
       e.preventDefault();
-      this.setMapPos(this.mapX - e.deltaX, this.mapY - e.deltaY);
+      this.setMapPos(this.mapX - e.deltaX, this.mapY - e.deltaY / Math.cos(this.TILT));
     }, { passive: false });
     vp.addEventListener("click", e => {
       if (this._mapDragged) return;
@@ -663,7 +758,7 @@ const UI = {
       ? `${w.emoji} ${w.name} · BOSS`
       : `${w.emoji} ${w.name} · ${w.levels[S.s].name}`;
     this.$("hud-progress-fill").style.width = "0%";
-    this.$("player-avatar").textContent = SAVE.state.profile.avatar;
+    this.$("player-avatar").innerHTML = this.avatarHtml(SAVE.state.profile);
 
     const arena = this.$("arena");
     arena.style.background = `linear-gradient(160deg, ${w.gradient[0]}, ${w.gradient[1]})`;
@@ -1303,7 +1398,7 @@ const UI = {
     this.$("hud-progress-fill").style.width = "0%";
     this.$("hud-hearts").classList.add("hidden");
     this.$("boss-bar").classList.add("hidden");
-    this.$("player-avatar").textContent = SAVE.state.profile.avatar;
+    this.$("player-avatar").innerHTML = this.avatarHtml(SAVE.state.profile);
     this.showPartner(S);
     this.partnerMeter(S);
     const arena = this.$("arena");
@@ -1412,7 +1507,7 @@ const UI = {
     this.$("hud-progress-fill").style.width = "0%";
     this.$("hud-hearts").classList.add("hidden");
     this.$("boss-bar").classList.add("hidden");
-    this.$("player-avatar").textContent = SAVE.state.profile.avatar;
+    this.$("player-avatar").innerHTML = this.avatarHtml(SAVE.state.profile);
     this.showPartner(S);
     this.partnerMeter(S);
     const arena = this.$("arena");
@@ -1472,7 +1567,7 @@ const UI = {
     this.practiceTimerUI(false);
     this.showPartner(S);
     this.partnerMeter(S);
-    this.$("player-avatar").textContent = SAVE.state.profile.avatar;
+    this.$("player-avatar").innerHTML = this.avatarHtml(SAVE.state.profile);
     this.updateHud(S);
     const arena = this.$("arena");
     arena.style.background = "linear-gradient(160deg, #2d2545, #8a6d1d)";
@@ -1556,7 +1651,7 @@ const UI = {
     this.practiceTimerUI(false);
     this.showPartner(S);
     this.partnerMeter(S);
-    this.$("player-avatar").textContent = SAVE.state.profile.avatar;
+    this.$("player-avatar").innerHTML = this.avatarHtml(SAVE.state.profile);
     const arena = this.$("arena");
     arena.style.background = `linear-gradient(160deg, ${w.gradient[0]}, ${w.gradient[1]})`;
     arena.style.setProperty("--wa", w.accent);
@@ -1729,9 +1824,30 @@ const UI = {
       this.$("title-new").classList.remove("hidden");
       this.$("name-input").focus();
     });
-    this.$("btn-backtoselect").addEventListener("click", () => this.renderTitle());
+    this.$("btn-backtoselect").addEventListener("click", () => {
+      this._editTrainer = null;
+      this.$("title-new").classList.remove("editing-trainer");
+      this.$("btn-start").textContent = "▶ Start Adventure";
+      this.renderTitle();
+    });
 
     this.$("player-list").addEventListener("click", e => {
+      const ed = e.target.closest(".pc-edit");
+      if (ed) {
+        e.stopPropagation();
+        SFX.click();
+        const p = SAVE.players().find(x => x.id === ed.dataset.editt);
+        this._editTrainer = ed.dataset.editt;
+        this.builder = p && p.trainer ? { ...p.trainer } : defaultTrainer();
+        this.renderBuilder();
+        this.$("player-select").classList.add("hidden");
+        const form = this.$("title-new");
+        form.classList.remove("hidden");
+        form.classList.add("editing-trainer");
+        this.$("btn-start").textContent = "✔ Save my trainer";
+        this.$("btn-backtoselect").classList.remove("hidden");
+        return;
+      }
       const del = e.target.closest(".pc-del");
       if (del) {
         e.stopPropagation();

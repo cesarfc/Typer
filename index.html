@@ -51,8 +51,11 @@
         <div id="title-new" class="hidden">
           <label class="field-label" for="name-input">What is your hero name?</label>
           <input id="name-input" maxlength="12" placeholder="Type your name..." autocomplete="off">
-          <label class="field-label">Pick your hero</label>
-          <div id="avatar-grid"></div>
+          <label class="field-label">Create your trainer <button id="btn-random-trainer" title="Surprise me!">🎲</button></label>
+          <div id="trainer-builder">
+            <div id="trainer-preview"></div>
+            <div id="trainer-opts"></div>
+          </div>
           <label class="field-label">Pick your challenge <span class="field-note">(you can change it later)</span></label>
           <div id="diff-grid"></div>
           <button id="btn-start" class="big-btn">▶ Start Adventure</button>
@@ -67,7 +70,7 @@
     <!-- ============ WORLD MAP ============ -->
     <section id="screen-map" class="screen hidden">
       <div id="region-viewport">
-        <div id="region-map"></div>
+        <div id="map-tilt"><div id="region-map"></div></div>
         <div id="map-hud">
           <span class="map-hint">🖐️ drag to explore the region</span>
           <span id="wild-chip" class="map-hint" title="Wild encounters left today (grass · fishing)">🌿 · 🎣</span>
@@ -104,6 +107,8 @@
 
       <div id="arena">
         <div id="scene-emojis"></div>
+        <div class="battle-platform plat-far"></div>
+        <div class="battle-platform plat-near"></div>
         <div id="target-wrap">
           <div id="target">🦊</div>
           <div id="target-label" class="hidden"></div>

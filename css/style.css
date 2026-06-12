@@ -307,6 +307,80 @@ button:active { transform: translateY(1px) scale(.98); }
 
 .bobber { display: inline-block; font-size: 74px; animation: bob 1.4s ease-in-out infinite; }
 
+/* ---- DS-style battle staging: platforms, big trainer, mirrored partner ---- */
+.battle-platform {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 36%, rgba(255,255,255,.16), rgba(8,10,24,.42) 72%);
+  border: 2px solid rgba(255,255,255,.10);
+  pointer-events: none;
+}
+.plat-far { right: 5%; top: 49%; width: 300px; height: 80px; }
+.plat-near { left: 2%; bottom: 2%; width: 350px; height: 96px; }
+#player-side { left: 5%; bottom: 7%; display: flex; align-items: flex-end; gap: 4px; }
+#prompt-area {
+  background: rgba(13, 17, 38, .88);
+  border: 3px solid #4a5694;
+  border-radius: 16px;
+  box-shadow: inset 0 0 0 3px #0d1126;
+  margin: 10px 2px 8px;
+  padding: 14px 8px 10px;
+}
+
+/* ---- custom trainer (layered SVG) ---- */
+.trainer-svg { width: auto; display: inline-block; }
+#chip-avatar .trainer-svg { height: 42px; display: block; }
+.pc-avatar .trainer-svg { height: 46px; display: block; }
+#player-avatar .trainer-svg { height: 96px; filter: drop-shadow(0 6px 10px rgba(0,0,0,.45)); }
+.map-marker .trainer-svg { height: 50px; filter: drop-shadow(0 6px 10px rgba(0,0,0,.6)); }
+#partner-spot .poke-img { height: 64px; transform: scaleX(-1); }
+
+#trainer-builder {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 8px;
+  background: #10142c;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  text-align: left;
+}
+#trainer-preview { flex: none; width: 116px; display: flex; justify-content: center; }
+#trainer-preview .trainer-svg.preview { height: 150px; }
+#trainer-opts { flex: 1; display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.opt-row { display: flex; align-items: center; gap: 8px; }
+.opt-row > span { font-size: 11px; color: var(--dim); font-weight: 700; width: 62px; text-align: right; flex: none; }
+.opt-swatches { display: flex; gap: 5px; flex-wrap: wrap; }
+.swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); padding: 0; flex: none; }
+.swatch.sel { border-color: var(--gold); box-shadow: 0 0 8px rgba(255, 211, 77, .5); transform: scale(1.12); }
+.swatch.sel:hover { transform: scale(1.12) translateY(-1px); }
+.swatch.hair-sw {
+  width: 36px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--card2);
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  color: var(--dim);
+  font-size: 15px;
+  align-items: flex-start;
+}
+.trainer-svg.mini { height: 64px; margin-top: 2px; flex: none; }
+#btn-random-trainer {
+  background: var(--card2);
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  font-size: 14px;
+  padding: 2px 9px;
+  margin-left: 8px;
+}
+.editing-trainer #name-input,
+.editing-trainer [for="name-input"],
+.editing-trainer #diff-grid,
+.editing-trainer .field-label:has(+ #diff-grid) { display: none; }
+
 /* party of 6 + partner battles */
 .dex-card { position: relative; }
 .btn-party { position: absolute; top: 4px; right: 5px; background: none; border: none; font-size: 17px; color: var(--dim); padding: 3px 5px; }
@@ -367,6 +441,49 @@ button:active { transform: translateY(1px) scale(.98); }
   pointer-events: none;
 }
 .roamer-mark { position: absolute; top: -2px; right: 2px; font-size: 17px; animation: twinkle 1.2s ease-in-out infinite alternate; }
+
+/* ---- DS-style tilted camera: the ground plane leans back and all
+   pins/sprites stand upright on it (billboards), like Diamond/Pearl ---- */
+:root { --tilt: 34deg; }
+#region-viewport {
+  perspective: 1050px;
+  perspective-origin: 50% 26%;
+  background: linear-gradient(180deg, #0a1530 0%, #16305a 44%, #0d2a40 62%);
+}
+#map-tilt {
+  position: absolute;
+  inset: 0;
+  transform: rotateX(var(--tilt));
+  transform-origin: 50% 46%;
+  transform-style: preserve-3d;
+}
+#region-map { transform-style: preserve-3d; }
+
+.mnode, .map-grass, .map-fish, .map-roamer, .map-school, .map-city,
+.region-label, .map-marker, .map-poke, .map-decor, .map-smoke {
+  transform: translate(-50%, -100%) rotateX(calc(-1 * var(--tilt)));
+  transform-origin: 50% 100%;
+  margin: 0;
+}
+.mnode:hover, .mnode:active,
+.map-school:hover, .map-school:active,
+.map-grass:hover, .map-grass:active,
+.map-fish:hover, .map-fish:active,
+.map-roamer:hover, .map-roamer:active,
+.map-poke:hover {
+  transform: translate(-50%, -100%) rotateX(calc(-1 * var(--tilt)));
+}
+.map-marker { animation: none; }
+.map-marker .mk-bob { display: inline-block; animation: bob 1.6s ease-in-out infinite; }
+.map-grass { animation: none; }
+.map-grass .g-rustle { display: inline-block; animation: grassRustle .6s ease-in-out infinite; transform-origin: 50% 90%; }
+@keyframes grassRustle {
+  0%, 100% { transform: rotate(-7deg); }
+  50% { transform: rotate(8deg) scale(1.07); }
+}
+.map-poke .map-poke-img { transition: transform .15s; }
+.map-poke:hover .map-poke-img { transform: scale(1.18); }
+.map-fog span { transform: rotateX(calc(-1 * var(--tilt))); }
 
 /* Trainer School practice */
 .map-school {

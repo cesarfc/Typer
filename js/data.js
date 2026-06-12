@@ -9,6 +9,32 @@
 
 const AVATARS = ["🧢", "🦊", "🐱", "🐉", "🥷", "⚡", "🎒", "🦖", "🐼", "🚀"];
 
+// build-your-own-trainer options (layered SVG character)
+const TRAINER_OPTS = {
+  skin: ["#ffd5b3", "#f0b186", "#c98a5c", "#9c6238", "#6e4427"],
+  hair: ["spiky", "bowl", "long", "curls"],
+  hairColor: ["#2d2a33", "#6b4226", "#d8a13c", "#b8453a", "#4a7fd6", "#9b59d6"],
+  hat: ["none", "cap", "beanie"],
+  hatColor: ["#e3350d", "#2a6df0", "#2eaf5b", "#f5c518", "#8e44ad"],
+  shirt: ["#e3350d", "#2a6df0", "#2eaf5b", "#f5c518", "#8e44ad", "#16a2b8"],
+};
+
+function defaultTrainer() {
+  return { skin: 0, hair: 0, hairColor: 0, hat: 1, hatColor: 0, shirt: 1 };
+}
+
+function randomTrainer() {
+  const r = n => Math.floor(Math.random() * n);
+  return {
+    skin: r(TRAINER_OPTS.skin.length),
+    hair: r(TRAINER_OPTS.hair.length),
+    hairColor: r(TRAINER_OPTS.hairColor.length),
+    hat: r(TRAINER_OPTS.hat.length),
+    hatColor: r(TRAINER_OPTS.hatColor.length),
+    shirt: r(TRAINER_OPTS.shirt.length),
+  };
+}
+
 // per-player difficulty: scales every prompt/catch timer; Turbo pays bonus XP
 const DIFFICULTY = {
   chill:  { label: "Chill",  e: "🐢", time: 1.45, xp: 1,    desc: "Extra time to think" },

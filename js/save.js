@@ -206,6 +206,7 @@ const SAVE = {
       id,
       name: s.profile.name,
       avatar: s.profile.avatar,
+      trainer: s.profile.trainer || null,
       level: levelFromXp(s.xp).level,
       creatures: Object.keys(s.dex).length,
       trophies: Object.keys(s.trophies).length,
@@ -213,11 +214,19 @@ const SAVE = {
     }));
   },
 
-  createPlayer(name, avatar, difficulty) {
+  setTrainer(id, trainer) {
+    const p = this.root.players[id];
+    if (!p) return false;
+    p.profile.trainer = trainer;
+    this.save();
+    return true;
+  },
+
+  createPlayer(name, avatar, difficulty, trainer) {
     if (Object.keys(this.root.players).length >= this.MAX_PLAYERS) return null;
     const id = "p" + Date.now().toString(36) + Math.floor(Math.random() * 100);
     const st = this.defaults();
-    st.profile = { name, avatar };
+    st.profile = { name, avatar, trainer: trainer || null };
     if (DIFFICULTY[difficulty]) st.settings.difficulty = difficulty;
     this.root.players[id] = st;
     this.root.active = id;
