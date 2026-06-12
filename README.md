@@ -82,9 +82,13 @@ Each world = 5 levels + a **boss fight**. Beating the boss unlocks the next worl
 
 - Short sessions beat long ones: **10–15 minutes a day** is the sweet spot
   (the streak counter rewards exactly this).
-- Watch their hands at the start: index fingers rest on **F** and **J**
-  (the bumpy keys). The on-screen keyboard shows which finger to use,
-  color-coded per finger.
+- New players get **Klefki's typing lesson** automatically: posture, the
+  F/J bumps, and placing every finger on its home key, one guided press
+  at a time. Replay it any time with the 🎓 button in the top bar.
+- During play, two **hand guides** flank the on-screen keyboard — the
+  finger that should press the next key lifts and glows, color-matched
+  to the keys. Watch their hands at the start: index fingers rest on
+  **F** and **J** (the bumpy keys).
 - Don't rush past world 1 — slow and accurate first, speed comes by itself.
 - Around 10–20 WPM is great for a 9-year-old; the Stats page shows progress
   and which keys need practice.

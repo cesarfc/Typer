@@ -13,6 +13,7 @@ const SAVE = {
     return {
       v: 2,
       profile: null,               // {name, avatar}
+      tutorialDone: false,
       xp: 0,
       stages: {},                  // "w-s" -> best stars (s 0..4 levels, 5 boss)
       dex: {},                     // "w-i" -> {shiny:bool}

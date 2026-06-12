@@ -74,7 +74,7 @@ const UI = {
     document.querySelectorAll(".screen").forEach(s => s.classList.add("hidden"));
     this.$(`screen-${name}`).classList.remove("hidden");
     const bar = this.$("topbar");
-    if (name === "title" || name === "game") bar.classList.add("hidden");
+    if (name === "title" || name === "game" || name === "tutorial") bar.classList.add("hidden");
     else bar.classList.remove("hidden");
     document.querySelectorAll(".navbtn").forEach(b =>
       b.classList.toggle("active", b.dataset.nav === name));
@@ -129,6 +129,7 @@ const UI = {
     this.kbHidden = !SAVE.state.settings.hints;
     this.applyKbVisibility();
     const streak = SAVE.touchStreak();
+    if (!SAVE.state.tutorialDone) { Tutorial.start(); return; }
     this.show("map");
     if (streak && streak.count > 1) {
       this.toast(`🔥 ${streak.count} day streak! +${streak.bonusXp} XP`, "gold");
@@ -194,9 +195,26 @@ const UI = {
     });
   },
 
-  // ---------- keyboard ----------
+  // ---------- keyboard + hand guides ----------
+  // a stylized hand; each finger is tinted with its keyboard color and
+  // lights up / lifts when it is that finger's turn to press
+  handSvg(side) {
+    const fs = side === "l"
+      ? [{ f: 0, h: 34 }, { f: 1, h: 46 }, { f: 2, h: 52 }, { f: 3, h: 44 }]
+      : [{ f: 4, h: 44 }, { f: 5, h: 52 }, { f: 6, h: 46 }, { f: 7, h: 34 }];
+    let svg = `<rect class="hand-palm" x="6" y="58" width="86" height="46" rx="20"/>`;
+    fs.forEach((d, i) => {
+      const x = 8 + i * 22;
+      svg += `<rect class="hand-finger f${d.f}" data-f="${d.f}" x="${x}" y="${60 - d.h}" width="18" height="${d.h + 16}" rx="9"/>`;
+    });
+    const tx = side === "l" ? 88 : 10;
+    const cx = side === "l" ? 97 : 19;
+    const rot = side === "l" ? 38 : -38;
+    svg += `<rect class="hand-finger f8" data-f="8" x="${tx}" y="60" width="18" height="38" rx="9" transform="rotate(${rot} ${cx} 70)"/>`;
+    return `<svg class="hand" viewBox="0 0 116 112" aria-hidden="true">${svg}</svg>`;
+  },
+
   buildKeyboard() {
-    const kb = this.$("kb");
     let html = "";
     KB_ROWS.forEach((row, ri) => {
       html += `<div class="kb-row">`;
@@ -209,30 +227,39 @@ const UI = {
       html += `</div>`;
     });
     html += `<div class="kb-row"><div class="key space f8" data-key=" ">space</div></div>`;
-    kb.innerHTML = html;
+    // one keyboard + hands for the game screen, one set for the tutorial
+    this.$("kb").innerHTML = html;
+    this.$("tut-kb").innerHTML = html;
+    this.$("hand-left").innerHTML = this.handSvg("l");
+    this.$("hand-right").innerHTML = this.handSvg("r");
+    this.$("tut-hand-left").innerHTML = this.handSvg("l");
+    this.$("tut-hand-right").innerHTML = this.handSvg("r");
     this.applyKbVisibility();
   },
 
   applyKbVisibility() {
-    this.$("kb").classList.toggle("ninja", this.kbHidden);
+    this.$("kb-flex").classList.toggle("ninja", this.kbHidden);
     this.$("btn-ninja").textContent = this.kbHidden ? "🥷 Ninja Mode: ON (+50% XP)" : "🥷 Ninja Mode: OFF";
     this.$("btn-ninja").classList.toggle("on", this.kbHidden);
   },
 
   highlightKey(ch) {
     document.querySelectorAll(".key.hl").forEach(k => k.classList.remove("hl"));
+    document.querySelectorAll(".hand-finger.on").forEach(f => f.classList.remove("on"));
     const hint = this.$("finger-hint");
     if (!ch) { hint.innerHTML = "&nbsp;"; return; }
     const lower = ch.toLowerCase();
     const isUpper = ch !== lower && /[a-z]/.test(lower);
-    const el = document.querySelector(`.key[data-key="${CSS.escape(lower === " " ? " " : lower)}"]`);
-    if (el) el.classList.add("hl");
+    document.querySelectorAll(`.key[data-key="${CSS.escape(lower)}"]`).forEach(el => el.classList.add("hl"));
     const f = KEY_FINGER[lower];
     let txt = f === undefined ? "" : FINGER_NAMES[f];
+    if (f !== undefined) {
+      document.querySelectorAll(`.hand-finger[data-f="${f}"]`).forEach(el => el.classList.add("on"));
+    }
     if (isUpper) {
       const leftHand = f <= 3;
-      const shiftEl = document.querySelector(`.key[data-key="${leftHand ? "shift-r" : "shift-l"}"]`);
-      if (shiftEl) shiftEl.classList.add("hl");
+      document.querySelectorAll(`.key[data-key="${leftHand ? "shift-r" : "shift-l"}"]`).forEach(el => el.classList.add("hl"));
+      document.querySelectorAll(`.hand-finger[data-f="${leftHand ? 7 : 0}"]`).forEach(el => el.classList.add("on"));
       txt = `hold ⇧ Shift + ${txt}`;
     }
     hint.innerHTML = txt ? `👆 ${txt}` : "&nbsp;";
@@ -493,7 +520,7 @@ const UI = {
   // ---------- catch round ----------
   showCatch(S, creature) {
     // names can use not-yet-taught letters: always show the glowing keyboard
-    this.$("kb").classList.remove("ninja");
+    this.$("kb-flex").classList.remove("ninja");
     const wrap = this.$("target-wrap");
     const target = this.$("target");
     target.innerHTML = this.pokeHtml(creature.id, creature.e);
@@ -836,6 +863,11 @@ const UI = {
 
     document.querySelectorAll(".navbtn").forEach(b =>
       b.addEventListener("click", () => { SFX.click(); this.show(b.dataset.nav); }));
+
+    this.$("tutorial-btn").addEventListener("click", () => {
+      SFX.click();
+      Tutorial.start(true);
+    });
 
     this.$("diff-btn").addEventListener("click", () => {
       if (!SAVE.state) return;

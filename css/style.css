@@ -398,10 +398,29 @@ button:active { transform: translateY(1px) scale(.98); }
 
 #finger-hint { margin-top: 9px; font-size: 15px; font-weight: 700; color: var(--info); min-height: 22px; }
 
-/* ============ on-screen keyboard ============ */
+/* ============ on-screen keyboard + hand guides ============ */
 #kb-area { padding: 8px 0 2px; }
-#kb { display: flex; flex-direction: column; gap: 6px; align-items: center; transition: opacity .25s, filter .25s; }
-#kb.ninja { opacity: 0; pointer-events: none; height: 0; overflow: hidden; }
+#kb-flex, #tut-kb-flex { display: flex; align-items: flex-end; justify-content: center; gap: 18px; transition: opacity .25s; }
+#kb-flex.ninja { opacity: 0; pointer-events: none; height: 0; overflow: hidden; }
+#kb, #tut-kb { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+
+.hand-box { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: none; }
+.hand { width: 104px; height: auto; display: block; }
+.hand-palm { fill: var(--card); stroke: var(--line); stroke-width: 2.5; }
+.hand-finger { stroke: var(--line); stroke-width: 2.5; fill-opacity: .3; transition: fill-opacity .12s, transform .12s; transform-box: fill-box; }
+.hand-finger.f0, .hand-finger.f7 { fill: #c77bff; }
+.hand-finger.f1, .hand-finger.f6 { fill: #4dc3ff; }
+.hand-finger.f2, .hand-finger.f5 { fill: #43e97b; }
+.hand-finger.f3 { fill: #ffd34d; }
+.hand-finger.f4 { fill: #ff9f43; }
+.hand-finger.f8 { fill: #9aa3d0; }
+.hand-finger.on {
+  fill-opacity: 1;
+  transform: translateY(-7px);
+  filter: drop-shadow(0 0 7px rgba(255, 255, 255, .55));
+}
+.hand-label { font-size: 10.5px; color: var(--dim); font-weight: 700; }
+@media (max-width: 880px) { .hand-box { display: none; } }
 .kb-row { display: flex; gap: 6px; }
 .key {
   width: clamp(34px, 4.4vw, 48px);
@@ -442,6 +461,44 @@ button:active { transform: translateY(1px) scale(.98); }
 #btn-ninja { font-size: 13px; padding: 7px 13px; border-radius: 999px; color: var(--dim); }
 #btn-ninja.on { background: #2d2545; color: var(--gold); border-color: var(--gold); }
 #capslock-warn { color: var(--bad); font-weight: 800; font-size: 14px; animation: lowPulse .6s linear infinite; }
+
+/* ============ tutorial ============ */
+#screen-tutorial { display: flex; align-items: center; justify-content: center; flex: 1; padding: 20px 14px; }
+#tut-box {
+  width: min(820px, 100%);
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: 24px;
+  padding: 26px 28px 18px;
+  text-align: center;
+  box-shadow: 0 30px 80px rgba(0,0,0,.5);
+}
+#tut-guide { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; text-align: left; }
+#tut-guide-img { font-size: 54px; flex: none; animation: bob 2.2s ease-in-out infinite; filter: drop-shadow(0 6px 12px rgba(0,0,0,.45)); }
+#tut-guide-img .tut-img { height: 88px; }
+#tut-bubble {
+  position: relative;
+  background: #10142c;
+  border: 2px solid var(--line);
+  border-radius: 16px;
+  padding: 14px 18px;
+  font-size: 18px;
+  line-height: 1.45;
+  flex: 1;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+}
+#tut-bubble.shake { animation: shakeX .25s; }
+#tut-word { display: flex; justify-content: center; gap: 3px; font-family: var(--mono); font-size: 40px; font-weight: 700; margin: 8px 0 4px; }
+#tut-kb-flex { margin-top: 12px; }
+#tut-buttons { margin-top: 16px; min-height: 54px; }
+#tut-buttons .big-btn { width: auto; display: inline-block; padding: 12px 36px; font-size: 19px; }
+#tut-progress { margin-top: 14px; display: flex; justify-content: center; gap: 5px; }
+.tut-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.tut-dot.cur { background: var(--gold); transform: scale(1.3); }
+.tut-dot.done { background: var(--good); }
+#tutorial-btn { font-size: 18px; padding: 7px 11px; border-radius: 999px; }
 
 /* ============ results ============ */
 #screen-results { display: flex; align-items: center; justify-content: center; flex: 1; padding: 24px 14px; }
