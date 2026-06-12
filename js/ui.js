@@ -523,7 +523,7 @@ const UI = {
       `<button class="map-grass" data-spot="${s.id}" data-w="${s.w}" style="left:${s.x}px;top:${s.y}px" title="Something is rustling in the grass!"><span class="g-rustle">${mapSprite("grasstuft", 38)}</span></button>`).join("");
     const castsLeft = Math.max(0, this.CASTS_PER_DAY - wild.casts);
     this.FISH_SPOTS.filter(f => SAVE.worldUnlocked(f.need)).forEach(f => {
-      html += `<button class="map-fish ${castsLeft ? "" : "spent"}" style="left:${f.x}px;top:${f.y}px" title="${castsLeft ? "Fishing spot — cast a line!" : "No more bites today"}">🎣</button>`;
+      html += `<button class="map-fish ${castsLeft ? "" : "spent"}" style="left:${f.x}px;top:${f.y}px" title="${castsLeft ? "Fishing spot — cast a line!" : "No more bites today"}"><span class="f-rod">🎣</span></button>`;
     });
     const chip = this.$("wild-chip");
     if (chip) chip.textContent = `🌿 ${patches.length} · 🎣 ${castsLeft}`;
@@ -550,8 +550,9 @@ const UI = {
         const got = SAVE.state && SAVE.state.dex[`${wi}-${ci}`];
         const p = ns[ni];
         const ox = k === 1 ? off : 0, oy = k === 1 ? 26 : off;
-        html += `<span class="map-poke ${got ? "" : "unknown"}" title="${got ? this.esc(c.n) : "???"}"
-          style="left:${p.x + ox}px;top:${p.y + oy}px">${this.pokeHtml(c.id, c.e, { shiny: got && got.shiny, cls: "poke-img map-poke-img" })}</span>`;
+        html += `<button class="map-poke ${got ? "" : "unknown"}" data-pw="${wi}" data-pi="${ci}"
+          title="${got ? this.esc(c.n) : "??? — who could it be?"}"
+          style="left:${p.x + ox}px;top:${p.y + oy}px">${this.pokeHtml(c.id, c.e, { shiny: got && got.shiny, cls: "poke-img map-poke-img" })}</button>`;
       });
 
       ns.forEach((p, s) => {
@@ -619,9 +620,8 @@ const UI = {
       return;
     }
     this._pendingCenter = null;
-    // 0.43 calibrated for the tilted camera: the plane row that lands
-    // mid-screen sits above the viewport midpoint in plane coordinates
-    this.setMapPos(vp.width / 2 - x, vp.height * 0.43 - y);
+    // 0.446 calibrated for the orthographic tilt (screen-y slope = cos(tilt))
+    this.setMapPos(vp.width / 2 - x, vp.height * 0.446 - y);
   },
 
   setMapPos(x, y) {
@@ -699,6 +699,25 @@ const UI = {
       if (sc) {
         SFX.init();
         this.show("practice");
+        return;
+      }
+      // wild Pokemon living on the map: say hi (caught) or tease (mystery)
+      const pk = e.target.closest(".map-poke");
+      if (pk) {
+        SFX.init();
+        const w = +pk.dataset.pw, i = +pk.dataset.pi;
+        const c = CREATURES[w][i];
+        const got = SAVE.state.dex[`${w}-${i}`];
+        pk.classList.remove("greet");
+        void pk.offsetWidth;
+        pk.classList.add("greet");
+        if (got) {
+          SFX.word();
+          this.toast(`${got.shiny ? "✨ " : ""}<b>${this.esc(c.n)}</b> says hi! It lives near ${WORLDS[w].emoji} ${WORLDS[w].name}.`);
+        } else {
+          SFX.combo();
+          this.toast(`👀 A mystery Pokemon lives near ${WORLDS[w].emoji} ${WORLDS[w].name} — finish levels there or check the tall grass to catch it!`);
+        }
       }
     });
 
