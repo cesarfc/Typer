@@ -288,40 +288,99 @@ const WORLDS = [
   },
 ];
 
-// 8 catchable Pokemon per world, matched so names use mostly-taught keys.
-// Names with a few untaught letters get bonus catch time (see taughtKeys).
+// 16 Pokemon per world. The first 8 of each world are the original
+// catchable roster (NEVER reorder them — dex saves use these indexes;
+// new Pokemon are appended only). evoOnly Pokemon can't be caught in
+// the wild: they are unlocked through evolution.
 // r: rarity 1 common, 2 rare, 3 epic, 4 legendary
 const CREATURES = [
   [
     { n: "Seel", e: "🦭", id: 86, r: 1 }, { n: "Ekans", e: "🐍", id: 23, r: 1 }, { n: "Dedenne", e: "🐹", id: 702, r: 1 },
     { n: "Sandslash", e: "🦔", id: 28, r: 1 }, { n: "Abra", e: "💫", id: 63, r: 2 }, { n: "Lapras", e: "🦕", id: 131, r: 2 },
     { n: "Alakazam", e: "🥄", id: 65, r: 2 }, { n: "Klefki", e: "🗝️", id: 707, r: 3 },
+    { n: "Dewgong", e: "🦭", id: 87, r: 2, evoOnly: true }, { n: "Arbok", e: "🐍", id: 24, r: 2, evoOnly: true },
+    { n: "Kadabra", e: "🥄", id: 64, r: 2, evoOnly: true }, { n: "Munchlax", e: "😋", id: 446, r: 1 },
+    { n: "Snorlax", e: "😴", id: 143, r: 3, evoOnly: true }, { n: "Ditto", e: "🟣", id: 132, r: 2 },
+    { n: "Spearow", e: "🐦", id: 21, r: 1 }, { n: "Fearow", e: "🦅", id: 22, r: 2, evoOnly: true },
   ],
   [
     { n: "Eevee", e: "🦊", id: 133, r: 1 }, { n: "Furret", e: "🦦", id: 162, r: 1 }, { n: "Raichu", e: "🐭", id: 26, r: 1 },
     { n: "Dratini", e: "🐉", id: 147, r: 1 }, { n: "Arcanine", e: "🐕", id: 59, r: 2 }, { n: "Greninja", e: "🐸", id: 658, r: 2 },
     { n: "Raikou", e: "🐯", id: 243, r: 2 }, { n: "Lucario", e: "🐺", id: 448, r: 3 },
+    { n: "Jolteon", e: "⚡", id: 135, r: 2, evoOnly: true }, { n: "Vaporeon", e: "💧", id: 134, r: 2, evoOnly: true },
+    { n: "Flareon", e: "🔥", id: 136, r: 2, evoOnly: true }, { n: "Dragonair", e: "🐉", id: 148, r: 2, evoOnly: true },
+    { n: "Clefairy", e: "🧚", id: 35, r: 1 }, { n: "Clefable", e: "🌙", id: 36, r: 2, evoOnly: true },
+    { n: "Zubat", e: "🦇", id: 41, r: 1 }, { n: "Golbat", e: "🦇", id: 42, r: 2, evoOnly: true },
   ],
   [
     { n: "Growlithe", e: "🐶", id: 58, r: 1 }, { n: "Hoothoot", e: "🦉", id: 163, r: 1 }, { n: "Wooloo", e: "🐑", id: 831, r: 1 },
     { n: "Togepi", e: "🥚", id: 175, r: 1 }, { n: "Girafarig", e: "🦒", id: 203, r: 2 }, { n: "Gengar", e: "👻", id: 94, r: 2 },
     { n: "Dragonite", e: "🐲", id: 149, r: 2 }, { n: "Charizard", e: "🔥", id: 6, r: 3 },
+    { n: "Togetic", e: "🕊️", id: 176, r: 2, evoOnly: true }, { n: "Noctowl", e: "🦉", id: 164, r: 2, evoOnly: true },
+    { n: "Dubwool", e: "🐏", id: 832, r: 2, evoOnly: true }, { n: "Machop", e: "💪", id: 66, r: 1 },
+    { n: "Machoke", e: "💪", id: 67, r: 2, evoOnly: true }, { n: "Doduo", e: "🐤", id: 84, r: 1 },
+    { n: "Dodrio", e: "🐔", id: 85, r: 2, evoOnly: true }, { n: "Tauros", e: "🐂", id: 128, r: 2 },
   ],
   [
     { n: "Magikarp", e: "🐟", id: 129, r: 1 }, { n: "Piplup", e: "🐧", id: 393, r: 1 }, { n: "Mudkip", e: "🦎", id: 258, r: 1 },
     { n: "Gyarados", e: "🐋", id: 130, r: 2 }, { n: "Mew", e: "💗", id: 151, r: 2 }, { n: "Lugia", e: "🕊️", id: 249, r: 2 },
     { n: "Pikachu", e: "⚡", id: 25, r: 3 }, { n: "Mewtwo", e: "🧬", id: 150, r: 3 },
+    { n: "Prinplup", e: "🐧", id: 394, r: 2, evoOnly: true }, { n: "Empoleon", e: "👑", id: 395, r: 3, evoOnly: true },
+    { n: "Marshtomp", e: "🦎", id: 259, r: 2, evoOnly: true }, { n: "Swampert", e: "🐊", id: 260, r: 3, evoOnly: true },
+    { n: "Pichu", e: "⚡", id: 172, r: 1 }, { n: "Bagon", e: "🐲", id: 371, r: 2 },
+    { n: "Shelgon", e: "🛡️", id: 372, r: 2, evoOnly: true }, { n: "Salamence", e: "🐉", id: 373, r: 3, evoOnly: true },
   ],
   [
     { n: "Bulbasaur", e: "🌱", id: 1, r: 1 }, { n: "Charmander", e: "🕯️", id: 4, r: 1 }, { n: "Squirtle", e: "🐢", id: 7, r: 1 },
     { n: "Vulpix", e: "❄️", id: 37, r: 1 }, { n: "Umbreon", e: "🐈‍⬛", id: 197, r: 2 }, { n: "Absol", e: "🌙", id: 359, r: 2 },
     { n: "Scizor", e: "🦂", id: 212, r: 2 }, { n: "Zoroark", e: "🌑", id: 571, r: 3 },
+    { n: "Ivysaur", e: "🌿", id: 2, r: 2, evoOnly: true }, { n: "Venusaur", e: "🌺", id: 3, r: 3, evoOnly: true },
+    { n: "Charmeleon", e: "🔥", id: 5, r: 2, evoOnly: true }, { n: "Wartortle", e: "🐢", id: 8, r: 2, evoOnly: true },
+    { n: "Blastoise", e: "💦", id: 9, r: 3, evoOnly: true }, { n: "Ninetales", e: "🦊", id: 38, r: 2, evoOnly: true },
+    { n: "Shroomish", e: "🍄", id: 285, r: 1 }, { n: "Breloom", e: "🥊", id: 286, r: 2, evoOnly: true },
   ],
   [
     { n: "Suicune", e: "💠", id: 245, r: 2 }, { n: "Zacian", e: "⚔️", id: 888, r: 2 }, { n: "Zekrom", e: "🌩️", id: 644, r: 2 },
     { n: "Reshiram", e: "☄️", id: 643, r: 2 }, { n: "Giratina", e: "🌀", id: 487, r: 3 }, { n: "Rayquaza", e: "🌌", id: 384, r: 3 },
     { n: "Koraidon", e: "🦖", id: 1007, r: 3 }, { n: "Arceus", e: "✨", id: 493, r: 4 },
+    { n: "Mimikyu", e: "👻", id: 778, r: 2 }, { n: "Shaymin", e: "🌱", id: 492, r: 2 },
+    { n: "Celebi", e: "🍃", id: 251, r: 3 }, { n: "Jirachi", e: "⭐", id: 385, r: 3 },
+    { n: "Victini", e: "🔥", id: 494, r: 3 }, { n: "Zamazenta", e: "🛡️", id: 889, r: 3 },
+    { n: "Miraidon", e: "🐉", id: 1008, r: 3 }, { n: "Eternatus", e: "🌌", id: 890, r: 3 },
   ],
+];
+
+// Evolution families. Duplicate catches of a base earn its candy;
+// CANDY_COST candy lets you evolve by typing the evolved name.
+// chain: targets unlock in order. choices: pick any (Eevee!).
+// A target that is already owned gets upgraded to shiny instead.
+const CANDY_COST = 3;
+const EVOLUTIONS = [
+  { base: "0-0", chain: ["0-8"] },                          // Seel → Dewgong
+  { base: "0-1", chain: ["0-9"] },                          // Ekans → Arbok
+  { base: "0-4", chain: ["0-10", "0-6"] },                  // Abra → Kadabra → Alakazam
+  { base: "0-11", chain: ["0-12"] },                        // Munchlax → Snorlax
+  { base: "0-14", chain: ["0-15"] },                        // Spearow → Fearow
+  { base: "1-0", choices: ["1-8", "1-9", "1-10", "4-4"] },  // Eevee → Jolteon/Vaporeon/Flareon/Umbreon
+  { base: "1-3", chain: ["1-11", "2-6"] },                  // Dratini → Dragonair → Dragonite
+  { base: "1-12", chain: ["1-13"] },                        // Clefairy → Clefable
+  { base: "1-14", chain: ["1-15"] },                        // Zubat → Golbat
+  { base: "2-0", chain: ["1-4"] },                          // Growlithe → Arcanine
+  { base: "2-1", chain: ["2-9"] },                          // Hoothoot → Noctowl
+  { base: "2-2", chain: ["2-10"] },                         // Wooloo → Dubwool
+  { base: "2-3", chain: ["2-8"] },                          // Togepi → Togetic
+  { base: "2-11", chain: ["2-12"] },                        // Machop → Machoke
+  { base: "2-13", chain: ["2-14"] },                        // Doduo → Dodrio
+  { base: "3-0", chain: ["3-3"] },                          // Magikarp → Gyarados
+  { base: "3-1", chain: ["3-8", "3-9"] },                   // Piplup → Prinplup → Empoleon
+  { base: "3-2", chain: ["3-10", "3-11"] },                 // Mudkip → Marshtomp → Swampert
+  { base: "3-12", chain: ["3-6"] },                         // Pichu → Pikachu
+  { base: "3-13", chain: ["3-14", "3-15"] },                // Bagon → Shelgon → Salamence
+  { base: "4-0", chain: ["4-8", "4-9"] },                   // Bulbasaur → Ivysaur → Venusaur
+  { base: "4-1", chain: ["4-10", "2-7"] },                  // Charmander → Charmeleon → Charizard
+  { base: "4-2", chain: ["4-11", "4-12"] },                 // Squirtle → Wartortle → Blastoise
+  { base: "4-3", chain: ["4-13"] },                         // Vulpix → Ninetales
+  { base: "4-14", chain: ["4-15"] },                        // Shroomish → Breloom
 ];
 
 // Local sprite files (downloaded once by tools/get-sprites.mjs, see README).
@@ -348,10 +407,13 @@ const TROPHIES = [
   { id: "wpm-35", e: "🚀", name: "Rocket Hands", desc: "Type 35 WPM in a level" },
   { id: "perfect", e: "💯", name: "Perfect!", desc: "Finish a level with 100% accuracy" },
   { id: "ninja", e: "🥷", name: "Keyboard Ninja", desc: "Beat a level in Ninja Mode (hidden keyboard)" },
-  { id: "collect-10", e: "📦", name: "Collector", desc: "Catch 10 Pokemon" },
-  { id: "collect-25", e: "🧺", name: "Big Collector", desc: "Catch 25 Pokemon" },
-  { id: "collect-all", e: "👑", name: "Gotta Catch Them All", desc: "Catch all 48 Pokemon" },
+  { id: "collect-10", e: "📦", name: "Collector", desc: "Collect 10 Pokemon" },
+  { id: "collect-25", e: "🧺", name: "Big Collector", desc: "Collect 25 Pokemon" },
+  { id: "collect-50", e: "🎒", name: "Mega Collector", desc: "Collect 50 Pokemon" },
+  { id: "collect-all", e: "👑", name: "Gotta Catch Them All", desc: "Complete the whole Pokedex" },
   { id: "shiny", e: "✨", name: "Shiny Hunter", desc: "Catch a shiny Pokemon" },
+  { id: "evolve-1", e: "🧬", name: "Evolver", desc: "Evolve a Pokemon for the first time" },
+  { id: "evolve-5", e: "🔮", name: "Evolution Expert", desc: "Evolve 5 Pokemon" },
   { id: "streak-3", e: "📅", name: "Hat Trick", desc: "Play 3 days in a row" },
   { id: "streak-7", e: "🗓️", name: "Legend Week", desc: "Play 7 days in a row" },
   { id: "boss-0", e: "🏆", name: "Rise and Shine", desc: "Wake the giant Snorlax" },

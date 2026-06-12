@@ -864,6 +864,20 @@ const UI = {
           <div class="caught-rar">${rar.label} · added to your Pokedex!</div>
         </div>`;
       setTimeout(() => this.confetti(), 600);
+    } else if (res.candy) {
+      const c = res.candy.creature;
+      catchBox.className = "catch-result";
+      catchBox.innerHTML = `
+        <div class="caught-card candy-card">
+          <div class="caught-emoji">${this.pokeHtml(c.id, c.e)}</div>
+          <div class="caught-name">${this.esc(c.n)} again!</div>
+          <div class="caught-rar">🍬 +1 candy (${res.candy.count}/${CANDY_COST})</div>
+          ${res.candy.ready ? `<div class="evo-ready">🧬 Ready to EVOLVE — open your Pokedex!</div>` : ""}
+        </div>`;
+    } else if (res.dupXp) {
+      const c = res.dupXp.creature;
+      catchBox.className = "catch-result";
+      catchBox.innerHTML = `<div class="fled-note">${c.e} Another ${this.esc(c.n)}! It waves and gives you +${res.dupXp.xp} XP.</div>`;
     } else if (res.fled) {
       catchBox.className = "catch-result";
       catchBox.innerHTML = `<div class="fled-note">💨 The wild ${this.esc(res.fled.n)} ${res.fled.e} got away... catch it next time!</div>`;
@@ -924,20 +938,103 @@ const UI = {
 
   // ---------- dex ----------
   renderDex() {
-    this.$("dex-count").textContent = `${SAVE.caughtCount()} / 48`;
+    const total = CREATURES.flat().length;
+    this.$("dex-count").textContent = `${SAVE.caughtCount()} / ${total}`;
     this.$("dex-list").innerHTML = WORLDS.map((w, wi) => {
       const cards = CREATURES[wi].map((c, ci) => {
-        const got = SAVE.state.dex[`${wi}-${ci}`];
+        const key = `${wi}-${ci}`;
+        const got = SAVE.state.dex[key];
         const rar = RARITY[c.r];
-        if (!got) return `<div class="dex-card unknown"><div class="dex-emoji">${this.pokeHtml(c.id, c.e)}</div><div class="dex-name">???</div></div>`;
+        if (!got) {
+          // evolution-only Pokemon hint at how to get them
+          const fam = c.evoOnly ? EVOLUTIONS.find(f =>
+            (f.chain || f.choices || []).includes(key)) : null;
+          const hint = fam ? `evolves from ${this.esc(CREATURES[fam.base.split("-")[0]][fam.base.split("-")[1]].n)}` : "???";
+          return `<div class="dex-card unknown"><div class="dex-emoji">${this.pokeHtml(c.id, c.e)}</div>
+            <div class="dex-name ${fam ? "evo-hint" : ""}">${hint}</div></div>`;
+        }
+        const candy = SAVE.state.candy[key] || 0;
+        const fam = SAVE.familyFor(key);
+        const targets = SAVE.evoTargetsFor(key);
+        const candyHtml = fam ? `<div class="dex-candy">🍬 ${candy}/${CANDY_COST}</div>` : "";
+        const evoBtn = targets.length
+          ? `<button class="btn-evolve" data-base="${key}">EVOLVE!</button>` : "";
         return `<div class="dex-card ${got.shiny ? "shiny" : ""}" style="--rc:${rar.color}">
           <div class="dex-emoji">${this.pokeHtml(c.id, c.e, { shiny: got.shiny })}</div>
           <div class="dex-name">${got.shiny ? "✨" : ""}${this.esc(c.n)}</div>
-          <div class="dex-rar">${rar.label}</div></div>`;
+          <div class="dex-rar">${rar.label}</div>${candyHtml}${evoBtn}</div>`;
       }).join("");
       const caught = CREATURES[wi].filter((c, ci) => SAVE.state.dex[`${wi}-${ci}`]).length;
-      return `<div class="dex-world"><h3>${w.emoji} ${w.name} <span>${caught}/8</span></h3><div class="dex-grid">${cards}</div></div>`;
+      return `<div class="dex-world"><h3>${w.emoji} ${w.name} <span>${caught}/${CREATURES[wi].length}</span></h3><div class="dex-grid">${cards}</div></div>`;
     }).join("");
+  },
+
+  // pick which evolution (only Eevee has a real choice)
+  evoChooser(baseKey, targets) {
+    const box = this.$("evo-chooser");
+    const base = CREATURES[baseKey.split("-")[0]][baseKey.split("-")[1]];
+    box.innerHTML = `<div class="pause-box">
+      <h2>🧬 Evolve ${this.esc(base.n)} into...</h2>
+      <div class="evo-options">${targets.map(k => {
+        const [tw, ti] = k.split("-").map(Number);
+        const t = CREATURES[tw][ti];
+        const owned = SAVE.state.dex[k];
+        return `<button class="evo-opt" data-base="${baseKey}" data-target="${k}">
+          <span class="evo-opt-img ${owned ? "" : "unknown"}">${this.pokeHtml(t.id, t.e)}</span>
+          <b>${this.esc(t.n)}</b>${owned ? `<i>${owned.shiny ? "make it stronger" : "make it ✨ shiny"}</i>` : ""}
+        </button>`;
+      }).join("")}</div>
+      <button id="evo-cancel" class="link-btn">never mind</button>
+    </div>`;
+    box.classList.remove("hidden");
+  },
+
+  // ---------- evolution scene ----------
+  evolutionScene(S) {
+    this.show("game");
+    const w = S.world;
+    document.body.classList.remove("super-mode");
+    this.$("capslock-warn").classList.add("hidden");
+    this.$("kb-flex").classList.remove("ninja");
+    this.$("hud-stage").textContent = `🧬 Evolution time!`;
+    this.$("hud-progress-fill").style.width = "100%";
+    this.$("hud-hearts").classList.add("hidden");
+    this.$("boss-bar").classList.add("hidden");
+    this.$("player-avatar").textContent = SAVE.state.profile.avatar;
+    const arena = this.$("arena");
+    arena.style.background = `linear-gradient(160deg, ${w.gradient[0]}, ${w.gradient[1]})`;
+    arena.style.setProperty("--wa", w.accent);
+    this.$("scene-emojis").innerHTML = "";
+    const wrap = this.$("target-wrap");
+    const target = this.$("target");
+    wrap.style.opacity = 1;
+    wrap.style.transform = "none";
+    wrap.classList.remove("enter", "hit", "flee", "wobble");
+    target.className = "catch-size";
+    target.innerHTML = `<span class="evolving">${this.pokeHtml(S.evo.base.id, S.evo.base.e)}</span>`;
+    this.updateHud(S);
+    this.announce(`What? ${S.evo.base.n} is evolving!`, 2000);
+    this.speech("Type my new name!", 2800);
+    this.renderPromptText(S);
+    SFX.combo();
+  },
+
+  evolveAnim(S, outcome, done) {
+    const wrap = this.$("target-wrap");
+    const target = this.$("target");
+    SFX.pop();
+    const r = target.getBoundingClientRect();
+    this.burst(r.left + r.width / 2, r.top + r.height / 2, ["#fff", "#ffd34d", S.world.accent], 34, 7);
+    const flash = document.createElement("div");
+    flash.className = "poke-flash";
+    wrap.appendChild(flash);
+    setTimeout(() => flash.remove(), 550);
+    const shiny = outcome === "shiny";
+    target.innerHTML = `<span class="poke-pop">${this.pokeHtml(S.evo.target.id, S.evo.target.e, { shiny })}</span>`;
+    this.announce(`${S.evo.base.n} evolved into ${S.evo.target.n}!`, 2200);
+    this.confetti();
+    SFX.fanfare();
+    setTimeout(done, 2300);
   },
 
   // ---------- trophies ----------
@@ -962,6 +1059,7 @@ const UI = {
       <div class="stat-card"><div class="stat-v">x${s.bestCombo}</div><div class="stat-l">best combo</div></div>
       <div class="stat-card"><div class="stat-v">${s.keys.toLocaleString()}</div><div class="stat-l">keys pressed</div></div>
       <div class="stat-card"><div class="stat-v">${SAVE.caughtCount()}</div><div class="stat-l">Pokemon</div></div>
+      <div class="stat-card"><div class="stat-v">${s.evolutions || 0}</div><div class="stat-l">evolutions</div></div>
       <div class="stat-card"><div class="stat-v">${SAVE.state.streak.count || 0}</div><div class="stat-l">day streak</div></div>`;
 
     const hist = s.history.slice(-12);
@@ -1153,6 +1251,30 @@ const UI = {
       if (this._lastStage) Engine.startStage(this._lastStage[0], this._lastStage[1]);
     });
     this.$("btn-tomap").addEventListener("click", () => this.show("map"));
+
+    // evolution: EVOLVE! buttons in the dex + the chooser modal
+    this.$("dex-list").addEventListener("click", e => {
+      const b = e.target.closest(".btn-evolve");
+      if (!b) return;
+      SFX.click();
+      const baseKey = b.dataset.base;
+      const targets = SAVE.evoTargetsFor(baseKey);
+      if (!targets.length) return;
+      if (targets.length === 1) Engine.startEvolution(baseKey, targets[0]);
+      else this.evoChooser(baseKey, targets);
+    });
+    this.$("evo-chooser").addEventListener("click", e => {
+      const opt = e.target.closest(".evo-opt");
+      if (opt) {
+        SFX.click();
+        this.$("evo-chooser").classList.add("hidden");
+        Engine.startEvolution(opt.dataset.base, opt.dataset.target);
+        return;
+      }
+      if (e.target.closest("#evo-cancel") || e.target.id === "evo-chooser") {
+        this.$("evo-chooser").classList.add("hidden");
+      }
+    });
 
     this.$("btn-backup").addEventListener("click", () => { SFX.click(); this.downloadBackup(); });
     const pickRestore = () => { SFX.click(); this.$("restore-input").click(); };

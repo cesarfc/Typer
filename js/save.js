@@ -45,8 +45,9 @@ const SAVE = {
       profile: null,               // {name, avatar}
       tutorialDone: false,
       xp: 0,
-      stages: {},                  // "w-s" -> best stars (s 0..4 levels, 5 boss)
+      stages: {},                  // "w-s" -> best stars
       dex: {},                     // "w-i" -> {shiny:bool}
+      candy: {},                   // base "w-i" -> candy count (from duplicate catches)
       trophies: {},                // id -> true
       settings: { sound: true, hints: true, difficulty: "normal" },
       streak: { last: null, count: 0 },
@@ -241,11 +242,22 @@ const SAVE = {
     return Object.keys(this.state.dex).length;
   },
 
-  nextUncaught(w) {
-    const pool = CREATURES[w];
-    const order = shuffle(pool.map((c, i) => i));
-    for (const i of order) if (!this.state.dex[`${w}-${i}`]) return { ...pool[i], w, i };
-    return null;
+  // pick the wild Pokemon for the post-level catch round.
+  // Rarity is star-gated (common 1★, rare 2★, epic+ 3★); when nothing
+  // new is available the round offers a duplicate, which earns candy.
+  pickCatch(w, stars) {
+    const pool = CREATURES[w].map((c, i) => ({ c, i })).filter(x => !x.c.evoOnly);
+    const gate = r => (r <= 1 ? 1 : r === 2 ? 2 : 3);
+    const pickFrom = list => {
+      const x = list[Math.floor(Math.random() * list.length)];
+      return { ...x.c, w, i: x.i };
+    };
+    const uncaught = pool.filter(x => !this.state.dex[`${w}-${x.i}`] && stars >= gate(x.c.r));
+    if (uncaught.length) return { ...pickFrom(uncaught), duplicate: false };
+    const caught = pool.filter(x => this.state.dex[`${w}-${x.i}`]);
+    if (!caught.length) return null;
+    const withFamily = caught.filter(x => EVOLUTIONS.some(f => f.base === `${w}-${x.i}`));
+    return { ...pickFrom(withFamily.length ? withFamily : caught), duplicate: true };
   },
 
   addCreature(w, i, shiny) {
@@ -253,12 +265,57 @@ const SAVE = {
     this.state.dex[`${w}-${i}`] = { shiny: !!shiny };
     this.award("first-catch", newTrophies);
     if (shiny) this.award("shiny", newTrophies);
-    const n = this.caughtCount();
-    if (n >= 10) this.award("collect-10", newTrophies);
-    if (n >= 25) this.award("collect-25", newTrophies);
-    if (n >= 48) this.award("collect-all", newTrophies);
+    this.collectTrophies(newTrophies);
     this.save();
     return newTrophies;
+  },
+
+  collectTrophies(list) {
+    const n = this.caughtCount();
+    if (n >= 10) this.award("collect-10", list);
+    if (n >= 25) this.award("collect-25", list);
+    if (n >= 50) this.award("collect-50", list);
+    if (n >= CREATURES.flat().length) this.award("collect-all", list);
+  },
+
+  addCandy(baseKey) {
+    this.state.candy[baseKey] = (this.state.candy[baseKey] || 0) + 1;
+    this.save();
+    return this.state.candy[baseKey];
+  },
+
+  familyFor(baseKey) {
+    return EVOLUTIONS.find(f => f.base === baseKey) || null;
+  },
+
+  // which evolutions this base can do right now (caught + enough candy);
+  // chains unlock in order, choice families offer everything (uncaught first)
+  evoTargetsFor(baseKey) {
+    const fam = this.familyFor(baseKey);
+    if (!fam || !this.state.dex[baseKey]) return [];
+    if ((this.state.candy[baseKey] || 0) < CANDY_COST) return [];
+    if (fam.choices) {
+      const un = fam.choices.filter(k => !this.state.dex[k]);
+      return un.length ? un : fam.choices;
+    }
+    for (const k of fam.chain) if (!this.state.dex[k]) return [k];
+    return [fam.chain[fam.chain.length - 1]];
+  },
+
+  applyEvolution(baseKey, targetKey) {
+    const newTrophies = [];
+    this.state.candy[baseKey] = Math.max(0, (this.state.candy[baseKey] || 0) - CANDY_COST);
+    const t = this.state.dex[targetKey];
+    let outcome;
+    if (!t) { this.state.dex[targetKey] = { shiny: false }; outcome = "new"; }
+    else if (!t.shiny) { t.shiny = true; outcome = "shiny"; this.award("shiny", newTrophies); }
+    else { this.state.xp += 15; outcome = "xp"; }
+    this.state.stats.evolutions = (this.state.stats.evolutions || 0) + 1;
+    this.award("evolve-1", newTrophies);
+    if (this.state.stats.evolutions >= 5) this.award("evolve-5", newTrophies);
+    this.collectTrophies(newTrophies);
+    this.save();
+    return { outcome, newTrophies };
   },
 
   // ---- combos earned during the bonus catch round still count ----

@@ -94,9 +94,15 @@ Each world = 5 levels + a **boss fight**. Beating the boss unlocks the next worl
 
 ## What keeps kids coming back
 
-- **48 catchable Pokemon** — from Magikarp to Arceus. Finish a level, then
-  type the wild Pokemon's name fast enough to catch it. Replay levels to
-  complete the Pokedex. 3-star levels can catch ✨ **shiny** versions.
+- **96 Pokemon to collect** — from Magikarp to Arceus. Finish a level, then
+  type the wild Pokemon's name fast enough to catch it. Rarer Pokemon only
+  appear after better runs (common 1★ · rare 2★ · epic 3★), and 3-star
+  catches can be ✨ **shiny**.
+- **Evolution!** Once a region's wild Pokemon are all caught, catch rounds
+  offer duplicates that earn 🍬 candy. Three candy lets you EVOLVE from the
+  Pokedex by typing the evolved name — Bulbasaur→Ivysaur→Venusaur,
+  Magikarp→Gyarados, and Eevee gets to choose between four evolutions.
+  Evolving into something you already own upgrades it to ✨ shiny.
 - **Combos** — 25 correct keys in a row triggers SUPER MODE.
 - **XP, levels and titles** — from Rookie all the way to Typing Legend.
 - **22 trophies**, daily play streaks, and a personal-best speed chart.

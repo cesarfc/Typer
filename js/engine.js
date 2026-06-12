@@ -82,6 +82,7 @@ const Engine = {
     if (!S || this.paused) return;
     S.typingMs += S.timerMs;
 
+    if (S.state === "evolve") { this.evolveFail(); return; }
     if (S.state === "catch") { this.catchFail(); return; }
 
     S.timeouts++;
@@ -111,7 +112,7 @@ const Engine = {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key.length !== 1) return;
     e.preventDefault();
-    if (S.state !== "play" && S.state !== "catch") return;
+    if (S.state !== "play" && S.state !== "catch" && S.state !== "evolve") return;
 
     UI.capsCheck(e);
     if (!UI.kbHidden) S.ninjaEligible = false;
@@ -147,6 +148,7 @@ const Engine = {
     this.stopTimer();
     S.typingMs += performance.now() - S.promptStart;
 
+    if (S.state === "evolve") { this.evolveSuccess(); return; }
     if (S.state === "catch") { this.catchSuccess(); return; }
 
     S.state = "between";
@@ -193,7 +195,7 @@ const Engine = {
     res.levelUp = applied.levelUps;
 
     if (!S.isBoss && stars >= 1) {
-      const c = SAVE.nextUncaught(S.w);
+      const c = SAVE.pickCatch(S.w, stars);
       if (c) { this.startCatch(c, res); return; }
     }
     UI.superMode(false);
@@ -228,14 +230,87 @@ const Engine = {
     const S = this.session;
     S.state = "done";
     const res = S.pendingRes;
-    const shiny = res.stars === 3 && Math.random() < 0.25;
-    res.caught = { ...S.catchCreature, shiny };
+    const c = S.catchCreature;
     res.bestCombo = Math.max(res.bestCombo, S.bestCombo);
-    const more = SAVE.addCreature(S.catchCreature.w, S.catchCreature.i, shiny)
-      .concat(SAVE.bumpCombo(S.bestCombo));
+    let more;
+    if (c.duplicate) {
+      // duplicate catch: earns candy for that family (or bonus XP if it has none)
+      const baseKey = `${c.w}-${c.i}`;
+      if (SAVE.familyFor(baseKey)) {
+        const count = SAVE.addCandy(baseKey);
+        res.candy = { creature: c, count, ready: SAVE.evoTargetsFor(baseKey).length > 0 };
+      } else {
+        SAVE.state.xp += 12;
+        SAVE.save();
+        res.dupXp = { creature: c, xp: 12 };
+      }
+      more = SAVE.bumpCombo(S.bestCombo);
+    } else {
+      const shiny = res.stars === 3 && Math.random() < 0.25;
+      res.caught = { ...c, shiny };
+      more = SAVE.addCreature(c.w, c.i, shiny).concat(SAVE.bumpCombo(S.bestCombo));
+    }
     res.trophies = (res.trophies || []).concat(more);
     SFX.catchJingle();
     UI.catchAnim(S, true, () => { UI.superMode(false); UI.showResults(res); });
+  },
+
+  // ---- evolution: triggered from the Pokedex, type the evolved name ----
+  startEvolution(baseKey, targetKey) {
+    const [bw, bi] = baseKey.split("-").map(Number);
+    const [tw, ti] = targetKey.split("-").map(Number);
+    const base = CREATURES[bw][bi];
+    const target = CREATURES[tw][ti];
+    this.paused = false;
+    this.pendingNext = false;
+    this.session = {
+      w: bw, s: -1, world: WORLDS[bw], isBoss: false,
+      prompts: [], idx: 0,
+      text: tw === WORLDS.length - 1 ? target.n : target.n.toLowerCase(),
+      pos: 0, score: 0, combo: 0, bestCombo: 0,
+      hits: 0, errors: 0, errorsThisPrompt: 0, timeouts: 0, hearts: 3,
+      typingMs: 0, promptStart: 0, timerMs: 0, timerRemaining: 0,
+      baseTime: 4.5, state: "evolve",
+      evo: { baseKey, targetKey, base, target },
+      ninjaEligible: false, pendingRes: null, catchCreature: null,
+    };
+    UI.evolutionScene(this.session);
+    const taught = taughtKeys(bw);
+    const untaught = [...this.session.text.toLowerCase()].filter(ch => !taught.has(ch)).length;
+    this.startTimer((4.5 + this.session.text.length * 0.75 + untaught * 1.2) * this.difficulty().time * 1000);
+  },
+
+  evolveSuccess() {
+    const S = this.session;
+    S.state = "done";
+    const { baseKey, targetKey, base, target } = S.evo;
+    const applied = SAVE.applyEvolution(baseKey, targetKey);
+    SFX.catchJingle();
+    UI.evolveAnim(S, applied.outcome, () => {
+      this.session = null;
+      UI.superMode(false);
+      UI.show("dex");
+      const msg = applied.outcome === "new"
+        ? `🧬 ${base.n} evolved into <b>${target.n}</b>!`
+        : applied.outcome === "shiny"
+          ? `🧬 ${target.n} turned <b>✨ SHINY</b>!`
+          : `🧬 ${target.n} grew stronger! +15 XP`;
+      UI.toast(msg, "gold");
+      applied.newTrophies.forEach((t, i) => setTimeout(() => UI.trophyToast(t), 600 + i * 800));
+    });
+  },
+
+  evolveFail() {
+    const S = this.session;
+    S.state = "done";
+    SFX.flee();
+    UI.announce("It took a deep breath...", 1200);
+    setTimeout(() => {
+      this.session = null;
+      UI.superMode(false);
+      UI.show("dex");
+      UI.toast("😮‍💨 The evolution fizzled — your candy is safe. Try again!");
+    }, 1300);
   },
 
   catchFail() {

@@ -667,6 +667,45 @@ button:active { transform: translateY(1px) scale(.98); }
 .dex-emoji { font-size: 40px; }
 .dex-name { font-weight: 800; font-size: 14px; margin-top: 4px; }
 .dex-rar { font-size: 11px; color: var(--rc, var(--dim)); font-weight: 700; }
+.dex-name.evo-hint { font-size: 11px; font-weight: 700; color: var(--dim); }
+.dex-candy { font-size: 11.5px; font-weight: 800; color: #ffb6d9; margin-top: 3px; }
+.btn-evolve {
+  margin-top: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 900;
+  color: #1a1404;
+  background: linear-gradient(180deg, #d6a5ff, #a55cff);
+  border: none;
+  border-radius: 999px;
+  animation: pulseGlow 1.3s ease-in-out infinite;
+}
+.evo-ready { margin-top: 7px; font-size: 13px; font-weight: 800; color: #d6a5ff; }
+.candy-card { border-color: #ffb6d9; }
+
+#evo-chooser {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 10, 24, .8);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+#evo-chooser .pause-box { width: min(560px, 94%); }
+.evo-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin: 6px 0 4px; }
+.evo-opt { padding: 12px 6px; border-radius: 14px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.evo-opt .evo-opt-img .poke-img { height: 64px; }
+.evo-opt .evo-opt-img.unknown .poke-img { filter: brightness(0) opacity(.5); }
+.evo-opt b { font-size: 14px; }
+.evo-opt i { font-style: normal; font-size: 10.5px; color: var(--gold); }
+
+.evolving { display: inline-block; animation: evolveGlow .7s ease-in-out infinite alternate; }
+@keyframes evolveGlow {
+  from { filter: brightness(1) drop-shadow(0 0 6px rgba(255,255,255,.3)); transform: scale(1); }
+  to { filter: brightness(2.6) drop-shadow(0 0 22px rgba(255,255,255,.9)); transform: scale(1.06); }
+}
 
 /* ============ trophies ============ */
 #trophy-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-bottom: 36px; }
