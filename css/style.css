@@ -463,29 +463,9 @@ button:active { transform: translateY(1px) scale(.98); }
 }
 #region-map { transform-style: preserve-3d; }
 
-.mnode, .map-grass, .map-fish, .map-roamer, .map-school, .map-city,
-.region-label, .map-marker, .map-poke, .map-decor, .map-smoke {
-  transform: translate(-50%, -100%) rotateX(calc(-1 * var(--tilt)));
-  transform-origin: 50% 100%;
-  margin: 0;
-}
-.mnode:hover, .mnode:active,
-.map-school:hover, .map-school:active,
-.map-grass:hover, .map-grass:active,
-.map-fish:hover, .map-fish:active,
-.map-roamer:hover, .map-roamer:active,
-.map-poke:hover, .map-poke:active {
-  transform: translate(-50%, -100%) rotateX(calc(-1 * var(--tilt)));
-  filter: none; /* never toggle filters on 3D-positioned pins */
-}
+/* (billboard transforms live at the END of this file — they must be
+   the last transform declarations so no later rule can flatten a pin) */
 .mnode:hover { border-color: #fff; }
-/* hover glow = pure background paint: no transform, no filter, no
-   stacking-context change — cannot move or reproject in any browser */
-.map-school:hover, .map-fish:hover, .map-grass:hover,
-.map-roamer:hover, .map-poke:hover {
-  background: radial-gradient(circle at 50% 55%, rgba(125, 200, 255, .32), transparent 72%);
-  border-radius: 50%;
-}
 .map-marker { animation: none; }
 .map-marker .mk-bob { display: inline-block; animation: bob 1.6s ease-in-out infinite; }
 .map-grass { animation: none; }
@@ -1165,3 +1145,37 @@ button:active { transform: translateY(1px) scale(.98); }
   #main-nav { order: 3; width: 100%; }
   #topbar { flex-wrap: wrap; }
 }
+
+/* ============================================================
+   BILLBOARD TRANSFORMS — MUST STAY AT THE END OF THIS FILE.
+   Every map pin's resting AND hover transform is declared here so
+   no earlier rule (same specificity, later position) can ever win
+   and make a pin rest flat but billboard on hover — that ordering
+   trap is exactly what made pins "jump" when hovered.
+   ============================================================ */
+.mnode, .map-grass, .map-fish, .map-roamer, .map-school, .map-city,
+.region-label, .map-marker, .map-poke, .map-decor, .map-smoke {
+  transform: translate(-50%, -100%) rotateX(calc(-1 * var(--tilt)));
+  transform-origin: 50% 100%;
+  margin: 0;
+  transition: background .15s; /* never transition transform on pins */
+}
+.mnode:hover, .mnode:active,
+.map-school:hover, .map-school:active,
+.map-grass:hover, .map-grass:active,
+.map-fish:hover, .map-fish:active,
+.map-roamer:hover, .map-roamer:active,
+.map-poke:hover, .map-poke:active {
+  transform: translate(-50%, -100%) rotateX(calc(-1 * var(--tilt)));
+  filter: none; /* never toggle filters on 3D-positioned pins */
+}
+/* hover glow = pure background paint: no transform, no filter, no
+   stacking-context change — cannot move or reproject in any browser */
+.map-school:hover, .map-fish:hover, .map-grass:hover,
+.map-roamer:hover, .map-poke:hover {
+  background: radial-gradient(circle at 50% 55%, rgba(125, 200, 255, .32), transparent 72%);
+  border-radius: 50%;
+}
+/* animations also override transforms while running — outer pins must
+   never animate (inner spans carry bob/rustle instead) */
+.map-marker, .map-grass { animation: none; }
