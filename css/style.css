@@ -153,6 +153,7 @@ button:active { transform: translateY(1px) scale(.98); }
 #avatar-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 6px; }
 .avatar-opt { font-size: 30px; padding: 8px 0; border-radius: 12px; }
 .avatar-opt.sel { background: var(--gold); border-color: var(--gold); transform: scale(1.08); }
+.avatar-opt.sel:hover { transform: scale(1.08) translateY(-1px); }
 
 .field-note { font-weight: 400; opacity: .75; font-size: 12px; }
 #diff-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 22px; }
@@ -379,6 +380,19 @@ button:active { transform: translateY(1px) scale(.98); }
 }
 .map-school span { font-size: 42px; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)); transition: transform .15s; }
 .map-school:hover span { transform: scale(1.12); }
+
+/* map pins are centered via transform — the global button hover/active
+   transform must never replace it, or the pin jumps on hover */
+.map-school:hover, .map-school:active,
+.map-grass:hover, .map-grass:active,
+.map-fish:hover, .map-fish:active,
+.map-roamer:hover, .map-roamer:active {
+  transform: translate(-50%, -50%);
+}
+.map-fish { transition: font-size .15s; }
+.map-fish:hover { font-size: 35px; }
+.map-roamer .roamer-img { transition: height .15s; }
+.map-roamer:hover .roamer-img { height: 74px; }
 .map-school b { font-size: 12px; background: rgba(10,13,30,.78); padding: 3px 9px; border-radius: 999px; border: 1px solid var(--info); white-space: nowrap; color: var(--info); }
 
 .practice-sub { text-align: center; color: var(--dim); margin: -8px 0 20px; font-size: 15px; }
