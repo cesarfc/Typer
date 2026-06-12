@@ -305,6 +305,27 @@ button:active { transform: translateY(1px) scale(.98); }
 .map-fish.spent::after { display: none; }
 
 .bobber { display: inline-block; font-size: 74px; animation: bob 1.4s ease-in-out infinite; }
+
+/* mystery egg */
+.egg-emoji { font-size: 84px; display: inline-block; }
+.marker-egg { font-size: 19px; position: absolute; right: -12px; bottom: 8px; }
+#egg-chip { cursor: pointer; }
+#egg-chip.ready {
+  color: #1a1404;
+  background: linear-gradient(180deg, #ffe28a, var(--gold));
+  border-color: var(--gold);
+  font-weight: 900;
+  animation: pulseGlow 1.3s ease-in-out infinite;
+}
+.egg-note {
+  margin: 10px 0 2px;
+  font-size: 14.5px;
+  background: rgba(255, 211, 77, .08);
+  border: 1px solid #4a3a12;
+  border-radius: 12px;
+  padding: 9px 14px;
+}
+.egg-note.ready { border-color: var(--gold); animation: pulseGlow 1.4s ease-in-out infinite; }
 .map-city { position: absolute; transform: translate(-50%, -50%); text-align: center; pointer-events: none; z-index: 2; }
 .map-city span { font-size: 38px; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)); }
 .map-city b { font-size: 12px; background: rgba(10,13,30,.78); padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; }

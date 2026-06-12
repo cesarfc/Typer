@@ -109,6 +109,11 @@ Each world = 5 levels + a **boss fight**. Beating the boss unlocks the next worl
   (the Ferry Dock lake and more as you progress) give 2 casts a day — wait
   for the bite, type fast to reel, and see what's on the hook. Wild catches
   pay +15 XP and can be shiny.
+- **Mystery Eggs** — the first level you finish each day grants a 🥚.
+  Finish 3 more levels to warm it, then hatch it on the map: wobble,
+  crack, flash... and type the hatchling's name to welcome it (no timer —
+  hatching is a gift). Longer daily streaks hatch rarer Pokemon and raise
+  the shiny chance up to 25%, so playing every day really pays.
 - **Combos** — 25 correct keys in a row triggers SUPER MODE.
 - **XP, levels and titles** — from Rookie all the way to Typing Legend.
 - **22 trophies**, daily play streaks, and a personal-best speed chart.

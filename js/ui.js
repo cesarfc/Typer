@@ -427,11 +427,21 @@ const UI = {
       }
     });
 
-    // the player stands at their next challenge
+    // the player stands at their next challenge (carrying any egg)
     const f = this.mapFrontier();
     const fp = nodes[f.w][f.s];
     const avatar = SAVE.state && SAVE.state.profile ? SAVE.state.profile.avatar : "🧢";
-    html += `<div class="map-marker" style="left:${fp.x}px;top:${fp.y - 62}px">${avatar}<i>▼</i></div>`;
+    const egg = SAVE.state && SAVE.state.egg;
+    html += `<div class="map-marker" style="left:${fp.x}px;top:${fp.y - 62}px">${avatar}${egg ? `<span class="marker-egg">🥚</span>` : ""}<i>▼</i></div>`;
+
+    const eggChip = this.$("egg-chip");
+    eggChip.classList.toggle("hidden", !egg);
+    if (egg) {
+      const ready = egg.progress >= 3;
+      eggChip.textContent = ready ? "🐣 Hatch the egg!" : `🥚 ${egg.progress}/3`;
+      eggChip.classList.toggle("ready", ready);
+      eggChip.title = ready ? "Click to hatch your Mystery Egg!" : "Finish levels to warm the egg";
+    }
 
     map.innerHTML = html;
 
@@ -512,6 +522,14 @@ const UI = {
       const f = this.mapFrontier();
       const p = this.mapNodes()[f.w][f.s];
       this.centerMapOn(p.x, p.y);
+    });
+    this.$("egg-chip").addEventListener("click", e => {
+      e.stopPropagation();
+      const egg = SAVE.state && SAVE.state.egg;
+      if (!egg) return;
+      SFX.click();
+      if (egg.progress >= 3) Engine.startHatch();
+      else this.toast(`🥚 Keep playing! ${3 - egg.progress} more level${egg.progress === 2 ? "" : "s"} and it will hatch.`);
     });
   },
 
@@ -1012,6 +1030,22 @@ const UI = {
       catchBox.innerHTML = "";
     }
 
+    // mystery egg status
+    const eggBox = this.$("results-egg");
+    if (res.egg && res.egg.granted) {
+      eggBox.className = "egg-note";
+      eggBox.innerHTML = `🥚 <b>You found a Mystery Egg!</b> Finish 3 levels to hatch it.`;
+    } else if (res.egg && res.egg.ready) {
+      eggBox.className = "egg-note ready";
+      eggBox.innerHTML = `🐣 <b>Your egg is ready to hatch!</b> Find it on the map.`;
+    } else if (res.egg && res.egg.progress) {
+      eggBox.className = "egg-note";
+      eggBox.innerHTML = `🥚 Egg warming: <b>${res.egg.progress}/3</b>`;
+    } else {
+      eggBox.className = "hidden";
+      eggBox.innerHTML = "";
+    }
+
     // big moments
     if (res.isBoss && res.firstClear) {
       this.confetti();
@@ -1167,6 +1201,87 @@ const UI = {
       this.speech("Weaken me with words first!", 2600);
       SFX.pop();
     }
+  },
+
+  // ---------- Mystery Egg hatching ----------
+  hatchReveal(S, done) {
+    this.show("game");
+    const c = S.hatch.creature;
+    document.body.classList.remove("super-mode");
+    this.$("capslock-warn").classList.add("hidden");
+    this.$("kb-flex").classList.remove("ninja");
+    this.$("hud-stage").textContent = "🥚 The egg is hatching!";
+    this.$("hud-progress-fill").style.width = "100%";
+    this.$("hud-hearts").classList.add("hidden");
+    this.$("boss-bar").classList.add("hidden");
+    this.$("player-avatar").textContent = SAVE.state.profile.avatar;
+    this.updateHud(S);
+    const arena = this.$("arena");
+    arena.style.background = "linear-gradient(160deg, #2d2545, #8a6d1d)";
+    arena.style.setProperty("--wa", "#ffd34d");
+    const scene = this.$("scene-emojis");
+    scene.innerHTML = "";
+    ["✨", "🌟", "✨", "💫"].forEach((e2, i) => {
+      const sp = document.createElement("span");
+      sp.textContent = e2;
+      sp.style.left = `${12 + i * 24}%`;
+      sp.style.top = `${15 + (i % 2) * 50}%`;
+      sp.style.fontSize = "20px";
+      scene.appendChild(sp);
+    });
+    const wrap = this.$("target-wrap");
+    const target = this.$("target");
+    this.$("target-label").classList.add("hidden");
+    wrap.style.opacity = 1;
+    wrap.style.transform = "none";
+    wrap.classList.remove("enter", "hit", "flee", "wobble");
+    target.className = "catch-size";
+    target.innerHTML = `<span class="ball-reveal drop"><span class="egg-emoji">🥚</span></span>`;
+    this.$("prompt-word").innerHTML = [...S.text].map(() => `<span class="ch mystery">?</span>`).join("");
+    const tf = this.$("timer-fill");
+    tf.style.width = "100%";
+    tf.classList.remove("low");
+    this.highlightKey(null);
+    SFX.thump();
+    this.announce("Who is in there... ?", 1400);
+    const alive = () => Engine.session === S && S.state === "hatchwait";
+    const crack = () => {
+      if (!alive()) return;
+      SFX.tick();
+      const r = target.getBoundingClientRect();
+      this.burst(r.left + r.width / 2, r.top + r.height / 2, ["#fff", "#ffe28a"], 8, 3);
+    };
+    setTimeout(() => {
+      if (!alive()) return;
+      const egg = target.querySelector(".ball-reveal");
+      if (egg) egg.classList.add("wobbling");
+      crack();
+    }, 520);
+    setTimeout(crack, 1000);
+    setTimeout(crack, 1460);
+    setTimeout(() => {
+      if (!alive()) return;
+      SFX.pop();
+      const r = target.getBoundingClientRect();
+      this.burst(r.left + r.width / 2, r.top + r.height / 2, ["#fff", "#ffd34d", "#ffe28a"], 30, 6);
+      const flash = document.createElement("div");
+      flash.className = "poke-flash";
+      wrap.appendChild(flash);
+      setTimeout(() => flash.remove(), 550);
+      target.innerHTML = `<span class="poke-pop">${this.pokeHtml(c.id, c.e, { shiny: S.hatch.shiny })}</span>`;
+    }, 1820);
+    setTimeout(() => {
+      if (!alive()) return;
+      this.announce(`It's ${c.n}!${S.hatch.shiny ? " ✨" : ""}`, 1800);
+      SFX.catchJingle();
+      done();
+    }, 2420);
+  },
+
+  showWelcomePrompt(S) {
+    this.speech("Welcome me! Type my name — no rush!", 3200);
+    this.renderPromptText(S);
+    this.$("timer-fill").style.width = "100%";
   },
 
   // ---------- evolution scene ----------

@@ -48,6 +48,8 @@ const SAVE = {
       stages: {},                  // "w-s" -> best stars
       dex: {},                     // "w-i" -> {shiny:bool}
       candy: {},                   // base "w-i" -> candy count (from duplicate catches)
+      egg: null,                   // { date, progress 0..3 } — hatches after 3 levels
+      eggDate: null,               // last day an egg was granted (one per day)
       trophies: {},                // id -> true
       settings: { sound: true, hints: true, difficulty: "normal" },
       streak: { last: null, count: 0 },
@@ -384,6 +386,40 @@ const SAVE = {
     return newTrophies;
   },
 
+  // ---- Mystery Egg: what hatches depends on streak (better odds when
+  // playing daily) and the current dex; duplicates hatch into 3 candy ----
+  eggPick() {
+    const streak = this.state.streak.count || 1;
+    const wEpic = streak >= 7 ? 30 : streak >= 3 ? 15 : 6;
+    const wRare = streak >= 7 ? 40 : streak >= 3 ? 35 : 25;
+    const weight = r => (r <= 1 ? 100 - wEpic - wRare : r === 2 ? wRare : wEpic);
+    const avail = [];
+    CREATURES.forEach((list, w) => {
+      if (!this.worldUnlocked(w)) return;
+      list.forEach((c, i) => { if (!c.evoOnly && !this.state.dex[`${w}-${i}`]) avail.push({ c, w, i }); });
+    });
+    const pickW = list => {
+      let t = 0;
+      const acc = list.map(x => (t += weight(x.c.r)));
+      const roll = Math.random() * t;
+      const x = list[acc.findIndex(a => roll < a)];
+      return { ...x.c, w: x.w, i: x.i };
+    };
+    if (avail.length) return { ...pickW(avail), duplicate: false };
+    const caught = [];
+    CREATURES.forEach((list, w) => list.forEach((c, i) => {
+      if (!c.evoOnly && this.state.dex[`${w}-${i}`] && EVOLUTIONS.some(f => f.base === `${w}-${i}`)) {
+        caught.push({ c, w, i });
+      }
+    }));
+    if (!caught.length) return null;
+    return { ...pickW(caught), duplicate: true };
+  },
+
+  eggShinyChance() {
+    return Math.min(0.10 + (this.state.streak.count || 1) * 0.02, 0.25);
+  },
+
   // ---- apply a finished level/boss result; returns {newTrophies, levelUps} ----
   applyResult(res) {
     const st = this.state;
@@ -410,10 +446,25 @@ const SAVE = {
     if (res.ninja) this.award("ninja", newTrophies);
     if (res.isBoss && res.stars > 0) this.award(`boss-${res.w}`, newTrophies);
 
+    // Mystery Egg: warm the one you carry, or find today's egg
+    const today = new Date().toISOString().slice(0, 10);
+    let egg = null;
+    if (st.egg && st.egg.progress < 3) {
+      st.egg.progress++;
+      egg = st.egg.progress >= 3 ? { ready: true } : { progress: st.egg.progress };
+    } else if (!st.egg && st.eggDate !== today) {
+      st.egg = { date: today, progress: 0 };
+      st.eggDate = today;
+      egg = { granted: true };
+    } else if (st.egg && st.egg.progress >= 3) {
+      egg = { ready: true };
+    }
+
     const after = levelFromXp(st.xp);
     this.save();
     return {
       newTrophies,
+      egg,
       levelUps: after.level > before.level ? { from: before.level, to: after.level, title: titleForLevel(after.level) } : null,
     };
   },

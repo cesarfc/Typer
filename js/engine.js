@@ -113,7 +113,7 @@ const Engine = {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key.length !== 1) return;
     e.preventDefault();
-    if (S.state !== "play" && S.state !== "catch" && S.state !== "evolve") return;
+    if (S.state !== "play" && S.state !== "catch" && S.state !== "evolve" && S.state !== "welcome") return;
 
     UI.capsCheck(e);
     if (!UI.kbHidden) S.ninjaEligible = false;
@@ -149,6 +149,7 @@ const Engine = {
     this.stopTimer();
     S.typingMs += performance.now() - S.promptStart;
 
+    if (S.state === "welcome") { this.finishHatch(); return; }
     if (S.state === "evolve") { this.evolveSuccess(); return; }
     if (S.state === "catch") { this.catchSuccess(); return; }
 
@@ -195,6 +196,7 @@ const Engine = {
     const applied = SAVE.applyResult(res);
     res.trophies = applied.newTrophies;
     res.levelUp = applied.levelUps;
+    res.egg = applied.egg;
 
     if (!S.isBoss && stars >= 1) {
       const c = SAVE.pickCatch(S.w, stars);
@@ -375,6 +377,71 @@ const Engine = {
       UI.superMode(false);
       UI.show("map");
       UI.toast(`💨 The wild ${S.wild.creature.n} escaped into the wild!`);
+    }, 1000);
+  },
+
+  // ---- Mystery Egg hatching: triggered from the map once warmed ----
+  startHatch() {
+    const st = SAVE.state;
+    if (!st.egg || st.egg.progress < 3) return;
+    const pick = SAVE.eggPick();
+    if (!pick) {
+      st.egg = null;
+      SAVE.save();
+      UI.toast("🥚 The egg was just a round rock. How embarrassing.");
+      return;
+    }
+    const shiny = !pick.duplicate && Math.random() < SAVE.eggShinyChance();
+    this.paused = false;
+    this.pendingNext = false;
+    const S = this.session = {
+      w: pick.w, s: -3, world: WORLDS[pick.w], isBoss: false,
+      prompts: [], idx: 0,
+      text: pick.w === WORLDS.length - 1 ? pick.n : pick.n.toLowerCase(),
+      pos: 0, score: 0, combo: 0, bestCombo: 0,
+      hits: 0, errors: 0, errorsThisPrompt: 0, timeouts: 0, hearts: 3,
+      typingMs: 0, promptStart: 0, timerMs: 0, timerRemaining: 0,
+      baseTime: 0, state: "hatchwait",
+      hatch: { creature: pick, shiny, trophies: [] },
+      ninjaEligible: false, pendingRes: null, catchCreature: null,
+    };
+    UI.hatchReveal(S, () => {
+      if (this.session !== S || S.state !== "hatchwait") return;
+      // award at the reveal so nothing can be lost afterwards
+      const trophies = [];
+      if (pick.duplicate) {
+        const baseKey = `${pick.w}-${pick.i}`;
+        SAVE.addCandy(baseKey);
+        SAVE.addCandy(baseKey);
+        S.hatch.candy = SAVE.addCandy(baseKey);
+      } else {
+        trophies.push(...SAVE.addCreature(pick.w, pick.i, shiny));
+      }
+      st.egg = null;
+      SAVE.award("hatch-1", trophies);
+      SAVE.save();
+      S.hatch.trophies = trophies;
+      S.state = "welcome"; // type its name — no timer, no way to fail
+      UI.showWelcomePrompt(S);
+    });
+  },
+
+  finishHatch() {
+    const S = this.session;
+    S.state = "done";
+    const { creature, shiny, candy, trophies } = S.hatch;
+    UI.confetti();
+    SFX.fanfare();
+    setTimeout(() => {
+      this.session = null;
+      UI.superMode(false);
+      UI.show("map");
+      UI.renderTopbar();
+      const msg = candy
+        ? `🐣 The egg hatched a ${creature.n} — it shared 🍬 ${CANDY_COST} candy (${candy}/${CANDY_COST})!`
+        : `🐣 The egg hatched into${shiny ? " a ✨ SHINY" : ""} <b>${creature.n}</b>!`;
+      UI.toast(msg, "gold");
+      trophies.forEach((t, i) => setTimeout(() => UI.trophyToast(t), 700 + i * 800));
     }, 1000);
   },
 

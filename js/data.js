@@ -417,6 +417,7 @@ const TROPHIES = [
   { id: "shiny", e: "✨", name: "Shiny Hunter", desc: "Catch a shiny Pokemon" },
   { id: "evolve-1", e: "🧬", name: "Evolver", desc: "Evolve a Pokemon for the first time" },
   { id: "evolve-5", e: "🔮", name: "Evolution Expert", desc: "Evolve 5 Pokemon" },
+  { id: "hatch-1", e: "🐣", name: "Hatched!", desc: "Hatch a Mystery Egg" },
   { id: "streak-3", e: "📅", name: "Hat Trick", desc: "Play 3 days in a row" },
   { id: "streak-7", e: "🗓️", name: "Legend Week", desc: "Play 7 days in a row" },
   { id: "boss-0", e: "🏆", name: "Rise and Shine", desc: "Wake the giant Snorlax" },
