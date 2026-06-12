@@ -392,6 +392,10 @@ function spriteUrl(id, shiny) {
 // dex keys of water Pokemon that can be hooked at fishing spots
 const WATER_POKEMON = ["0-0", "0-5", "3-0", "3-1", "3-2", "3-3", "4-2", "5-0"];
 
+// the move a party partner uses when its typing-charged meter fills
+const PARTNER_MOVES = { 1: "Tackle", 2: "Take Down", 3: "Hyper Beam", 4: "Judgment" };
+const PARTY_MAX = 6;
+
 const RARITY = {
   1: { label: "Common", color: "#9aa3d0" },
   2: { label: "Rare", color: "#4dc3ff" },
@@ -418,6 +422,8 @@ const TROPHIES = [
   { id: "evolve-1", e: "🧬", name: "Evolver", desc: "Evolve a Pokemon for the first time" },
   { id: "evolve-5", e: "🔮", name: "Evolution Expert", desc: "Evolve 5 Pokemon" },
   { id: "hatch-1", e: "🐣", name: "Hatched!", desc: "Hatch a Mystery Egg" },
+  { id: "party-6", e: "🎽", name: "Full Squad", desc: "Put 6 Pokemon in your party" },
+  { id: "legend-1", e: "🌟", name: "Legend Catcher", desc: "Catch a roaming legendary" },
   { id: "streak-3", e: "📅", name: "Hat Trick", desc: "Play 3 days in a row" },
   { id: "streak-7", e: "🗓️", name: "Legend Week", desc: "Play 7 days in a row" },
   { id: "boss-0", e: "🏆", name: "Rise and Shine", desc: "Wake the giant Snorlax" },

@@ -40,6 +40,12 @@ const Engine = {
       pendingRes: null,
       catchCreature: null,
     };
+    // your lead party Pokemon fights beside you; in boss battles its
+    // meter charges from your typing and unleashes an extra attack
+    this.session.partner = SAVE.leadCreature();
+    this.session.charge = 0;
+    this.session.partnerReady = false;
+    this.session.meterOn = isBoss && !!this.session.partner;
     UI.gameStart(this.session);
     this.nextPrompt();
   },
@@ -127,6 +133,10 @@ const Engine = {
       S.combo++;
       S.bestCombo = Math.max(S.bestCombo, S.combo);
       S.score += 1 + Math.floor(S.combo / 10);
+      if (S.state === "play") {
+        // good typing charges your partner: combo streaks charge faster
+        this.addCharge(S, 3 + (S.combo >= 25 ? 2 : S.combo >= 10 ? 1 : 0));
+      }
       SFX.click(S.combo);
       UI.charDone(S);
       if (S.combo === 10) { UI.announce("Combo x10! 🔥"); SFX.combo(); }
@@ -144,6 +154,17 @@ const Engine = {
     UI.updateHud(S);
   },
 
+  addCharge(S, amt) {
+    if (!S.meterOn || S.partnerReady) return;
+    S.charge = Math.min(100, S.charge + amt);
+    if (S.charge >= 100) {
+      S.partnerReady = true;
+      UI.announce(`${S.partner.n} is ready! ⚡`, 1100);
+      SFX.combo();
+    }
+    UI.partnerMeter(S);
+  },
+
   promptComplete() {
     const S = this.session;
     this.stopTimer();
@@ -156,12 +177,25 @@ const Engine = {
     S.state = "between";
     const perfect = S.errorsThisPrompt === 0;
     S.score += perfect ? 5 : 2;
+    if (perfect) this.addCharge(S, 5); // flawless words charge the partner extra
     UI.updateHud(S);
 
     if (S.isBoss) { UI.bossHit(S); SFX.bossHit(); }
     else { UI.targetHit(S); SFX.word(); }
 
-    setTimeout(() => { this.paused ? this.pendingNext = true : this.nextPrompt(); }, 800);
+    // a fully charged partner strikes too, removing one enemy word outright
+    let gap = 800;
+    if (S.partnerReady && S.prompts.length - (S.idx + 1) > 0) {
+      S.prompts.pop();
+      S.partnerReady = false;
+      S.charge = 0;
+      gap = 1450;
+      setTimeout(() => {
+        if (this.session !== S || S.state !== "between") return;
+        UI.partnerAttack(S);
+      }, 550);
+    }
+    setTimeout(() => { this.paused ? this.pendingNext = true : this.nextPrompt(); }, gap);
   },
 
   finishStage() {
@@ -237,7 +271,24 @@ const Engine = {
     const c = S.catchCreature;
     res.bestCombo = Math.max(res.bestCombo, S.bestCombo);
     let more;
-    if (c.duplicate) {
+    if (S.wild && S.wild.source === "legendary" && c.duplicate) {
+      // a duplicate legendary turns the owned one shiny (or pays XP)
+      const key = `${c.w}-${c.i}`;
+      const entry = SAVE.state.dex[key];
+      if (entry && !entry.shiny) {
+        entry.shiny = true;
+        res.legendShiny = c;
+        more = [];
+        SAVE.award("shiny", more);
+      } else {
+        SAVE.state.xp += 30;
+        res.dupXp = { creature: c, xp: 30 };
+        more = [];
+      }
+      SAVE.award("legend-1", more);
+      more = more.concat(SAVE.bumpCombo(S.bestCombo));
+      SAVE.save();
+    } else if (c.duplicate) {
       // duplicate catch: earns candy for that family (or bonus XP if it has none)
       const baseKey = `${c.w}-${c.i}`;
       if (SAVE.familyFor(baseKey)) {
@@ -253,6 +304,7 @@ const Engine = {
       const shiny = (res.wild ? Math.random() < 0.12 : res.stars === 3 && Math.random() < 0.25);
       res.caught = { ...c, shiny };
       more = SAVE.addCreature(c.w, c.i, shiny).concat(SAVE.bumpCombo(S.bestCombo));
+      if (S.wild && S.wild.source === "legendary") SAVE.award("legend-1", more);
     }
     res.trophies = (res.trophies || []).concat(more);
     SFX.catchJingle();
@@ -264,12 +316,16 @@ const Engine = {
         UI.superMode(false);
         UI.show("map");
         UI.renderTopbar();
-        const msg = res.caught
-          ? `🎉 Caught a wild${res.caught.shiny ? " ✨ SHINY" : ""} <b>${res.caught.n}</b>! +15 XP`
-          : res.candy
-            ? `🍬 Wild ${res.candy.creature.n} gave +1 candy (${res.candy.count}/${CANDY_COST})! +15 XP`
-            : `+15 XP!`;
+        const legendary = S.wild.source === "legendary";
+        const msg = res.legendShiny
+          ? `🌟 Your ${res.legendShiny.n} turned <b>✨ SHINY</b>! +15 XP`
+          : res.caught
+            ? `${legendary ? "🌟 LEGENDARY!" : "🎉"} Caught a wild${res.caught.shiny ? " ✨ SHINY" : ""} <b>${res.caught.n}</b>! +15 XP`
+            : res.candy
+              ? `🍬 Wild ${res.candy.creature.n} gave +1 candy (${res.candy.count}/${CANDY_COST})! +15 XP`
+              : `✨ +${res.dupXp ? res.dupXp.xp + 15 : 15} XP!`;
         UI.toast(msg, "gold");
+        if (legendary && res.caught) UI.confetti();
         res.trophies.forEach((t, i) => setTimeout(() => UI.trophyToast(t), 700 + i * 800));
       });
       return;
@@ -303,7 +359,24 @@ const Engine = {
       baseTime: 5, state: "play", wild,
       ninjaEligible: false, pendingRes: null, catchCreature: null,
     };
+    this.session.partner = SAVE.leadCreature();
+    this.session.charge = 0;
+    this.session.partnerReady = false;
+    this.session.meterOn = wild.source === "legendary" && !!this.session.partner;
     return this.session;
+  },
+
+  // ---- weekly roaming legendary: one attempt, three words, the name ----
+  startLegendary() {
+    const r = SAVE.roamerNow();
+    if (!r) return;
+    SAVE.markRoamerDone(); // the attempt is spent, win or flee
+    let wMax = 0;
+    for (let w = 0; w < WORLDS.length; w++) if (SAVE.worldUnlocked(w)) wMax = w;
+    const S = this.wildSession(r.w, this.battleWords(wMax, 3), { creature: r, source: "legendary" });
+    S.baseTime = 4;
+    UI.wildScene(S);
+    this.nextPrompt();
   },
 
   startWildGrass(w, spotId) {

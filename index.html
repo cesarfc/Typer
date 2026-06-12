@@ -74,6 +74,7 @@
           <button id="egg-chip" class="map-hint hidden">🥚</button>
           <button id="btn-findme">📍 Find me</button>
         </div>
+        <div id="party-bar"></div>
       </div>
     </section>
 
@@ -95,13 +96,19 @@
         <div id="boss-hp"><div id="boss-hp-fill"></div></div>
       </div>
 
+      <div id="partner-bar" class="hidden">
+        <span id="partner-bar-name"></span>
+        <div id="partner-meter"><div id="partner-fill"></div></div>
+        <span class="partner-hint">⚡ type fast to charge!</span>
+      </div>
+
       <div id="arena">
         <div id="scene-emojis"></div>
         <div id="target-wrap">
           <div id="target">🦊</div>
           <div id="target-label" class="hidden"></div>
         </div>
-        <div id="player-side"><span id="player-avatar">🦊</span></div>
+        <div id="player-side"><span id="player-avatar">🦊</span><span id="partner-spot"></span></div>
         <div id="announce" class="hidden"></div>
         <canvas id="fx-canvas"></canvas>
       </div>

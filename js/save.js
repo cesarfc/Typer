@@ -50,6 +50,8 @@ const SAVE = {
       candy: {},                   // base "w-i" -> candy count (from duplicate catches)
       egg: null,                   // { date, progress 0..3 } — hatches after 3 levels
       eggDate: null,               // last day an egg was granted (one per day)
+      party: [],                   // up to 6 dex keys; first one is the lead partner
+      roamer: null,                // { week, done } — weekly legendary attempt
       trophies: {},                // id -> true
       settings: { sound: true, hints: true, difficulty: "normal" },
       streak: { last: null, count: 0 },
@@ -92,7 +94,75 @@ const SAVE = {
       const raw = this.root.players[id];
       const p = this.root.players[id] = Object.assign(this.defaults(), raw, { v: raw.v || 2 });
       if (!DIFFICULTY[p.settings.difficulty]) p.settings.difficulty = "normal";
+      p.party = (p.party || []).filter(k => p.dex[k]).slice(0, PARTY_MAX);
       this.migratePlayer(p);
+    }
+  },
+
+  // ---- party of 6 ----
+  toggleParty(key) {
+    if (!this.state.dex[key]) return { ok: false };
+    const i = this.state.party.indexOf(key);
+    if (i >= 0) {
+      this.state.party.splice(i, 1);
+      this.save();
+      return { removed: true };
+    }
+    if (this.state.party.length >= PARTY_MAX) return { full: true };
+    const newTrophies = [];
+    this.state.party.push(key);
+    if (this.state.party.length === PARTY_MAX) this.award("party-6", newTrophies);
+    this.save();
+    return { added: true, newTrophies };
+  },
+
+  makeLead(key) {
+    const i = this.state.party.indexOf(key);
+    if (i <= 0) return false;
+    this.state.party.splice(i, 1);
+    this.state.party.unshift(key);
+    this.save();
+    return true;
+  },
+
+  creatureByKey(key) {
+    const [w, i] = key.split("-").map(Number);
+    const c = CREATURES[w] && CREATURES[w][i];
+    return c ? { ...c, w, i, key, shiny: !!(this.state.dex[key] && this.state.dex[key].shiny) } : null;
+  },
+
+  leadCreature() {
+    const k = this.state.party[0];
+    return k ? this.creatureByKey(k) : null;
+  },
+
+  // ---- weekly roaming legendary ----
+  weekKey() {
+    return "w" + Math.floor((Date.now() / 86400000 + 4) / 7);
+  },
+
+  roamerNow() {
+    if (!this.worldUnlocked(2)) return null; // appears once the Stadium is reached
+    const wk = this.weekKey();
+    if (!this.state.roamer || this.state.roamer.week !== wk) {
+      this.state.roamer = { week: wk, done: false };
+      this.save();
+    }
+    if (this.state.roamer.done) return null;
+    let h = 0;
+    for (const ch of wk) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    const W6 = WORLDS.length - 1;
+    const pool = CREATURES[W6].map((c, i) => ({ c, i })).filter(x => !x.c.evoOnly);
+    const un = pool.filter(x => !this.state.dex[`${W6}-${x.i}`]);
+    const list = un.length ? un : pool;
+    const x = list[h % list.length];
+    return { ...x.c, w: W6, i: x.i, duplicate: !!this.state.dex[`${W6}-${x.i}`], spot: h % 4 };
+  },
+
+  markRoamerDone() {
+    if (this.state.roamer) {
+      this.state.roamer.done = true;
+      this.save();
     }
   },
 

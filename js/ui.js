@@ -443,7 +443,18 @@ const UI = {
       eggChip.title = ready ? "Click to hatch your Mystery Egg!" : "Finish levels to warm the egg";
     }
 
+    // the weekly roaming legendary
+    const roamer = SAVE.roamerNow();
+    if (roamer) {
+      const spots = [[760, 295], [2185, 855], [1320, 760], [2615, 300]];
+      const [rx, ry] = spots[roamer.spot];
+      html += `<button class="map-roamer" style="left:${rx}px;top:${ry}px" title="A legendary presence... one chance this week!">
+        <span class="roamer-aura"></span>${this.pokeHtml(roamer.id, roamer.e, { cls: "poke-img roamer-img" })}<span class="roamer-mark">🌟</span>
+      </button>`;
+    }
+
     map.innerHTML = html;
+    this.renderPartyBar();
 
     this.centerMapOn(fp.x, fp.y);
   },
@@ -514,6 +525,23 @@ const UI = {
         } else {
           Engine.startFishing();
         }
+        return;
+      }
+      const ro = e.target.closest(".map-roamer");
+      if (ro) {
+        SFX.init();
+        Engine.startLegendary();
+      }
+    });
+
+    this.$("party-bar").addEventListener("click", e => {
+      const slot = e.target.closest(".party-slot.filled");
+      if (!slot) return;
+      SFX.click();
+      if (SAVE.makeLead(slot.dataset.key)) {
+        const c = SAVE.creatureByKey(slot.dataset.key);
+        this.toast(`⭐ ${c.n} is now your lead partner!`);
+        this.renderPartyBar();
       }
     });
     this.$("btn-findme").addEventListener("click", e => {
@@ -633,6 +661,8 @@ const UI = {
       scene.appendChild(e);
     }
 
+    this.showPartner(S);
+    this.partnerMeter(S);
     const hearts = this.$("hud-hearts");
     const bossBar = this.$("boss-bar");
     this.$("target-label").classList.add("hidden");
@@ -774,7 +804,10 @@ const UI = {
 
   projectile(html, cb) {
     const arena = this.$("arena");
-    const from = this.$("player-avatar").getBoundingClientRect();
+    // attacks come from your partner Pokemon when one stands with you
+    const spot = this.$("partner-spot");
+    const fromEl = spot && spot.firstChild ? spot : this.$("player-avatar");
+    const from = fromEl.getBoundingClientRect();
     const to = this.$("target").getBoundingClientRect();
     const ar = arena.getBoundingClientRect();
     const p = document.createElement("div");
@@ -1119,7 +1152,10 @@ const UI = {
         const candyHtml = fam ? `<div class="dex-candy">🍬 ${candy}/${CANDY_COST}</div>` : "";
         const evoBtn = targets.length
           ? `<button class="btn-evolve" data-base="${key}">EVOLVE!</button>` : "";
-        return `<div class="dex-card ${got.shiny ? "shiny" : ""}" style="--rc:${rar.color}">
+        const inParty = SAVE.state.party.includes(key);
+        const partyBtn = `<button class="btn-party ${inParty ? "on" : ""}" data-pkey="${key}"
+          title="${inParty ? "Remove from party" : "Add to party"}">${inParty ? "★" : "☆"}</button>`;
+        return `<div class="dex-card ${got.shiny ? "shiny" : ""}" style="--rc:${rar.color}">${partyBtn}
           <div class="dex-emoji">${this.pokeHtml(c.id, c.e, { shiny: got.shiny })}</div>
           <div class="dex-name">${got.shiny ? "✨" : ""}${this.esc(c.n)}</div>
           <div class="dex-rar">${rar.label}</div>${candyHtml}${evoBtn}</div>`;
@@ -1149,28 +1185,92 @@ const UI = {
     box.classList.remove("hidden");
   },
 
-  // ---------- wild encounter scene (grass + fishing) ----------
+  // ---------- partner (lead party Pokemon) ----------
+  showPartner(S) {
+    const spot = this.$("partner-spot");
+    spot.innerHTML = S && S.partner
+      ? this.pokeHtml(S.partner.id, S.partner.e, { shiny: S.partner.shiny })
+      : "";
+  },
+
+  partnerMeter(S) {
+    const bar = this.$("partner-bar");
+    if (!S || !S.meterOn) { bar.classList.add("hidden"); return; }
+    bar.classList.remove("hidden");
+    this.$("partner-bar-name").innerHTML =
+      `${this.pokeHtml(S.partner.id, S.partner.e, { shiny: S.partner.shiny, cls: "poke-img partner-mini" })} <span>${this.esc(S.partner.n)}</span>`;
+    this.$("partner-fill").style.width = `${S.charge}%`;
+    bar.classList.toggle("ready", !!S.partnerReady);
+  },
+
+  partnerAttack(S) {
+    const move = PARTNER_MOVES[S.partner.r] || "Tackle";
+    this.announce(`${S.partner.n} used ${move}! 💥`, 1400);
+    SFX.bossHit();
+    this.projectile(`<span class="partner-proj">⭐</span>`, () => {
+      const target = this.$("target");
+      const r = target.getBoundingClientRect();
+      this.burst(r.left + r.width / 2, r.top + r.height / 2, ["#ffd34d", "#fff", "#c77bff"], 28, 6);
+      const wrap = this.$("target-wrap");
+      wrap.classList.remove("boss-flash");
+      void wrap.offsetWidth;
+      wrap.classList.add("boss-flash");
+      if (S.isBoss) {
+        const frac = Math.max(0, 1 - (S.idx + 1) / S.prompts.length);
+        this.$("boss-hp-fill").style.width = `${frac * 100}%`;
+        target.classList.toggle("angry", frac <= 0.5 && frac > 0);
+      }
+    });
+    this.partnerMeter(S);
+  },
+
+  renderPartyBar() {
+    const bar = this.$("party-bar");
+    const party = SAVE.state ? SAVE.state.party : [];
+    let html = "";
+    for (let i = 0; i < PARTY_MAX; i++) {
+      const key = party[i];
+      if (key) {
+        const c = SAVE.creatureByKey(key);
+        html += `<button class="party-slot filled ${i === 0 ? "lead" : ""}" data-key="${key}"
+          title="${this.esc(c.n)}${i === 0 ? " — your lead" : " — click to make lead"}">
+          ${this.pokeHtml(c.id, c.e, { shiny: c.shiny, cls: "poke-img party-img" })}${i === 0 ? `<span class="lead-mark">★</span>` : ""}</button>`;
+      } else {
+        html += `<span class="party-slot empty">＋</span>`;
+      }
+    }
+    bar.innerHTML = html + `<span class="party-label">${party.length ? "your party" : "add Pokemon from the Pokedex!"}</span>`;
+  },
+
+  // ---------- wild encounter scene (grass + fishing + legendary) ----------
   wildScene(S) {
     this.show("game");
     const w = S.world;
     const c = S.wild.creature;
     const fishing = S.wild.source === "fish";
+    const legendary = S.wild.source === "legendary";
     document.body.classList.remove("super-mode");
     this.$("capslock-warn").classList.add("hidden");
     this.applyKbVisibility();
-    this.$("hud-stage").textContent = fishing ? "🎣 Gone fishing..." : `🌿 ${w.name} · Wild encounter!`;
+    this.$("hud-stage").textContent = fishing ? "🎣 Gone fishing..."
+      : legendary ? "🌟 LEGENDARY BATTLE!"
+      : `🌿 ${w.name} · Wild encounter!`;
     this.$("hud-progress-fill").style.width = "0%";
     this.$("hud-hearts").classList.add("hidden");
     this.$("boss-bar").classList.add("hidden");
     this.$("player-avatar").textContent = SAVE.state.profile.avatar;
+    this.showPartner(S);
+    this.partnerMeter(S);
     const arena = this.$("arena");
     arena.style.background = fishing
       ? "linear-gradient(160deg, #14344d, #2e6e9d)"
-      : `linear-gradient(160deg, ${w.gradient[0]}, ${w.gradient[1]})`;
-    arena.style.setProperty("--wa", w.accent);
+      : legendary
+        ? "linear-gradient(160deg, #1c1030, #8a6d1d)"
+        : `linear-gradient(160deg, ${w.gradient[0]}, ${w.gradient[1]})`;
+    arena.style.setProperty("--wa", legendary ? "#ffd34d" : w.accent);
     const scene = this.$("scene-emojis");
     scene.innerHTML = "";
-    (fishing ? ["🌊", "💧", "🫧", "🌊"] : ["🌿", "🌱", "🍃", "🌾"]).forEach((e2, i) => {
+    (fishing ? ["🌊", "💧", "🫧", "🌊"] : legendary ? ["🌟", "✨", "⚡", "🌟"] : ["🌿", "🌱", "🍃", "🌾"]).forEach((e2, i) => {
       const sp = document.createElement("span");
       sp.textContent = e2;
       sp.style.left = `${10 + i * 24 + Math.random() * 8}%`;
@@ -1197,9 +1297,10 @@ const UI = {
     } else {
       target.className = "catch-size";
       target.innerHTML = `<span class="poke-pop">${this.pokeHtml(c.id, c.e)}</span>`;
-      this.announce(`A wild ${c.n} jumped out!`, 1700);
-      this.speech("Weaken me with words first!", 2600);
+      this.announce(legendary ? `The legendary ${c.n} appeared!` : `A wild ${c.n} jumped out!`, 1900);
+      this.speech(legendary ? "Pass my trial of three words!" : "Weaken me with words first!", 2600);
       SFX.pop();
+      if (legendary) SFX.fanfare();
     }
   },
 
@@ -1214,6 +1315,8 @@ const UI = {
     this.$("hud-progress-fill").style.width = "100%";
     this.$("hud-hearts").classList.add("hidden");
     this.$("boss-bar").classList.add("hidden");
+    this.showPartner(S);
+    this.partnerMeter(S);
     this.$("player-avatar").textContent = SAVE.state.profile.avatar;
     this.updateHud(S);
     const arena = this.$("arena");
@@ -1295,6 +1398,8 @@ const UI = {
     this.$("hud-progress-fill").style.width = "100%";
     this.$("hud-hearts").classList.add("hidden");
     this.$("boss-bar").classList.add("hidden");
+    this.showPartner(S);
+    this.partnerMeter(S);
     this.$("player-avatar").textContent = SAVE.state.profile.avatar;
     const arena = this.$("arena");
     arena.style.background = `linear-gradient(160deg, ${w.gradient[0]}, ${w.gradient[1]})`;
@@ -1549,6 +1654,20 @@ const UI = {
 
     // evolution: EVOLVE! buttons in the dex + the chooser modal
     this.$("dex-list").addEventListener("click", e => {
+      const pb = e.target.closest(".btn-party");
+      if (pb) {
+        SFX.click();
+        const r = SAVE.toggleParty(pb.dataset.pkey);
+        if (r.full) {
+          this.toast("🎽 Your party is full (6)! Tap a ★ to remove someone first.");
+        } else if (r.added) {
+          const c = SAVE.creatureByKey(pb.dataset.pkey);
+          this.toast(`🎽 ${c.n} joined your party!`);
+          (r.newTrophies || []).forEach(t => this.trophyToast(t));
+        }
+        this.renderDex();
+        return;
+      }
       const b = e.target.closest(".btn-evolve");
       if (!b) return;
       SFX.click();

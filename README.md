@@ -114,6 +114,18 @@ Each world = 5 levels + a **boss fight**. Beating the boss unlocks the next worl
   crack, flash... and type the hatchling's name to welcome it (no timer —
   hatching is a gift). Longer daily streaks hatch rarer Pokemon and raise
   the shiny chance up to 25%, so playing every day really pays.
+- **Your party of 6** — star (★) caught Pokemon in the Pokedex to add them
+  to your party, shown at the bottom of the map (click a member to make it
+  your lead). Your lead fights beside you: it delivers your attacks in
+  battle, and in boss and legendary fights its **power meter charges from
+  your typing** — every correct key adds charge, combo streaks charge
+  faster, flawless words add a burst. At full charge your partner unleashes
+  its move and wipes out an enemy word on its own.
+- **Roaming legendary** — once a week a legendary appears somewhere on the
+  island with a golden aura (after reaching the Battle Stadium). One
+  attempt per week: three battle words at a faster pace, then its name.
+  Catch it for the Legend Catcher trophy; a duplicate legendary turns
+  your copy ✨ shiny.
 - **Combos** — 25 correct keys in a row triggers SUPER MODE.
 - **XP, levels and titles** — from Rookie all the way to Typing Legend.
 - **22 trophies**, daily play streaks, and a personal-best speed chart.
