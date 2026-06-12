@@ -53,6 +53,7 @@ const SAVE = {
       party: [],                   // up to 6 dex keys; first one is the lead partner
       roamer: null,                // { week, done } — weekly legendary attempt
       practice: {},                // tier id -> { time: bestMs, wpm: best }
+      flags: {},                   // one-time hints / NEW badges bookkeeping
       trophies: {},                // id -> true
       settings: { sound: true, hints: true, difficulty: "normal" },
       streak: { last: null, count: 0 },
@@ -345,6 +346,11 @@ const SAVE = {
   addCreature(w, i, shiny) {
     const newTrophies = [];
     this.state.dex[`${w}-${i}`] = { shiny: !!shiny };
+    // a trainer is never partner-less: the first catch joins the party
+    if (this.state.party.length === 0) {
+      this.state.party.push(`${w}-${i}`);
+      this._justAutoPartied = `${w}-${i}`;
+    }
     this.award("first-catch", newTrophies);
     if (shiny) this.award("shiny", newTrophies);
     this.collectTrophies(newTrophies);

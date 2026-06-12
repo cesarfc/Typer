@@ -528,6 +528,12 @@ const UI = {
     });
     const chip = this.$("wild-chip");
     if (chip) chip.textContent = `🌿 ${patches.length} · 🎣 ${castsLeft}`;
+    // one-time discovery hint the first time grass appears
+    if (patches.length && SAVE.state && SAVE.state.flags && !SAVE.state.flags.grassHint) {
+      SAVE.state.flags.grassHint = true;
+      SAVE.save();
+      this.toast("🌿 See the rustling grass? A wild Pokemon hides there — click it!", "gold");
+    }
     html += this.MAP_DECOR.concat(this.scatterDecor()).map(o =>
       `<span class="map-decor" style="left:${o.x}px;top:${o.y}px;${o.e ? `font-size:${o.s}px` : ""}">${o.t ? tileSprite(o.t, o.sc) : o.sp ? mapSprite(o.sp, o.s, o.c) : o.e}</span>`).join("");
     html += this.MAP_CITIES.map(c =>
@@ -770,6 +776,12 @@ const UI = {
       if (this._pendingCenter) this.centerMapOn(this._pendingCenter.x, this._pendingCenter.y);
     });
 
+    this.$("wild-chip").addEventListener("click", e => {
+      e.stopPropagation();
+      SFX.click();
+      this.toast("🌿 Rustling grass hides wild Pokemon — click a patch to battle! 🎣 shows fishing casts left today.", "gold");
+    });
+
     this.$("egg-chip").addEventListener("click", e => {
       e.stopPropagation();
       const egg = SAVE.state && SAVE.state.egg;
@@ -939,13 +951,8 @@ const UI = {
       target.innerHTML = this.pokeHtml(c.id, c.e);
       target.className = "catch-size";
     } else {
-      if (S.w === 0) {
-        // wild Pokemon wander the meadow during levels
-        const c = CREATURES[0][S.idx % CREATURES[0].length];
-        target.innerHTML = this.pokeHtml(c.id, c.e);
-      } else {
-        target.textContent = S.world.targets[S.idx % S.world.targets.length];
-      }
+      // levels shoot neutral targets — Pokemon are caught, not shot at
+      target.textContent = S.world.targets[S.idx % S.world.targets.length];
       target.className = "";
       wrap.classList.remove("enter");
       void wrap.offsetWidth;
@@ -1269,12 +1276,20 @@ const UI = {
     const catchBox = this.$("results-catch");
     if (res.caught) {
       const rar = RARITY[res.caught.r];
+      const ckey = `${res.caught.w}-${res.caught.i}`;
+      const inParty = SAVE.state.party.includes(ckey);
+      const partyBit = inParty
+        ? `<div class="in-party-note">🎽 In your party!</div>`
+        : SAVE.state.party.length < PARTY_MAX
+          ? `<button id="btn-party-add" class="mid-btn" data-key="${ckey}">🎽 Add to party</button>`
+          : "";
       catchBox.className = "catch-result";
       catchBox.innerHTML = `
         <div class="caught-card ${res.caught.shiny ? "shiny" : ""}" style="--rc:${rar.color}">
           <div class="caught-emoji">${this.pokeHtml(res.caught.id, res.caught.e, { shiny: res.caught.shiny })}</div>
           <div class="caught-name">${res.caught.shiny ? "✨ SHINY " : ""}${this.esc(res.caught.n)}</div>
           <div class="caught-rar">${rar.label} · added to your Pokedex!</div>
+          ${partyBit}
         </div>`;
       setTimeout(() => this.confetti(), 600);
     } else if (res.candy) {
@@ -1337,8 +1352,10 @@ const UI = {
     const next = this.$("btn-next");
     const lastWorld = WORLDS.length - 1;
     next.classList.remove("hidden");
-    if (!res.isBoss) next.textContent = res.s === WORLDS[res.w].levels.length - 1 ? "Boss Fight! 👊" : "Next Level ▶";
-    else if (res.w < lastWorld) next.textContent = `Next World: ${WORLDS[res.w + 1].emoji} ▶`;
+    let nextLabel = null;
+    if (!res.isBoss) nextLabel = res.s === WORLDS[res.w].levels.length - 1 ? "Boss Fight! 👊" : "Next Level ▶";
+    else if (res.w < lastWorld) nextLabel = `Next World: ${WORLDS[res.w + 1].emoji} ▶`;
+    if (nextLabel) next.innerHTML = `${nextLabel} <small class="key-hint">Enter</small>`;
     else next.classList.add("hidden");
     this._nextTarget = !res.isBoss ? [res.w, res.s + 1] : res.w < lastWorld ? [res.w + 1, 0] : null;
     SFX.fanfare();
@@ -1367,7 +1384,7 @@ const UI = {
     this.$("results-catch").className = "hidden";
     const next = this.$("btn-next");
     next.classList.remove("hidden");
-    next.textContent = "⚔️ Try Again!";
+    next.innerHTML = `⚔️ Try Again! <small class="key-hint">Enter</small>`;
     this._nextTarget = [S.w, S.s];
   },
 
@@ -1396,7 +1413,7 @@ const UI = {
           ? `<button class="btn-evolve" data-base="${key}">EVOLVE!</button>` : "";
         const inParty = SAVE.state.party.includes(key);
         const partyBtn = `<button class="btn-party ${inParty ? "on" : ""}" data-pkey="${key}"
-          title="${inParty ? "Remove from party" : "Add to party"}">${inParty ? "★" : "☆"}</button>`;
+          title="${inParty ? "Remove from party" : "Add to party"}">${inParty ? "✔ Party" : "+ Party"}</button>`;
         return `<div class="dex-card ${got.shiny ? "shiny" : ""}" style="--rc:${rar.color}">${partyBtn}
           <div class="dex-emoji">${this.pokeHtml(c.id, c.e, { shiny: got.shiny })}</div>
           <div class="dex-name">${got.shiny ? "✨" : ""}${this.esc(c.n)}</div>
@@ -1601,7 +1618,7 @@ const UI = {
 
     const next = this.$("btn-next");
     next.classList.remove("hidden");
-    next.textContent = "⏱ Try Again";
+    next.innerHTML = `⏱ Try Again <small class="key-hint">Enter</small>`;
     this.$("btn-replay").textContent = "🎚 Difficulty";
     (res.newTrophies || []).forEach((t, i) => setTimeout(() => this.trophyToast(t), 900 + i * 800));
     if (record) {
@@ -1862,20 +1879,42 @@ const UI = {
       : `<p class="dim">Type more to discover your power keys! 🔑</p>`;
   },
 
-  // ---------- toasts ----------
+  // ---------- toasts (queued: kids read slowly — max 2 at once, ~5s) ----------
+  _toastQ: [],
+  _toastsShowing: 0,
+
   toast(html, cls = "") {
+    this._toastQ.push({ html, cls });
+    this._pumpToasts();
+  },
+
+  _pumpToasts() {
+    if (this._toastsShowing >= 2 || !this._toastQ.length) return;
+    const { html, cls } = this._toastQ.shift();
+    this._toastsShowing++;
     const box = this.$("toasts");
     const t = document.createElement("div");
     t.className = `toast ${cls}`;
     t.innerHTML = html;
     box.appendChild(t);
-    setTimeout(() => t.classList.add("out"), 3400);
-    setTimeout(() => t.remove(), 3900);
+    setTimeout(() => t.classList.add("out"), 4800);
+    setTimeout(() => {
+      t.remove();
+      this._toastsShowing--;
+      this._pumpToasts();
+    }, 5300);
   },
 
   trophyToast(t) {
     SFX.trophy();
     this.toast(`🏆 Trophy unlocked: <b>${t.e} ${t.name}</b>`, "gold");
+  },
+
+  // erasing progress is a grown-up action: typing the player's name is a
+  // higher bar than clicking through confirm dialogs (fitting for a typing game)
+  guardErase(name) {
+    const typed = window.prompt(`Grown-up check — to erase ${name}'s progress forever, type their name:`);
+    return typed !== null && typed.trim().toLowerCase() === String(name).toLowerCase();
   },
 
   pauseOverlay(on) {
@@ -1987,8 +2026,7 @@ const UI = {
       if (del) {
         e.stopPropagation();
         const p = SAVE.players().find(x => x.id === del.dataset.del);
-        if (p && confirm(`Delete player ${p.name}? All their progress, creatures and trophies will be gone!`)
-              && confirm("Are you really, really sure?")) {
+        if (p && this.guardErase(p.name)) {
           SAVE.deletePlayer(p.id);
           this.renderTitle();
         }
@@ -2105,6 +2143,20 @@ const UI = {
       }
     });
 
+    this.$("results-catch").addEventListener("click", e => {
+      const b = e.target.closest("#btn-party-add");
+      if (!b) return;
+      SFX.click();
+      const r = SAVE.toggleParty(b.dataset.key);
+      if (r.added) {
+        const c = SAVE.creatureByKey(b.dataset.key);
+        b.outerHTML = `<div class="in-party-note">🎽 ${c ? this.esc(c.n) : ""} is in your party!</div>`;
+        (r.newTrophies || []).forEach(t => this.trophyToast(t));
+      } else if (r.full) {
+        this.toast("🎽 Party is full (6)! Swap someone out in the Pokedex.");
+      }
+    });
+
     this.$("btn-backup").addEventListener("click", () => { SFX.click(); this.downloadBackup(); });
     const pickRestore = () => { SFX.click(); this.$("restore-input").click(); };
     this.$("btn-restore").addEventListener("click", pickRestore);
@@ -2117,8 +2169,7 @@ const UI = {
 
     this.$("btn-reset").addEventListener("click", () => {
       const name = SAVE.state ? SAVE.state.profile.name : "";
-      if (confirm(`Erase ALL of ${name}'s progress, creatures and trophies? (Other players are safe.)`)
-          && confirm("Are you really, really sure?")) {
+      if (this.guardErase(name)) {
         SAVE.resetCurrent();
         location.reload();
       }

@@ -80,9 +80,9 @@ const WORLDS = [
     emoji: "🌳",
     gradient: ["#123c26", "#2e7d4f"],
     accent: "#7ee787",
-    targets: ["🦭", "🐍", "💫", "🥄", "🦕", "🦔", "🐹", "🗝️"],
+    targets: ["🎯", "🎈", "⭐", "🪨"],
     projectile: "🔴",
-    hitText: ["Gotcha!", "Caught!", "Nice throw!", "Great ball!"],
+    hitText: ["Nice hit!", "Great aim!", "Bullseye!", "Wow!"],
     sceneEmojis: ["🌸", "🌿", "🍄", "🦋"],
     boss: { name: "Snorlax", emoji: "😴", id: 143, hp: 9, time: 5.5, taunt: "Zzz... WHO dares wake me?!" },
     levels: [

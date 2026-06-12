@@ -14,6 +14,13 @@ const Engine = {
     return DIFFICULTY[d] || DIFFICULTY.normal;
   },
 
+  maybePartyToast() {
+    if (!SAVE._justAutoPartied) return;
+    const c = SAVE.creatureByKey(SAVE._justAutoPartied);
+    SAVE._justAutoPartied = null;
+    if (c) setTimeout(() => UI.toast(`🎽 ${c.n} joined your party — it will fight beside you!`, "gold"), 600);
+  },
+
   startStage(w, s) {
     const world = WORLDS[w];
     const isBoss = s === world.levels.length;
@@ -362,6 +369,7 @@ const Engine = {
     }
     res.trophies = (res.trophies || []).concat(more);
     SFX.catchJingle();
+    this.maybePartyToast();
     if (res.wild) {
       SAVE.state.xp += 15;
       SAVE.save();
@@ -543,6 +551,7 @@ const Engine = {
         S.hatch.candy = SAVE.addCandy(baseKey);
       } else {
         trophies.push(...SAVE.addCreature(pick.w, pick.i, shiny));
+        this.maybePartyToast();
       }
       st.egg = null;
       SAVE.award("hatch-1", trophies);
