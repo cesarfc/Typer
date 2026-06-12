@@ -8,7 +8,9 @@ window.addEventListener("DOMContentLoaded", () => {
 
   Tutorial.bind();
 
-  window.addEventListener("keydown", e => {
+  // one routing point for keys, whether they arrive from a real keyboard
+  // (keydown) or from a touch device's on-screen keyboard (beforeinput)
+  const routeKey = e => {
     if (UI.current === "game") {
       Engine.handleKey(e);
     } else if (UI.current === "tutorial") {
@@ -23,11 +25,44 @@ window.addEventListener("DOMContentLoaded", () => {
         ? UI.show("map")
         : UI.$("btn-next").click();
     }
+  };
+
+  const catcher = document.getElementById("kb-catcher");
+
+  window.addEventListener("keydown", e => {
+    // while the catcher is focused, printables arrive via beforeinput —
+    // letting keydown through too would double-type every letter
+    if (document.activeElement === catcher && e.key.length === 1) return;
+    routeKey(e);
   });
+
+  // the on-screen keyboard types into the invisible catcher: convert each
+  // insertion into game keys and keep the input permanently empty
+  catcher.addEventListener("beforeinput", e => {
+    e.preventDefault();
+    if (e.inputType === "insertText" || e.inputType === "insertCompositionText") {
+      for (const ch of e.data || "") {
+        routeKey({ key: ch, preventDefault() {}, ctrlKey: false, metaKey: false, altKey: false });
+      }
+    } else if (e.inputType === "insertLineBreak" || e.inputType === "insertParagraph") {
+      routeKey({ key: "Enter", preventDefault() {}, ctrlKey: false, metaKey: false, altKey: false });
+    }
+  });
+  catcher.addEventListener("input", () => { catcher.value = ""; });
+
+  // iOS shows the keyboard for focus() only inside a user gesture — taps on
+  // the play screens re-summon it whenever it was dismissed
+  if (UI._coarse) {
+    ["screen-game", "screen-tutorial"].forEach(id => {
+      document.getElementById(id).addEventListener("pointerup", () => {
+        UI.touchKeyboard(UI.current);
+      });
+    });
+  }
 
   // Browsers require a user gesture before audio can play
   window.addEventListener("pointerdown", () => SFX.init(), { once: true });
 
   // Debug / tinkering handle
-  window.TQ = { SAVE, Engine, UI, SFX, Tutorial, WORLDS, CREATURES };
+  window.TQ = { SAVE, Engine, UI, SFX, Tutorial, WORLDS, CREATURES, routeKey };
 });

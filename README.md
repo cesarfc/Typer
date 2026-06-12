@@ -50,6 +50,37 @@ the automatic save-file restore — use the title screen's
 Progress saves automatically in the browser (localStorage), so use the same
 browser on the same computer to keep the save.
 
+## How to run on an iPad or iPhone
+
+The repo includes a native iOS app — a thin shell that bundles the whole
+game (artwork included, if downloaded) so it works fully offline with its
+own home-screen icon. Building it requires a **Mac with Xcode** (free on
+the App Store) and a **free Apple ID**:
+
+1. *Optional but recommended:* download the Pokemon artwork first
+   (`node tools/get-sprites.mjs`) — whatever is on disk gets bundled
+   into the app automatically.
+2. Open `ios/TypeQuest.xcodeproj` in Xcode.
+3. Select the **TypeQuest** target → **Signing & Capabilities** → set
+   **Team** to your Apple ID (add it under Xcode ▸ Settings ▸ Accounts
+   if it's not listed).
+4. Plug in the iPad, pick it as the run destination, and press **Run** (▶).
+5. First time only, on the iPad: **Settings ▸ General ▸ VPN & Device
+   Management** → trust your developer certificate.
+
+Notes:
+
+- With a **free** Apple ID the install expires after **7 days** — just
+  press Run again to refresh it (saves are kept; they live on the iPad).
+  A paid developer account ($99/yr) extends this to a year.
+- **A hardware keyboard (Smart/Magic Keyboard or Bluetooth) is strongly
+  recommended** — finger placement is the whole point! Without one, the
+  game brings up the on-screen iOS keyboard during play, which works but
+  can't teach real finger technique.
+- Game saves live inside the app on the iPad. The Stats ▸ backup/restore
+  flow works there too (backups land in the Files app), so progress can
+  move between iPad and computer.
+
 ## Real Pokemon artwork (one-time setup)
 
 ```bash

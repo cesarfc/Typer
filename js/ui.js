@@ -131,6 +131,21 @@ const UI = {
     if (name === "stats") this.renderStats();
     if (name === "practice") this.renderPractice();
     if (name !== "title" && name !== "game") this.renderTopbar();
+    this.touchKeyboard(name);
+  },
+
+  // on touch devices the on-screen keyboard only appears while an input is
+  // focused — focus our invisible catcher during play, release it elsewhere.
+  // (focus() summons the keyboard only inside a user gesture, which is why
+  // main.js also re-focuses on taps within the game screens.)
+  _coarse: matchMedia("(pointer: coarse)").matches,
+
+  touchKeyboard(screen) {
+    if (!this._coarse) return;
+    const c = this.$("kb-catcher");
+    if (!c) return;
+    if (screen === "game" || screen === "tutorial") c.focus({ preventScroll: true });
+    else if (document.activeElement === c) c.blur();
   },
 
   // ---------- trainer character (layered SVG) ----------

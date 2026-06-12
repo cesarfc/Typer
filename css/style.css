@@ -1381,3 +1381,35 @@ button:active { transform: translateY(1px) scale(.98); }
 
 /* dex cards: tiny "found in" icon line (hover an icon for details) */
 .dex-where { font-size: 13px; margin-top: 3px; letter-spacing: 2px; cursor: help; }
+
+/* ============ Touch devices (iPad app / Add to Home Screen) ============ */
+/* the invisible input that summons the on-screen keyboard: kept inside the
+   viewport (iOS refuses to open the keyboard for off-screen inputs) but
+   impossible to see or tap; 16px font stops iOS from zooming on focus */
+#kb-catcher {
+  position: fixed;
+  top: 2px; /* top edge: the on-screen keyboard can never cover it, so iOS
+               never auto-scrolls the page trying to "reveal" it */
+  left: 50%;
+  width: 40px;
+  height: 20px;
+  font-size: 16px;
+  opacity: .02;
+  border: none;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  pointer-events: none;
+  z-index: 1;
+}
+#kb-catcher:focus { outline: none; }
+
+/* stop double-tap zoom without breaking the map's pan gestures */
+button, .screen, #topbar { touch-action: manipulation; }
+
+/* keep the UI out of the iPhone notch / iPad rounded corners */
+#app {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  padding-top: env(safe-area-inset-top);
+}
