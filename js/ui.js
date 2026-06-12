@@ -229,6 +229,80 @@ const UI = {
     { x: 705, y: 1185, e: "🌊", s: 30 }, { x: 825, y: 1245, e: "🌊", s: 26 }, { x: 1005, y: 1335, e: "🌊", s: 30 },
   ],
 
+  // tall grass candidates (3 per region) and fishing spots
+  GRASS_SPOTS: [
+    [{ x: 350, y: 1240 }, { x: 160, y: 1060 }, { x: 520, y: 1010 }],
+    [{ x: 560, y: 720 }, { x: 820, y: 460 }, { x: 900, y: 640 }],
+    [{ x: 1080, y: 920 }, { x: 1290, y: 1130 }, { x: 1450, y: 940 }],
+    [{ x: 1590, y: 470 }, { x: 1860, y: 360 }, { x: 1950, y: 560 }],
+    [{ x: 2010, y: 950 }, { x: 2270, y: 1080 }, { x: 2150, y: 1250 }],
+    [{ x: 2350, y: 640 }, { x: 2600, y: 690 }, { x: 2550, y: 420 }],
+  ],
+  FISH_SPOTS: [
+    { x: 945, y: 1295, need: 0 },   // Ferry Dock lake
+    { x: 1530, y: 1420, need: 2 },  // south coast pier
+    { x: 2245, y: 1185, need: 4 },  // Eterna pond
+  ],
+  CASTS_PER_DAY: 2,
+
+  // today's rustling patches: deterministic per day, unlocked regions only
+  grassSpotsToday() {
+    const today = new Date().toISOString().slice(0, 10);
+    let h = 0;
+    for (const ch of today) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    const rng = () => { h = (h * 1664525 + 1013904223) >>> 0; return h / 4294967296; };
+    const candidates = [];
+    WORLDS.forEach((w, wi) => {
+      if (!SAVE.worldUnlocked(wi)) return;
+      this.GRASS_SPOTS[wi].forEach((p, k) => candidates.push({ id: `${wi}-${k}`, w: wi, ...p }));
+    });
+    const order = candidates.map((c, i) => ({ c, r: rng() })).sort((a, b) => a.r - b.r);
+    return order.slice(0, Math.min(4, order.length)).map(o => o.c);
+  },
+
+  // closed smooth path through points (for the island coastline)
+  smoothClosed(pts) {
+    const n = pts.length;
+    let d = `M ${(pts[0][0] + pts[n - 1][0]) / 2} ${(pts[0][1] + pts[n - 1][1]) / 2}`;
+    for (let i = 0; i < n; i++) {
+      const p = pts[i], nx = pts[(i + 1) % n];
+      d += ` Q ${p[0]} ${p[1]} ${(p[0] + nx[0]) / 2} ${(p[1] + nx[1]) / 2}`;
+    }
+    return d + " Z";
+  },
+
+  terrainSvg() {
+    const coast = this.smoothClosed([
+      [150, 1140], [90, 860], [170, 560], [120, 330], [330, 170], [700, 120], [1050, 190],
+      [1380, 110], [1750, 150], [2120, 100], [2430, 170], [2700, 120], [2820, 330],
+      [2760, 620], [2840, 900], [2700, 1180], [2480, 1290], [2200, 1380], [1800, 1465],
+      [1350, 1390], [950, 1460], [560, 1390], [260, 1300],
+    ]);
+    const forest = (cx, cy, s) => [[0, 0], [s, -s * .3], [-s * .9, s * .4], [s * .7, s * .6], [-s * .2, -s * .8]]
+      .map(([dx, dy], i) => `<circle cx="${cx + dx}" cy="${cy + dy}" r="${s * (0.9 - i * 0.1)}" />`).join("");
+    const mt = (x, y, s) =>
+      `<polygon points="${x},${y} ${x - s},${y + s * 1.25} ${x + s},${y + s * 1.25}" fill="#566077"/>` +
+      `<polygon points="${x},${y} ${x - s * .38},${y + s * .5} ${x + s * .38},${y + s * .5}" fill="#e8edf7"/>`;
+    return `<svg id="terrain-svg" width="${this.MAP_W}" height="${this.MAP_H}" viewBox="0 0 ${this.MAP_W} ${this.MAP_H}">
+      <rect width="100%" height="100%" fill="#0d2a40"/>
+      <path d="${coast}" fill="none" stroke="#7fb2d9" stroke-width="34" opacity=".14"/>
+      <path d="${coast}" fill="none" stroke="#d9c081" stroke-width="16" opacity=".55"/>
+      <path d="${coast}" fill="#17301f"/>
+      <path d="M700,620 C 770,810 850,930 890,1080 C 910,1170 930,1240 945,1295" fill="none"
+        stroke="#2e6e9d" stroke-width="22" stroke-linecap="round" opacity=".85"/>
+      <ellipse cx="945" cy="1310" rx="175" ry="78" fill="#2e6e9d"/>
+      <ellipse cx="915" cy="1295" rx="80" ry="26" fill="#5d9ec9" opacity=".5"/>
+      <ellipse cx="2245" cy="1195" rx="95" ry="46" fill="#2e6e9d"/>
+      <ellipse cx="2228" cy="1186" rx="42" ry="14" fill="#5d9ec9" opacity=".5"/>
+      <g fill="#0f3d24" opacity=".85">
+        ${forest(265, 1075, 62)}${forest(470, 1180, 48)}${forest(1115, 800, 52)}
+        ${forest(2120, 930, 66)}${forest(2330, 1110, 52)}${forest(2520, 470, 46)}
+      </g>
+      ${mt(700, 360, 78)}${mt(820, 430, 56)}${mt(610, 450, 48)}
+      ${mt(1700, 200, 72)}${mt(1830, 280, 52)}${mt(1600, 290, 44)}
+    </svg>`;
+  },
+
   mapNodes() {
     if (this._mapNodes) return this._mapNodes;
     const A = this.mapAnchors;
@@ -268,10 +342,44 @@ const UI = {
       d += ` Q ${pts[i].x} ${pts[i].y} ${mx} ${my}`;
     }
     d += ` L ${pts[pts.length - 1].x} ${pts[pts.length - 1].y}`;
-    let html = `<svg id="route-svg" width="${this.MAP_W}" height="${this.MAP_H}" viewBox="0 0 ${this.MAP_W} ${this.MAP_H}"><path d="${d}"/></svg>`;
+
+    // painted island terrain + per-region color tints
+    let html = this.terrainSvg();
+    const blobs = WORLDS.map((w, i) => {
+      const [ax, ay] = this.mapAnchors[i], [bx, by] = this.mapAnchors[i + 1];
+      return `radial-gradient(740px 580px at ${Math.round((ax + bx) / 2)}px ${Math.round((ay + by) / 2)}px, ${w.gradient[1]}59, transparent 72%)`;
+    }).join(",");
+    html += `<div class="region-tints" style="background-image:${blobs}"></div>`;
+
+    html += `<svg id="route-svg" width="${this.MAP_W}" height="${this.MAP_H}" viewBox="0 0 ${this.MAP_W} ${this.MAP_H}"><path d="${d}"/></svg>`;
 
     html += [0, 1, 2, 3].map(i =>
       `<span class="map-cloud" style="top:${110 + i * 340}px;animation-duration:${70 + i * 24}s;animation-delay:-${i * 19}s">☁️</span>`).join("");
+
+    // little lives: birds, butterflies, fireflies, volcano smoke, water sparkle
+    html += `<span class="map-bird" style="top:380px;animation-duration:34s">🐦</span>
+      <span class="map-bird" style="top:760px;animation-duration:46s;animation-delay:-18s">🕊️</span>
+      <span class="map-butterfly" style="left:300px;top:1150px">🦋</span>
+      <span class="map-butterfly" style="left:460px;top:1060px;animation-delay:-1.2s">🦋</span>
+      <span class="map-smoke" style="left:1895px;top:240px">💨</span>
+      <span class="map-smoke" style="left:1925px;top:255px;animation-delay:-2.2s">💨</span>
+      <span class="map-sparkle" style="left:880px;top:1300px">✨</span>
+      <span class="map-sparkle" style="left:1010px;top:1330px;animation-delay:-1s">✨</span>
+      <span class="map-sparkle" style="left:2225px;top:1185px;animation-delay:-.6s">✨</span>` +
+      [[2080, 900], [2190, 1010], [2300, 880], [2150, 1120], [2380, 990], [2260, 940]].map(([x, y], i) =>
+        `<i class="firefly" style="left:${x}px;top:${y}px;animation-delay:-${i * .45}s"></i>`).join("");
+
+    // daily wild encounters: rustling grass + fishing spots
+    const wild = SAVE.wildToday();
+    const patches = this.grassSpotsToday().filter(s => !wild.grassUsed.includes(s.id));
+    html += patches.map(s =>
+      `<button class="map-grass" data-spot="${s.id}" data-w="${s.w}" style="left:${s.x}px;top:${s.y}px" title="Something is rustling in the grass!">🌿</button>`).join("");
+    const castsLeft = Math.max(0, this.CASTS_PER_DAY - wild.casts);
+    this.FISH_SPOTS.filter(f => SAVE.worldUnlocked(f.need)).forEach(f => {
+      html += `<button class="map-fish ${castsLeft ? "" : "spent"}" style="left:${f.x}px;top:${f.y}px" title="${castsLeft ? "Fishing spot — cast a line!" : "No more bites today"}">🎣</button>`;
+    });
+    const chip = this.$("wild-chip");
+    if (chip) chip.textContent = `🌿 ${patches.length} · 🎣 ${castsLeft}`;
     html += this.MAP_DECOR.map(o =>
       `<span class="map-decor" style="left:${o.x}px;top:${o.y}px;font-size:${o.s}px">${o.e}</span>`).join("");
     html += this.MAP_CITIES.map(c =>
@@ -327,14 +435,6 @@ const UI = {
 
     map.innerHTML = html;
 
-    // soft terrain tint per region
-    const blobs = WORLDS.map((w, i) => {
-      const [ax, ay] = this.mapAnchors[i], [bx, by] = this.mapAnchors[i + 1];
-      const cx = Math.round((ax + bx) / 2), cy = Math.round((ay + by) / 2);
-      return `radial-gradient(740px 580px at ${cx}px ${cy}px, ${w.gradient[1]}59, transparent 72%)`;
-    }).join(",");
-    map.style.backgroundImage = `${blobs}, linear-gradient(180deg, #0d1830, #0c1a14)`;
-
     this.centerMapOn(fp.x, fp.y);
   },
 
@@ -388,6 +488,22 @@ const UI = {
       if (b && !b.classList.contains("locked")) {
         SFX.init();
         Engine.startStage(+b.dataset.w, +b.dataset.s);
+        return;
+      }
+      const g = e.target.closest(".map-grass");
+      if (g) {
+        SFX.init();
+        Engine.startWildGrass(+g.dataset.w, g.dataset.spot);
+        return;
+      }
+      const f = e.target.closest(".map-fish");
+      if (f) {
+        SFX.init();
+        if (SAVE.wildToday().casts >= this.CASTS_PER_DAY) {
+          this.toast("🎣 The Pokemon are not biting anymore — come back tomorrow!");
+        } else {
+          Engine.startFishing();
+        }
       }
     });
     this.$("btn-findme").addEventListener("click", e => {
@@ -540,6 +656,11 @@ const UI = {
     if (S.isBoss) {
       target.innerHTML = this.pokeHtml(S.world.boss.id, S.world.boss.emoji);
       target.className = "boss-size";
+    } else if (S.wild) {
+      // the wild Pokemon stays on screen for the whole battle
+      const c = S.wild.creature;
+      target.innerHTML = this.pokeHtml(c.id, c.e);
+      target.className = "catch-size";
     } else {
       if (S.w === 0) {
         // wild Pokemon wander the meadow during levels
@@ -650,7 +771,10 @@ const UI = {
       [{ transform: "translate(0,0) scale(.8) rotate(0deg)" },
        { transform: `translate(${dx}px,${dy}px) scale(1.25) rotate(360deg)` }],
       { duration: 320, easing: "cubic-bezier(.2,.6,.4,1)" });
-    anim.onfinish = () => { p.remove(); cb && cb(); };
+    anim.onfinish = () => p.remove();
+    // game flow must not depend on animation events (they stall in
+    // hidden/throttled tabs) — advance on a plain timer instead
+    setTimeout(() => { p.remove(); cb && cb(); }, 340);
   },
 
   floatText(text, refEl, cls = "") {
@@ -677,7 +801,8 @@ const UI = {
       wrap.classList.remove("hit");
       void wrap.offsetWidth;
       wrap.classList.add("hit");
-      setTimeout(() => { wrap.style.opacity = 0; }, 320);
+      // wild battles keep the Pokemon visible — it flinches, not vanishes
+      if (!S.wild) setTimeout(() => { wrap.style.opacity = 0; }, 320);
     });
   },
 
@@ -773,6 +898,7 @@ const UI = {
   },
 
   showCatch(S, creature) {
+    this.$("target-wrap").style.opacity = 1;
     this.speech(`Type my name to catch me!`, 2600);
     this.renderPromptText(S);
   },
@@ -987,6 +1113,60 @@ const UI = {
       <button id="evo-cancel" class="link-btn">never mind</button>
     </div>`;
     box.classList.remove("hidden");
+  },
+
+  // ---------- wild encounter scene (grass + fishing) ----------
+  wildScene(S) {
+    this.show("game");
+    const w = S.world;
+    const c = S.wild.creature;
+    const fishing = S.wild.source === "fish";
+    document.body.classList.remove("super-mode");
+    this.$("capslock-warn").classList.add("hidden");
+    this.applyKbVisibility();
+    this.$("hud-stage").textContent = fishing ? "🎣 Gone fishing..." : `🌿 ${w.name} · Wild encounter!`;
+    this.$("hud-progress-fill").style.width = "0%";
+    this.$("hud-hearts").classList.add("hidden");
+    this.$("boss-bar").classList.add("hidden");
+    this.$("player-avatar").textContent = SAVE.state.profile.avatar;
+    const arena = this.$("arena");
+    arena.style.background = fishing
+      ? "linear-gradient(160deg, #14344d, #2e6e9d)"
+      : `linear-gradient(160deg, ${w.gradient[0]}, ${w.gradient[1]})`;
+    arena.style.setProperty("--wa", w.accent);
+    const scene = this.$("scene-emojis");
+    scene.innerHTML = "";
+    (fishing ? ["🌊", "💧", "🫧", "🌊"] : ["🌿", "🌱", "🍃", "🌾"]).forEach((e2, i) => {
+      const sp = document.createElement("span");
+      sp.textContent = e2;
+      sp.style.left = `${10 + i * 24 + Math.random() * 8}%`;
+      sp.style.top = `${15 + Math.random() * 65}%`;
+      sp.style.fontSize = `${16 + Math.random() * 18}px`;
+      scene.appendChild(sp);
+    });
+    const wrap = this.$("target-wrap");
+    const target = this.$("target");
+    this.$("target-label").classList.add("hidden");
+    this.updateHud(S);
+    wrap.style.opacity = 1;
+    wrap.style.transform = "none";
+    wrap.classList.remove("enter", "hit", "flee", "wobble");
+    if (fishing) {
+      // just a bobber for now... what is down there?
+      target.className = "";
+      target.innerHTML = `<span class="bobber">🎣</span>`;
+      this.$("prompt-word").innerHTML = `<span class="ch mystery">.</span><span class="ch mystery">.</span><span class="ch mystery">.</span>`;
+      this.$("timer-fill").style.width = "100%";
+      this.$("timer-fill").classList.remove("low");
+      this.highlightKey(null);
+      this.announce("Wait for it...", 1500);
+    } else {
+      target.className = "catch-size";
+      target.innerHTML = `<span class="poke-pop">${this.pokeHtml(c.id, c.e)}</span>`;
+      this.announce(`A wild ${c.n} jumped out!`, 1700);
+      this.speech("Weaken me with words first!", 2600);
+      SFX.pop();
+    }
   },
 
   // ---------- evolution scene ----------

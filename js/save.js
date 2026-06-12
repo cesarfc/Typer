@@ -278,6 +278,61 @@ const SAVE = {
     if (n >= CREATURES.flat().length) this.award("collect-all", list);
   },
 
+  // ---- daily wild encounters: grass patches + fishing casts ----
+  wildToday() {
+    const today = new Date().toISOString().slice(0, 10);
+    if (!this.state.wild || this.state.wild.date !== today) {
+      this.state.wild = { date: today, grassUsed: [], casts: 0 };
+      this.save();
+    }
+    return this.state.wild;
+  },
+
+  useGrass(id) {
+    this.wildToday().grassUsed.push(id);
+    this.save();
+  },
+
+  useCast() {
+    this.wildToday().casts++;
+    this.save();
+  },
+
+  // weighted wild pick for a region: uncaught first (common-heavy odds),
+  // duplicates (candy) once the region is complete
+  wildPick(w) {
+    const weight = r => (r <= 1 ? 6 : r === 2 ? 3 : 1);
+    const pickW = list => {
+      let t = 0;
+      const acc = list.map(x => (t += weight(x.c.r)));
+      const roll = Math.random() * t;
+      const x = list[acc.findIndex(a => roll < a)];
+      return { ...x.c, w: x.w !== undefined ? x.w : w, i: x.i };
+    };
+    const pool = CREATURES[w].map((c, i) => ({ c, i })).filter(x => !x.c.evoOnly);
+    const un = pool.filter(x => !this.state.dex[`${w}-${x.i}`]);
+    if (un.length) return { ...pickW(un), duplicate: false };
+    const caught = pool.filter(x => this.state.dex[`${w}-${x.i}`]);
+    if (!caught.length) return null;
+    const fam = caught.filter(x => EVOLUTIONS.some(f => f.base === `${w}-${x.i}`));
+    return { ...pickW(fam.length ? fam : caught), duplicate: true };
+  },
+
+  fishPick() {
+    const weight = r => (r <= 1 ? 6 : r === 2 ? 3 : 1);
+    const avail = WATER_POKEMON
+      .map(k => { const [w, i] = k.split("-").map(Number); return { k, w, i, c: CREATURES[w][i] }; })
+      .filter(x => this.worldUnlocked(x.w));
+    if (!avail.length) return null;
+    const un = avail.filter(x => !this.state.dex[x.k]);
+    const list = un.length ? un : avail;
+    let t = 0;
+    const acc = list.map(x => (t += weight(x.c.r)));
+    const roll = Math.random() * t;
+    const x = list[acc.findIndex(a => roll < a)];
+    return { ...x.c, w: x.w, i: x.i, duplicate: !un.length };
+  },
+
   addCandy(baseKey) {
     this.state.candy[baseKey] = (this.state.candy[baseKey] || 0) + 1;
     this.save();

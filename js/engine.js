@@ -84,6 +84,7 @@ const Engine = {
 
     if (S.state === "evolve") { this.evolveFail(); return; }
     if (S.state === "catch") { this.catchFail(); return; }
+    if (S.wild) { this.wildFlee(); return; }
 
     S.timeouts++;
     S.combo = 0;
@@ -165,6 +166,7 @@ const Engine = {
   finishStage() {
     const S = this.session;
     this.stopTimer();
+    if (S.wild) { S.state = "between"; this.startWildCatch(); return; }
     S.state = "done";
 
     const total = S.hits + S.errors;
@@ -246,13 +248,134 @@ const Engine = {
       }
       more = SAVE.bumpCombo(S.bestCombo);
     } else {
-      const shiny = res.stars === 3 && Math.random() < 0.25;
+      const shiny = (res.wild ? Math.random() < 0.12 : res.stars === 3 && Math.random() < 0.25);
       res.caught = { ...c, shiny };
       more = SAVE.addCreature(c.w, c.i, shiny).concat(SAVE.bumpCombo(S.bestCombo));
     }
     res.trophies = (res.trophies || []).concat(more);
     SFX.catchJingle();
+    if (res.wild) {
+      SAVE.state.xp += 15;
+      SAVE.save();
+      UI.catchAnim(S, true, () => {
+        this.session = null;
+        UI.superMode(false);
+        UI.show("map");
+        UI.renderTopbar();
+        const msg = res.caught
+          ? `🎉 Caught a wild${res.caught.shiny ? " ✨ SHINY" : ""} <b>${res.caught.n}</b>! +15 XP`
+          : res.candy
+            ? `🍬 Wild ${res.candy.creature.n} gave +1 candy (${res.candy.count}/${CANDY_COST})! +15 XP`
+            : `+15 XP!`;
+        UI.toast(msg, "gold");
+        res.trophies.forEach((t, i) => setTimeout(() => UI.trophyToast(t), 700 + i * 800));
+      });
+      return;
+    }
     UI.catchAnim(S, true, () => { UI.superMode(false); UI.showResults(res); });
+  },
+
+  // ---- wild encounters from the map: tall grass + fishing ----
+  battleWords(w, n) {
+    const all = [];
+    WORLDS[w].levels.forEach(l => l.pool.forEach(p => { if (p.length >= 3) all.push(p); }));
+    return shuffle(all).slice(0, n);
+  },
+
+  reelWord() {
+    let wMax = 0;
+    for (let w = 0; w < WORLDS.length; w++) if (SAVE.worldUnlocked(w)) wMax = w;
+    const pool = WORLDS[wMax].levels[WORLDS[wMax].levels.length - 1].pool;
+    return pool[Math.floor(Math.random() * pool.length)];
+  },
+
+  wildSession(w, prompts, wild) {
+    this.paused = false;
+    this.pendingNext = false;
+    this.session = {
+      w, s: -2, world: WORLDS[w], isBoss: false,
+      prompts, idx: -1, text: "", pos: 0,
+      score: 0, combo: 0, bestCombo: 0,
+      hits: 0, errors: 0, errorsThisPrompt: 0, timeouts: 0, hearts: 3,
+      typingMs: 0, promptStart: 0, timerMs: 0, timerRemaining: 0,
+      baseTime: 5, state: "play", wild,
+      ninjaEligible: false, pendingRes: null, catchCreature: null,
+    };
+    return this.session;
+  },
+
+  startWildGrass(w, spotId) {
+    const pick = SAVE.wildPick(w);
+    if (!pick) return;
+    SAVE.useGrass(spotId);
+    const S = this.wildSession(w, this.battleWords(w, 2), { creature: pick, source: "grass" });
+    UI.wildScene(S);
+    this.nextPrompt();
+  },
+
+  startFishing() {
+    const pick = SAVE.fishPick();
+    if (!pick) return;
+    SAVE.useCast();
+    const S = this.wildSession(pick.w, [this.reelWord()], { creature: pick, source: "fish" });
+    S.state = "wait"; // nothing is biting yet...
+    S.baseTime = 3;   // when it bites, reel fast!
+    UI.wildScene(S);
+    setTimeout(() => {
+      if (this.session !== S || S.state !== "wait") return;
+      SFX.pop();
+      UI.announce("❗ Something bit!", 1200);
+      S.state = "play";
+      if (this.paused) this.pendingNext = true;
+      else this.nextPrompt();
+    }, 1300 + Math.random() * 1700);
+  },
+
+  // battle words done -> the catch attempt begins
+  startWildCatch() {
+    const S = this.session;
+    const c = S.wild.creature;
+    const res = { wild: true, stars: 0, bestCombo: S.bestCombo, trophies: [] };
+    S.pendingRes = res;
+    S.catchCreature = c;
+    S.text = c.w === WORLDS.length - 1 ? c.n : c.n.toLowerCase();
+    S.pos = 0;
+    S.errorsThisPrompt = 0;
+    const taught = taughtKeys(S.w);
+    const untaught = [...S.text.toLowerCase()].filter(ch => !taught.has(ch)).length;
+    const ms = (3.5 + S.text.length * 0.7 + untaught * 1.2) * this.difficulty().time * 1000;
+    if (S.wild.source === "fish") {
+      // what's on the hook?! full pokeball-style reveal
+      S.state = "reveal";
+      UI.catchReveal(S, c, () => {
+        if (this.session !== S || S.state !== "reveal") return;
+        S.state = "catch";
+        UI.showCatch(S, c);
+        if (this.paused) S.timerRemaining = ms;
+        else this.startTimer(ms);
+      });
+    } else {
+      // the grass Pokemon is already out and weakened — go!
+      S.state = "catch";
+      UI.showCatch(S, c);
+      UI.announce(`Now! Type its name!`, 1400);
+      if (this.paused) S.timerRemaining = ms;
+      else this.startTimer(ms);
+    }
+  },
+
+  wildFlee() {
+    const S = this.session;
+    this.stopTimer();
+    S.state = "done";
+    SFX.flee();
+    UI.targetFlee(S);
+    setTimeout(() => {
+      this.session = null;
+      UI.superMode(false);
+      UI.show("map");
+      UI.toast(`💨 The wild ${S.wild.creature.n} escaped into the wild!`);
+    }, 1000);
   },
 
   // ---- evolution: triggered from the Pokedex, type the evolved name ----
@@ -321,6 +444,15 @@ const Engine = {
     res.bestCombo = Math.max(res.bestCombo, S.bestCombo);
     res.trophies = (res.trophies || []).concat(SAVE.bumpCombo(S.bestCombo));
     SFX.flee();
+    if (res.wild) {
+      UI.catchAnim(S, false, () => {
+        this.session = null;
+        UI.superMode(false);
+        UI.show("map");
+        UI.toast(`💨 The wild ${res.fled.n} got away... the grass will rustle again tomorrow!`);
+      });
+      return;
+    }
     UI.catchAnim(S, false, () => { UI.superMode(false); UI.showResults(res); });
   },
 

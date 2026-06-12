@@ -389,6 +389,9 @@ function spriteUrl(id, shiny) {
   return `img/pokemon/${shiny ? "shiny-" : ""}${id}.png`;
 }
 
+// dex keys of water Pokemon that can be hooked at fishing spots
+const WATER_POKEMON = ["0-0", "0-5", "3-0", "3-1", "3-2", "3-3", "4-2", "5-0"];
+
 const RARITY = {
   1: { label: "Common", color: "#9aa3d0" },
   2: { label: "Rare", color: "#4dc3ff" },

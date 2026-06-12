@@ -103,6 +103,12 @@ Each world = 5 levels + a **boss fight**. Beating the boss unlocks the next worl
   Pokedex by typing the evolved name — Bulbasaur→Ivysaur→Venusaur,
   Magikarp→Gyarados, and Eevee gets to choose between four evolutions.
   Evolving into something you already own upgrades it to ✨ shiny.
+- **Wild encounters on the map** — every day, 4 patches of 🌿 tall grass
+  rustle somewhere in your unlocked regions: click one, weaken the wild
+  Pokemon with two words, then type its name to catch it. 🎣 Fishing spots
+  (the Ferry Dock lake and more as you progress) give 2 casts a day — wait
+  for the bite, type fast to reel, and see what's on the hook. Wild catches
+  pay +15 XP and can be shiny.
 - **Combos** — 25 correct keys in a row triggers SUPER MODE.
 - **XP, levels and titles** — from Rookie all the way to Typing Legend.
 - **22 trophies**, daily play streaks, and a personal-best speed chart.
