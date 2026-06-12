@@ -1,5 +1,7 @@
 # TypeQuest UI/UX Improvement Plan
 
+**Status: all three phases implemented and verified (June 2026).**
+
 Produced from a hands-on UX audit (screens driven live, viewports resized,
 edge states reproduced) through the lens of a 9-year-old player and the
 parent who administers the game. Strengths to preserve: the three-channel
@@ -42,31 +44,31 @@ Priorities: **P0** fix soon · **P1** high value · **P2** polish
 ## Phases
 
 ### Phase A — Quick wins (≤1 day)
-- [ ] #1 Restart guard for non-story sessions (+ hide button)
-- [ ] #3 Locked node/tier click feedback
-- [ ] #12 #13 Defeat screen: stale egg note + duplicate button
-- [ ] #16 Practice uses its own targets
-- [ ] #5 Difficulty pill with label
-- [ ] #23 #25 Hide redundant meters (boss progress, hatch timer bar)
-- [ ] #17 CapsLock warning at the prompt
-- [ ] #21 #22 Enter debounce on results; first-prompt timer delay
-- [ ] #6 `prefers-reduced-motion` support
-- [ ] #19 Focus-visible outline, aria-live, chip keyboard activation
-- [ ] #18 Locked tier text contrast
+- [x] #1 Restart guard for non-story sessions (+ hide button)
+- [x] #3 Locked node/tier click feedback
+- [x] #12 #13 Defeat screen: stale egg note + duplicate button
+- [x] #16 Practice uses its own targets
+- [x] #5 Difficulty pill with label
+- [x] #23 #25 Hide redundant meters (boss progress, hatch timer bar)
+- [x] #17 CapsLock warning at the prompt
+- [x] #21 #22 Enter debounce on results; first-prompt timer delay
+- [x] #6 `prefers-reduced-motion` support
+- [x] #19 Focus-visible outline, aria-live, chip keyboard activation
+- [x] #18 Locked tier text contrast
 
 ### Phase B — High value (1–3 days)
-- [ ] #2 Title screen fits above the fold
-- [ ] #4 Party onboarding (catch-results button, auto-add first, "+ Party" pill)
-- [ ] #8 Toast queue
-- [ ] #7 World-1 targets/hit-text rework + partner-species rule
-- [ ] #10 #11 Small-viewport height handling; results trim
-- [ ] #14 Trainer builder swatch grid
-- [ ] #9 #24 Name-typing guard for destructive actions; grown-ups section
-- [ ] #20 Map affordance unification + wild-chip explainer
+- [x] #2 Title screen fits above the fold
+- [x] #4 Party onboarding (catch-results button, auto-add first, "+ Party" pill)
+- [x] #8 Toast queue
+- [x] #7 World-1 targets/hit-text rework + partner-species rule
+- [x] #10 #11 Small-viewport height handling; results trim
+- [x] #14 Trainer builder swatch grid
+- [x] #9 #24 Name-typing guard for destructive actions; grown-ups section
+- [x] #20 Map affordance unification + wild-chip explainer
 
 ### Phase C — Bigger bets
-- [ ] #15 Pressure tuning: untimed catches on Chill / world 1; difficulty-aware catch timers
-- [ ] First-session map onboarding beats (staggered one-time callouts: grass, school, egg, party)
-- [ ] Trophy moment upgrade (splash + Trophy Room "NEW" badges)
-- [ ] Keyboard-first map navigation (arrows walk the route, Enter starts)
-- [ ] Parent corner (session summaries, WPM trend, backup nudges)
+- [x] #15 Pressure tuning: untimed catches on Chill / world 1; difficulty-aware catch timers
+- [x] First-session map onboarding beats (staggered one-time callouts: grass, school, egg, party)
+- [x] Trophy moment upgrade (splash + Trophy Room "NEW" badges)
+- [x] Keyboard-first map navigation (arrows walk the route, Enter starts)
+- [x] Parent corner (session summaries, WPM trend, backup nudges)

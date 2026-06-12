@@ -13,6 +13,8 @@ window.addEventListener("DOMContentLoaded", () => {
       Engine.handleKey(e);
     } else if (UI.current === "tutorial") {
       Tutorial.handleKey(e);
+    } else if (UI.current === "map") {
+      UI.mapKeyNav(e);
     } else if (UI.current === "results" && (e.key === "Enter" || e.key === " ")) {
       e.preventDefault();
       // a trailing keystroke from fast typing must not skip the rewards

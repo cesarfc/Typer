@@ -314,12 +314,16 @@ const Engine = {
     const taught = taughtKeys(S.w);
     const untaught = [...S.text.toLowerCase()].filter(c => !taught.has(c)).length;
     const ms = (3.5 + S.text.length * 0.7 + untaught * 1.2) * this.difficulty().time * 1000;
+    // catching right after winning shouldn't sting: no clock on Chill
+    // or anywhere in the first world
+    S.relaxedCatch = this.difficulty().time > 1 || S.w === 0;
     // the ball wobbles, bursts open and the Pokemon pops out — only then
     // does the name prompt appear and the clock start
     UI.catchReveal(S, creature, () => {
       if (this.session !== S || S.state !== "reveal") return;
       S.state = "catch";
       UI.showCatch(S, creature);
+      if (S.relaxedCatch) return;
       if (this.paused) S.timerRemaining = ms;
       else this.startTimer(ms);
     });
@@ -481,6 +485,9 @@ const Engine = {
     const taught = taughtKeys(S.w);
     const untaught = [...S.text.toLowerCase()].filter(ch => !taught.has(ch)).length;
     const ms = (3.5 + S.text.length * 0.7 + untaught * 1.2) * this.difficulty().time * 1000;
+    // Chill trainers and first-world catches get no clock — but the
+    // weekly legendary stays a real challenge
+    S.relaxedCatch = (this.difficulty().time > 1 || S.w === 0) && S.wild.source !== "legendary";
     if (S.wild.source === "fish") {
       // what's on the hook?! full pokeball-style reveal
       S.state = "reveal";
@@ -488,6 +495,7 @@ const Engine = {
         if (this.session !== S || S.state !== "reveal") return;
         S.state = "catch";
         UI.showCatch(S, c);
+        if (S.relaxedCatch) return;
         if (this.paused) S.timerRemaining = ms;
         else this.startTimer(ms);
       });
@@ -495,7 +503,8 @@ const Engine = {
       // the grass Pokemon is already out and weakened — go!
       S.state = "catch";
       UI.showCatch(S, c);
-      UI.announce(`Now! Type its name!`, 1400);
+      UI.announce(S.relaxedCatch ? "Type its name — no rush!" : "Now! Type its name!", 1400);
+      if (S.relaxedCatch) return;
       if (this.paused) S.timerRemaining = ms;
       else this.startTimer(ms);
     }

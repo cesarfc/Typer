@@ -1256,3 +1256,44 @@ button:active { transform: translateY(1px) scale(.98); }
   #kb-area { padding: 4px 0 0; }
   #timer-bar { margin-top: 6px; height: 10px; }
 }
+
+/* ============ Phase C: trophy splash, NEW badges, keyboard map nav ============ */
+#trophy-splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 130;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 211, 77, .12), transparent 60%);
+}
+.ts-card {
+  background: var(--card);
+  border: 3px solid var(--gold);
+  border-radius: 22px;
+  padding: 26px 44px;
+  text-align: center;
+  box-shadow: 0 0 60px rgba(255, 211, 77, .45);
+  animation: zoomIn .45s cubic-bezier(.2, 1.4, .4, 1);
+}
+.ts-card #ts-emoji { font-size: 58px; display: block; }
+.ts-card b { font-size: 24px; font-weight: 900; display: block; margin-top: 6px; }
+.ts-card i { font-style: normal; font-size: 13px; color: var(--gold); font-weight: 800; letter-spacing: 1px; }
+
+.trophy-card { position: relative; }
+.new-chip {
+  position: absolute;
+  top: -8px;
+  right: -6px;
+  background: var(--bad);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 3px 8px;
+  border-radius: 999px;
+  letter-spacing: 1px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.4);
+}
+
+.mnode.kbsel { border-color: var(--gold); box-shadow: 0 0 0 4px rgba(255, 211, 77, .55), 0 8px 18px rgba(0,0,0,.5); }

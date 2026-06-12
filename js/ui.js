@@ -65,6 +65,10 @@ const UI = {
   },
 
   downloadBackup() {
+    if (SAVE.state && SAVE.state.flags) {
+      SAVE.state.flags.lastBackupXp = SAVE.state.xp;
+      SAVE.save();
+    }
     const blob = new Blob([SAVE.exportData()], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -529,9 +533,11 @@ const UI = {
     const chip = this.$("wild-chip");
     if (chip) chip.textContent = `🌿 ${patches.length} · 🎣 ${castsLeft}`;
     // one-time discovery hint the first time grass appears
+    this._hintedThisRender = false;
     if (patches.length && SAVE.state && SAVE.state.flags && !SAVE.state.flags.grassHint) {
       SAVE.state.flags.grassHint = true;
       SAVE.save();
+      this._hintedThisRender = true;
       this.toast("🌿 See the rustling grass? A wild Pokemon hides there — click it!", "gold");
     }
     html += this.MAP_DECOR.concat(this.scatterDecor()).map(o =>
@@ -613,8 +619,58 @@ const UI = {
 
     map.innerHTML = html;
     this.renderPartyBar();
+    this._mapSel = null; // keyboard nav selection resets with the map
+    this.mapHints();
 
     this.centerMapOn(fp.x, fp.y);
+  },
+
+  // one gentle discovery hint per map visit, spread across sessions
+  mapHints() {
+    if (this._hintedThisRender || !SAVE.state || !SAVE.state.flags) return;
+    const f = SAVE.state.flags;
+    if (!f.grassHint) return; // the grass intro always goes first
+    if (!f.schoolHint) {
+      f.schoolHint = true;
+      SAVE.save();
+      this._hintedThisRender = true;
+      this.toast("🏫 The Trainer School near Pallet Town has NO countdown — race your own records!");
+      return;
+    }
+    if (SAVE.state.egg && !f.eggHint) {
+      f.eggHint = true;
+      SAVE.save();
+      this._hintedThisRender = true;
+      this.toast("🥚 You carry a Mystery Egg! Finish levels to warm it, then hatch it from the chip up top.");
+    }
+  },
+
+  // ---------- keyboard map navigation (arrows walk the route, Enter starts) ----------
+  mapKeyNav(e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const keys = ["ArrowRight", "ArrowLeft", "ArrowUp", "ArrowDown", "Enter"];
+    if (!keys.includes(e.key)) return;
+    e.preventDefault();
+    const flat = [];
+    WORLDS.forEach((w, wi) => { for (let s = 0; s <= w.levels.length; s++) flat.push({ w: wi, s }); });
+    if (this._mapSel === null || this._mapSel === undefined) {
+      const f = this.mapFrontier();
+      this._mapSel = flat.findIndex(n => n.w === f.w && n.s === f.s);
+      if (this._mapSel < 0) this._mapSel = 0;
+    } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      this._mapSel = Math.min(flat.length - 1, this._mapSel + 1);
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      this._mapSel = Math.max(0, this._mapSel - 1);
+    }
+    const n = flat[this._mapSel];
+    const node = document.querySelector(`.mnode[data-w="${n.w}"][data-s="${n.s}"]`);
+    if (!node) return;
+    if (e.key === "Enter") { node.click(); return; }
+    document.querySelectorAll(".mnode.kbsel").forEach(x => x.classList.remove("kbsel"));
+    node.classList.add("kbsel");
+    SFX.click();
+    const p = this.mapNodes()[n.w][n.s];
+    this.centerMapOn(p.x, p.y);
   },
 
   centerMapOn(x, y, tries = 0) {
@@ -1187,7 +1243,9 @@ const UI = {
 
   showCatch(S, creature) {
     this.$("target-wrap").style.opacity = 1;
-    this.speech(`Type my name to catch me!`, 2600);
+    // relaxed catches (Chill / first world) have no clock at all
+    this.$("timer-bar").classList.toggle("hidden", !!S.relaxedCatch);
+    this.speech(S.relaxedCatch ? "No rush — type my name!" : "Type my name to catch me!", 2600);
     this.renderPromptText(S);
   },
 
@@ -1835,13 +1893,20 @@ const UI = {
   // ---------- trophies ----------
   renderTrophies() {
     const got = SAVE.state.trophies;
+    const fresh = (SAVE.state.flags && SAVE.state.flags.newTrophies) || {};
     this.$("trophy-count").textContent = `${Object.keys(got).length} / ${TROPHIES.length}`;
     this.$("trophy-grid").innerHTML = TROPHIES.map(t => `
       <div class="trophy-card ${got[t.id] ? "on" : ""}">
+        ${fresh[t.id] ? `<span class="new-chip">NEW</span>` : ""}
         <div class="trophy-emoji">${t.e}</div>
         <div class="trophy-name">${t.name}</div>
         <div class="trophy-desc">${t.desc}</div>
       </div>`).join("");
+    // visiting the room marks everything as seen
+    if (SAVE.state.flags && Object.keys(fresh).length) {
+      SAVE.state.flags.newTrophies = {};
+      SAVE.save();
+    }
   },
 
   // ---------- stats ----------
@@ -1863,6 +1928,22 @@ const UI = {
       ? hist.map(h => `<div class="bar-wrap" title="${h.wpm} wpm · ${Math.round(h.acc * 100)}%">
           <div class="bar" style="height:${Math.max(6, 100 * h.wpm / max)}%"></div><span>${h.wpm}</span></div>`).join("")
       : `<p class="dim">Play some levels to see your speed grow! 📈</p>`;
+
+    // grown-ups corner: recent form + backup nudge
+    const ps = this.$("parent-stats");
+    if (ps) {
+      const recent = s.history.slice(-7);
+      const avgW = recent.length ? Math.round(recent.reduce((a, h) => a + h.wpm, 0) / recent.length) : 0;
+      const avgA = recent.length ? Math.round(100 * recent.reduce((a, h) => a + h.acc, 0) / recent.length) : 0;
+      let totalStars = 0;
+      WORLDS.forEach((w, wi) => { totalStars += SAVE.worldStars(wi); });
+      const sinceBackup = SAVE.state.xp - ((SAVE.state.flags && SAVE.state.flags.lastBackupXp) || 0);
+      ps.innerHTML = recent.length
+        ? `Recent form (last ${recent.length === 1 ? "game" : `${recent.length} games`}): <b>${avgW} wpm</b> at <b>${avgA}%</b> accuracy.<br>
+           Total stars: <b>${totalStars}</b> · Pokemon: <b>${SAVE.caughtCount()}</b> · Day streak: <b>${SAVE.state.streak.count || 0}</b>.
+           ${sinceBackup > 150 ? `<br><span class="backup-nudge">📥 Lots of new progress since the last backup — a download is wise!</span>` : ""}`
+        : `No games played yet — the trend will appear here.`;
+    }
 
     const entries = Object.entries(s.perKey)
       .map(([k, v]) => ({ k, total: v.ok + v.miss, acc: v.ok / (v.ok + v.miss) }))
@@ -1907,7 +1988,25 @@ const UI = {
 
   trophyToast(t) {
     SFX.trophy();
-    this.toast(`🏆 Trophy unlocked: <b>${t.e} ${t.name}</b>`, "gold");
+    if (SAVE.state && SAVE.state.flags) {
+      SAVE.state.flags.newTrophies = SAVE.state.flags.newTrophies || {};
+      SAVE.state.flags.newTrophies[t.id] = true;
+      SAVE.save();
+    }
+    // trophies deserve a moment, not just a toast
+    if (!this._splashBusy) {
+      this._splashBusy = true;
+      this.$("ts-emoji").textContent = t.e;
+      this.$("ts-name").textContent = t.name;
+      const sp = this.$("trophy-splash");
+      sp.classList.remove("hidden");
+      setTimeout(() => {
+        sp.classList.add("hidden");
+        this._splashBusy = false;
+      }, 1800);
+    } else {
+      this.toast(`🏆 Trophy unlocked: <b>${t.e} ${t.name}</b>`, "gold");
+    }
   },
 
   // erasing progress is a grown-up action: typing the player's name is a
