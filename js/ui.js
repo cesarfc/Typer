@@ -298,28 +298,36 @@ const UI = {
   mapAnchors: [[230, 1190], [660, 640], [1210, 1010], [1730, 430], [2140, 1030], [2480, 560], [2680, 300]],
 
   MAP_CITIES: [
-    { x: 180, y: 1330, e: "🏘️", n: "Pallet Town" },
-    { x: 545, y: 455, e: "⛏️", n: "Moonstone City" },
-    { x: 1340, y: 1165, e: "🏟️", n: "Victory City" },
-    { x: 1905, y: 290, e: "🌋", n: "Ember Town" },
-    { x: 2010, y: 1190, e: "🏮", n: "Lantern Village" },
-    { x: 2625, y: 425, e: "🏛️", n: "Hall of Fame" },
-    { x: 905, y: 1300, e: "⛵", n: "Ferry Dock" },
-    { x: 1565, y: 690, e: "🍓", n: "Berry Farm" },
+    { x: 180, y: 1330, sp: "house", s: 60, n: "Pallet Town" },
+    { x: 545, y: 455, sp: "mine", s: 64, n: "Moonstone City" },
+    { x: 1340, y: 1165, sp: "gym", s: 78, n: "Victory City" },
+    { x: 1905, y: 290, sp: "volcano", s: 72, n: "Ember Town" },
+    { x: 2010, y: 1190, sp: "lanternpost", s: 48, n: "Lantern Village" },
+    { x: 2625, y: 425, sp: "hall", s: 80, n: "Hall of Fame" },
+    { x: 905, y: 1300, sp: "pier", s: 66, n: "Ferry Dock" },
+    { x: 1565, y: 690, sp: "berrybush", s: 48, n: "Berry Farm" },
   ],
   MAP_DECOR: [
-    { x: 95, y: 1115, e: "🌳", s: 36 }, { x: 335, y: 1005, e: "🌲", s: 30 }, { x: 470, y: 1265, e: "🌸", s: 22 },
-    { x: 150, y: 950, e: "🌳", s: 26 }, { x: 420, y: 1125, e: "🍄", s: 20 }, { x: 300, y: 1330, e: "🌼", s: 20 },
-    { x: 560, y: 835, e: "🪨", s: 26 }, { x: 770, y: 515, e: "⛰️", s: 46 }, { x: 855, y: 720, e: "🗻", s: 42 },
-    { x: 595, y: 575, e: "💎", s: 18 }, { x: 930, y: 555, e: "🪨", s: 22 }, { x: 720, y: 390, e: "⛰️", s: 34 },
-    { x: 1085, y: 860, e: "🌾", s: 24 }, { x: 1345, y: 885, e: "🌳", s: 30 }, { x: 1145, y: 1190, e: "🎉", s: 20 },
-    { x: 1430, y: 1065, e: "🚩", s: 20 }, { x: 1240, y: 1280, e: "📣", s: 20 },
-    { x: 1605, y: 555, e: "⛰️", s: 46 }, { x: 1835, y: 555, e: "🔥", s: 22 }, { x: 1955, y: 515, e: "⚡", s: 18 },
-    { x: 1690, y: 220, e: "🗻", s: 40 }, { x: 1840, y: 140, e: "☁️", s: 30 },
-    { x: 2015, y: 895, e: "🌲", s: 38 }, { x: 2245, y: 1185, e: "🌲", s: 30 }, { x: 2085, y: 1125, e: "🏮", s: 18 },
-    { x: 2305, y: 905, e: "🌫️", s: 30 }, { x: 2200, y: 1320, e: "🌲", s: 26 },
-    { x: 2385, y: 680, e: "✨", s: 18 }, { x: 2565, y: 645, e: "🏆", s: 20 }, { x: 2705, y: 485, e: "👑", s: 22 },
-    { x: 705, y: 1185, e: "🌊", s: 30 }, { x: 825, y: 1245, e: "🌊", s: 26 }, { x: 1005, y: 1335, e: "🌊", s: 30 },
+    // Pallet Meadow
+    { x: 95, y: 1115, sp: "tree", s: 54 }, { x: 335, y: 1005, sp: "pine", s: 44 }, { x: 470, y: 1265, sp: "flower", s: 26 },
+    { x: 150, y: 950, sp: "tree", s: 44 }, { x: 420, y: 1125, sp: "mushroom", s: 24 }, { x: 300, y: 1330, sp: "flower", s: 24, c: "#ffd34d" },
+    { x: 640, y: 1090, sp: "tree", s: 48 }, { x: 250, y: 1180, sp: "sign", s: 26 }, { x: 255, y: 1290, sp: "house", s: 46, c: "#3a6fd8" },
+    // Mt. Moon
+    { x: 560, y: 835, sp: "rock", s: 36 }, { x: 770, y: 515, sp: "mountain", s: 86 }, { x: 855, y: 720, sp: "mountain", s: 66 },
+    { x: 595, y: 575, sp: "crystal", s: 28 }, { x: 930, y: 555, sp: "rock", s: 30 }, { x: 720, y: 390, sp: "mountain", s: 58 },
+    // Stadium plains
+    { x: 1085, y: 860, sp: "wheat", s: 30 }, { x: 1345, y: 885, sp: "tree", s: 50 }, { x: 1145, y: 1190, sp: "flag", s: 30, c: "#3a6fd8" },
+    { x: 1430, y: 1065, sp: "flag", s: 30 }, { x: 1240, y: 1280, sp: "sign", s: 28 }, { x: 1500, y: 960, sp: "tree", s: 44 },
+    // Dragon's Den
+    { x: 1605, y: 555, sp: "mountain", s: 82 }, { x: 1835, y: 555, sp: "rock", s: 30 }, { x: 1955, y: 515, sp: "crystal", s: 24 },
+    { x: 1690, y: 220, sp: "mountain", s: 70 }, { x: 1840, y: 140, e: "☁️", s: 30 },
+    // Eterna Forest
+    { x: 2015, y: 895, sp: "pine", s: 56 }, { x: 2245, y: 1185, sp: "pine", s: 46 }, { x: 2085, y: 1125, sp: "lanternpost", s: 34 },
+    { x: 2305, y: 905, e: "🌫️", s: 30 }, { x: 2200, y: 1320, sp: "pine", s: 40 }, { x: 2450, y: 980, sp: "pine", s: 44 },
+    // Hall of Fame
+    { x: 2385, y: 680, e: "✨", s: 18 }, { x: 2565, y: 645, sp: "flag", s: 30, c: "#f5c84c" }, { x: 2705, y: 485, e: "👑", s: 22 },
+    // water
+    { x: 705, y: 1185, sp: "wave", s: 42 }, { x: 825, y: 1245, sp: "wave", s: 34 }, { x: 1005, y: 1335, sp: "wave", s: 42 },
   ],
 
   // tall grass candidates (3 per region) and fishing spots
@@ -466,7 +474,7 @@ const UI = {
     const wild = SAVE.wildToday();
     const patches = this.grassSpotsToday().filter(s => !wild.grassUsed.includes(s.id));
     html += patches.map(s =>
-      `<button class="map-grass" data-spot="${s.id}" data-w="${s.w}" style="left:${s.x}px;top:${s.y}px" title="Something is rustling in the grass!"><span class="g-rustle">🌿</span></button>`).join("");
+      `<button class="map-grass" data-spot="${s.id}" data-w="${s.w}" style="left:${s.x}px;top:${s.y}px" title="Something is rustling in the grass!"><span class="g-rustle">${mapSprite("grasstuft", 38)}</span></button>`).join("");
     const castsLeft = Math.max(0, this.CASTS_PER_DAY - wild.casts);
     this.FISH_SPOTS.filter(f => SAVE.worldUnlocked(f.need)).forEach(f => {
       html += `<button class="map-fish ${castsLeft ? "" : "spent"}" style="left:${f.x}px;top:${f.y}px" title="${castsLeft ? "Fishing spot — cast a line!" : "No more bites today"}">🎣</button>`;
@@ -474,13 +482,13 @@ const UI = {
     const chip = this.$("wild-chip");
     if (chip) chip.textContent = `🌿 ${patches.length} · 🎣 ${castsLeft}`;
     html += this.MAP_DECOR.map(o =>
-      `<span class="map-decor" style="left:${o.x}px;top:${o.y}px;font-size:${o.s}px">${o.e}</span>`).join("");
+      `<span class="map-decor" style="left:${o.x}px;top:${o.y}px;${o.e ? `font-size:${o.s}px` : ""}">${o.sp ? mapSprite(o.sp, o.s, o.c) : o.e}</span>`).join("");
     html += this.MAP_CITIES.map(c =>
-      `<div class="map-city" style="left:${c.x}px;top:${c.y}px"><span>${c.e}</span><b>${c.n}</b></div>`).join("");
+      `<div class="map-city" style="left:${c.x}px;top:${c.y}px"><span class="city-art">${mapSprite(c.sp, c.s)}</span><b>${c.n}</b></div>`).join("");
 
     // Trainer School: practice with no countdown, any time
     html += `<button class="map-school" style="left:430px;top:1330px" title="Trainer School — no countdown, race your records!">
-      <span>🏫</span><b>Trainer School</b></button>`;
+      <span>${mapSprite("school", 68)}</span><b>Trainer School</b></button>`;
 
     WORLDS.forEach((w, wi) => {
       const ns = nodes[wi];
@@ -556,15 +564,23 @@ const UI = {
     this.centerMapOn(fp.x, fp.y);
   },
 
-  centerMapOn(x, y) {
+  centerMapOn(x, y, tries = 0) {
     const vp = this.$("region-viewport").getBoundingClientRect();
-    // the tilted camera looks slightly past the focus point, so aim a bit low
-    this.setMapPos(vp.width / 2 - x, vp.height * 0.58 - y);
+    if (!vp.width || !vp.height) {
+      // not laid out yet — retry a few frames, then wait for a resize
+      if (tries < 10) requestAnimationFrame(() => this.centerMapOn(x, y, tries + 1));
+      else this._pendingCenter = { x, y };
+      return;
+    }
+    this._pendingCenter = null;
+    // 0.42 calibrated for the tilted camera: the plane row that lands
+    // mid-screen sits above the viewport midpoint in plane coordinates
+    this.setMapPos(vp.width / 2 - x, vp.height * 0.42 - y);
   },
 
   setMapPos(x, y) {
     const vp = this.$("region-viewport").getBoundingClientRect();
-    const slack = 220; // the tilted plane shows past its edges; allow over-pan
+    const slack = 560; // the tilted plane shows past its edges; allow over-pan
     this.mapX = Math.min(slack, Math.max(vp.width - this.MAP_W - slack, x));
     this.mapY = Math.min(slack, Math.max(vp.height - this.MAP_H - slack, y));
     this.$("region-map").style.transform = `translate(${this.mapX}px, ${this.mapY}px)`;
@@ -665,6 +681,10 @@ const UI = {
       const p = this.mapNodes()[f.w][f.s];
       this.centerMapOn(p.x, p.y);
     });
+    addEventListener("resize", () => {
+      if (this._pendingCenter) this.centerMapOn(this._pendingCenter.x, this._pendingCenter.y);
+    });
+
     this.$("egg-chip").addEventListener("click", e => {
       e.stopPropagation();
       const egg = SAVE.state && SAVE.state.egg;
