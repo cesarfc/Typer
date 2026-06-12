@@ -446,8 +446,10 @@ button:active { transform: translateY(1px) scale(.98); }
    pins/sprites stand upright on it (billboards), like Diamond/Pearl ---- */
 :root { --tilt: 34deg; }
 #region-viewport {
-  perspective: 1050px;
-  perspective-origin: 50% 26%;
+  /* a longer lens with a centered origin keeps billboards rectangular
+     across the whole map (a close camera skews off-center sprites) */
+  perspective: 2100px;
+  perspective-origin: 50% 38%;
   background: linear-gradient(180deg, #0a1530 0%, #16305a 44%, #0d2a40 62%);
 }
 #map-tilt {
@@ -495,21 +497,15 @@ button:active { transform: translateY(1px) scale(.98); }
   z-index: 5;
   padding: 8px;
 }
-.map-school span { font-size: 42px; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)); transition: transform .15s; }
-.map-school:hover span { transform: scale(1.12); }
+.map-school span { font-size: 42px; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)); }
 
-/* map pins are centered via transform — the global button hover/active
-   transform must never replace it, or the pin jumps on hover */
-.map-school:hover, .map-school:active,
-.map-grass:hover, .map-grass:active,
-.map-fish:hover, .map-fish:active,
-.map-roamer:hover, .map-roamer:active {
-  transform: translate(-50%, -50%);
-}
-.map-fish { transition: font-size .15s; }
-.map-fish:hover { font-size: 35px; }
-.map-roamer .roamer-img { transition: height .15s; }
-.map-roamer:hover .roamer-img { height: 74px; }
+/* hover feedback on map pins must never change geometry (scale, size,
+   font) — moving pixels under the cursor makes them hard to click.
+   Glow instead. */
+.map-school:hover span { filter: drop-shadow(0 0 9px rgba(125, 200, 255, .95)); }
+.map-fish:hover { filter: brightness(1.3) drop-shadow(0 0 8px rgba(125, 200, 255, .9)); }
+.map-roamer:hover .roamer-img { filter: drop-shadow(0 0 22px rgba(255, 211, 77, 1)); }
+.map-grass:hover .g-rustle { filter: drop-shadow(0 0 8px rgba(125, 255, 160, .9)); }
 .map-school b { font-size: 12px; background: rgba(10,13,30,.78); padding: 3px 9px; border-radius: 999px; border: 1px solid var(--info); white-space: nowrap; color: var(--info); }
 
 .practice-sub { text-align: center; color: var(--dim); margin: -8px 0 20px; font-size: 15px; }

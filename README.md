@@ -9,15 +9,43 @@ Pokemon names appear as practice text only.)
 
 No installs, no internet, no accounts. **Just open `index.html` in a browser.**
 
-## How to run
+## Requirements (Windows & Mac)
 
-- Double-click `index.html` (Chrome, Safari, Edge or Firefox), **or**
-- run a tiny local server from this folder if you prefer:
+- **Any modern browser**: Chrome, Edge, Firefox or Safari.
+- **A physical keyboard** (the on-screen finger guide assumes QWERTY).
+- **Nothing to install for the game itself** — it is plain HTML/JS/CSS.
+- *Optional, one-time:* **Node.js 14+** to download the Pokemon artwork
+  (`node tools/get-sprites.mjs`); without it the game shows emoji instead.
+  - Mac: `brew install node` or the installer from [nodejs.org](https://nodejs.org)
+  - Windows: install **Node.js LTS** from [nodejs.org](https://nodejs.org)
 
-  ```bash
-  python3 -m http.server 8642
-  # then open http://localhost:8642
-  ```
+## How to run on a Mac
+
+1. **Simplest:** double-click `index.html` — it opens in your browser.
+2. **Recommended** (enables automatic restore from `typequest-save.json`):
+   open Terminal in this folder and run
+
+   ```bash
+   python3 -m http.server 8642   # python3 ships with macOS
+   ```
+
+   then visit <http://localhost:8642>.
+
+## How to run on Windows
+
+1. **Simplest:** double-click `index.html`.
+2. **Recommended server:** install Python from the Microsoft Store (or
+   python.org), then in this folder run
+
+   ```powershell
+   py -m http.server 8642        # or: python -m http.server 8642
+   ```
+
+   and visit <http://localhost:8642>. (Node alternative: `npx serve .`)
+
+**Note:** when opened by double-click (a `file://` address), browsers block
+the automatic save-file restore — use the title screen's
+"💾 restore from a backup file" link instead. Everything else works the same.
 
 Progress saves automatically in the browser (localStorage), so use the same
 browser on the same computer to keep the save.

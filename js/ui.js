@@ -410,6 +410,46 @@ const UI = {
     </svg>`;
   },
 
+  // seeded scatter groups: lots of extra greenery/rubble without
+  // hand-placing every item (deterministic, so the map never shifts)
+  MAP_SCATTER: [
+    { t: "pine", n: 7, x: 2180, y: 1060, r: 240, smin: 1.4, smax: 2.1 },
+    { t: "pineBig", n: 4, x: 2080, y: 950, r: 190, smin: 1.5, smax: 2 },
+    { t: "mushroomT", n: 3, x: 2280, y: 1120, r: 140, smin: 1.4, smax: 1.8 },
+    { sp: "tree", n: 6, x: 340, y: 1100, r: 200, smin: 36, smax: 54 },
+    { sp: "flower", n: 8, x: 430, y: 1240, r: 190, smin: 18, smax: 26, cs: ["#ff8ab5", "#ffd34d", "#fff", "#b39df1"] },
+    { t: "bushPair", n: 3, x: 560, y: 1070, r: 140, smin: 1.4, smax: 1.8 },
+    { sp: "rock", n: 4, x: 700, y: 690, r: 160, smin: 24, smax: 36 },
+    { sp: "crystal", n: 3, x: 640, y: 545, r: 110, smin: 18, smax: 26 },
+    { t: "rocksT", n: 5, x: 1770, y: 470, r: 190, smin: 1.5, smax: 2.2 },
+    { sp: "tree", n: 5, x: 1230, y: 970, r: 200, smin: 36, smax: 50 },
+    { t: "pine", n: 4, x: 1680, y: 640, r: 170, smin: 1.4, smax: 1.9 },
+    { sp: "wave", n: 5, x: 1300, y: 1505, r: 170, smin: 30, smax: 42 },
+    { sp: "wave", n: 3, x: 60, y: 720, r: 110, smin: 26, smax: 36 },
+  ],
+
+  scatterDecor() {
+    if (this._scatter) return this._scatter;
+    let h = 1337;
+    const rng = () => { h = (h * 1664525 + 1013904223) >>> 0; return h / 4294967296; };
+    const out = [];
+    this.MAP_SCATTER.forEach(g => {
+      for (let i = 0; i < g.n; i++) {
+        const a = rng() * Math.PI * 2;
+        const d = Math.sqrt(rng()) * g.r;
+        const x = Math.round(g.x + Math.cos(a) * d);
+        const y = Math.round(g.y + Math.sin(a) * d * 0.7);
+        const k = g.smin + rng() * (g.smax - g.smin);
+        const c = g.cs ? g.cs[Math.floor(rng() * g.cs.length)] : g.c;
+        out.push(g.t
+          ? { x, y, t: g.t, sc: Math.round(k * 10) / 10 }
+          : { x, y, sp: g.sp, s: Math.round(k), c });
+      }
+    });
+    this._scatter = out;
+    return out;
+  },
+
   mapNodes() {
     if (this._mapNodes) return this._mapNodes;
     const A = this.mapAnchors;
@@ -487,7 +527,7 @@ const UI = {
     });
     const chip = this.$("wild-chip");
     if (chip) chip.textContent = `🌿 ${patches.length} · 🎣 ${castsLeft}`;
-    html += this.MAP_DECOR.map(o =>
+    html += this.MAP_DECOR.concat(this.scatterDecor()).map(o =>
       `<span class="map-decor" style="left:${o.x}px;top:${o.y}px;${o.e ? `font-size:${o.s}px` : ""}">${o.t ? tileSprite(o.t, o.sc) : o.sp ? mapSprite(o.sp, o.s, o.c) : o.e}</span>`).join("");
     html += this.MAP_CITIES.map(c =>
       `<div class="map-city" style="left:${c.x}px;top:${c.y}px"><span class="city-art">${c.t ? tileSprite(c.t, c.sc) : mapSprite(c.sp, c.s)}</span><b>${c.n}</b></div>`).join("");
@@ -579,9 +619,9 @@ const UI = {
       return;
     }
     this._pendingCenter = null;
-    // 0.42 calibrated for the tilted camera: the plane row that lands
+    // 0.43 calibrated for the tilted camera: the plane row that lands
     // mid-screen sits above the viewport midpoint in plane coordinates
-    this.setMapPos(vp.width / 2 - x, vp.height * 0.42 - y);
+    this.setMapPos(vp.width / 2 - x, vp.height * 0.43 - y);
   },
 
   setMapPos(x, y) {
