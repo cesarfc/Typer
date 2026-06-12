@@ -40,6 +40,13 @@ players, each with their own worlds, creatures, trophies and streaks. Click
 the player name in the top bar (⇄) any time to switch. Deleting or erasing a
 player never touches the others.
 
+**Difficulty (per player):** chosen when creating a player and changeable any
+time with the 🐢/🙂/🔥 button in the top bar:
+
+- 🐢 **Chill** — 45% more time on every word. Great for starting out.
+- 🙂 **Normal** — the standard challenge.
+- 🔥 **Turbo** — 30% less time, but every level pays **+25% XP**.
+
 ## The journey (the hidden curriculum)
 
 Each world secretly teaches the next set of keys with proper finger placement,

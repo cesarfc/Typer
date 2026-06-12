@@ -9,6 +9,11 @@ const Engine = {
   pendingNext: false,
   timerRAF: null,
 
+  difficulty() {
+    const d = SAVE.state && SAVE.state.settings.difficulty;
+    return DIFFICULTY[d] || DIFFICULTY.normal;
+  },
+
   startStage(w, s) {
     const world = WORLDS[w];
     const isBoss = s === 5;
@@ -49,7 +54,7 @@ const Engine = {
     S.errorsThisPrompt = 0;
     S.text = S.prompts[S.idx];
     UI.showPrompt(S);
-    const ms = (S.baseTime + S.text.length * 0.6) * 1000;
+    const ms = (S.baseTime + S.text.length * 0.6) * this.difficulty().time * 1000;
     this.startTimer(ms);
   },
 
@@ -170,15 +175,17 @@ const Engine = {
     else stars = (S.timeouts === 0 && acc >= 0.95) ? 3 : (acc >= 0.85 && S.timeouts <= 1) ? 2 : 1;
 
     const ninja = S.ninjaEligible && UI.kbHidden;
+    const diff = this.difficulty();
     let xp = S.isBoss ? 50 + 15 * stars : 20 + 10 * stars;
     if (acc >= 1 && total > 0) xp += 10;
     xp += Math.min(20, wpm);
     if (ninja) xp = Math.round(xp * 1.5);
+    if (diff.xp > 1) xp = Math.round(xp * diff.xp);
 
     const res = {
       w: S.w, s: S.s, isBoss: S.isBoss, stars, acc, wpm, xp,
       score: S.score, bestCombo: S.bestCombo, errors: S.errors, timeouts: S.timeouts,
-      ninja, xpBefore: SAVE.state.xp,
+      ninja, turbo: diff.xp > 1, xpBefore: SAVE.state.xp,
       firstClear: SAVE.stageStars(S.w, S.s) === 0,
     };
     const applied = SAVE.applyResult(res);
@@ -206,7 +213,7 @@ const Engine = {
     // give bonus time for each so hunting them on the keyboard stays fun
     const taught = taughtKeys(S.w);
     const untaught = [...S.text.toLowerCase()].filter(c => !taught.has(c)).length;
-    this.startTimer((3.5 + S.text.length * 0.7 + untaught * 1.2) * 1000);
+    this.startTimer((3.5 + S.text.length * 0.7 + untaught * 1.2) * this.difficulty().time * 1000);
   },
 
   catchSuccess() {

@@ -8,6 +8,7 @@ const UI = {
   kbHidden: false,
   fx: { canvas: null, ctx: null, parts: [] },
   selectedAvatar: AVATARS[0],
+  selectedDiff: "normal",
   spritesOk: false, // true once local Pokemon artwork is found (see tools/get-sprites.mjs)
 
   $(id) { return document.getElementById(id); },
@@ -57,7 +58,7 @@ const UI = {
         <span class="pc-avatar">${p.avatar}</span>
         <div class="pc-info">
           <div class="pc-name">${this.esc(p.name)}</div>
-          <div class="pc-sub">Lv ${p.level} ${titleForLevel(p.level)} · 🐾 ${p.creatures} · 🏆 ${p.trophies}</div>
+          <div class="pc-sub">Lv ${p.level} ${titleForLevel(p.level)} · 🐾 ${p.creatures} · 🏆 ${p.trophies} · ${DIFFICULTY[p.difficulty].e} ${DIFFICULTY[p.difficulty].label}</div>
         </div>
         <button class="pc-del" data-del="${p.id}" title="Delete this player">✕</button>
       </div>`).join("");
@@ -97,11 +98,27 @@ const UI = {
       this.selectedAvatar = b.dataset.av;
       SFX.click();
     });
+
+    const dgrid = this.$("diff-grid");
+    dgrid.innerHTML = DIFF_ORDER.map(d => `
+      <button class="diff-opt${d === this.selectedDiff ? " sel" : ""}" data-diff="${d}">
+        <span class="diff-e">${DIFFICULTY[d].e}</span>
+        <span class="diff-name">${DIFFICULTY[d].label}</span>
+        <span class="diff-desc">${DIFFICULTY[d].desc}</span>
+      </button>`).join("");
+    dgrid.addEventListener("click", e => {
+      const b = e.target.closest(".diff-opt");
+      if (!b) return;
+      dgrid.querySelectorAll(".diff-opt").forEach(x => x.classList.remove("sel"));
+      b.classList.add("sel");
+      this.selectedDiff = b.dataset.diff;
+      SFX.click();
+    });
   },
 
   startGameFromTitle() {
     const name = this.$("name-input").value.trim() || "Hero";
-    if (!SAVE.createPlayer(name, this.selectedAvatar)) { this.renderTitle(); return; }
+    if (!SAVE.createPlayer(name, this.selectedAvatar, this.selectedDiff)) { this.renderTitle(); return; }
     this.$("name-input").value = "";
     this.enterGame();
   },
@@ -130,6 +147,10 @@ const UI = {
     this.$("chip-xpfill").style.width = `${Math.round(100 * lv.into / lv.need)}%`;
     this.$("streak-chip").textContent = `🔥 ${SAVE.state.streak.count || 0}`;
     this.$("sound-btn").textContent = SAVE.state.settings.sound ? "🔊" : "🔇";
+    const d = DIFFICULTY[SAVE.state.settings.difficulty] || DIFFICULTY.normal;
+    const db = this.$("diff-btn");
+    db.textContent = d.e;
+    db.title = `Difficulty: ${d.label} — click to change`;
   },
 
   // ---------- world map ----------
@@ -545,7 +566,7 @@ const UI = {
     // xp bar animation
     const before = levelFromXp(res.xpBefore);
     const after = levelFromXp(SAVE.state.xp);
-    this.$("xp-gained").textContent = `+${res.xp} XP${res.ninja ? " 🥷" : ""}`;
+    this.$("xp-gained").textContent = `+${res.xp} XP${res.ninja ? " 🥷" : ""}${res.turbo ? " 🔥" : ""}`;
     this.$("xp-level").textContent = `Lv ${after.level} · ${titleForLevel(after.level)}`;
     const fill = this.$("results-xpfill");
     fill.style.transition = "none";
@@ -778,6 +799,10 @@ const UI = {
 
     this.$("btn-addplayer").addEventListener("click", () => {
       SFX.click();
+      this.selectedDiff = "normal";
+      const dgrid = this.$("diff-grid");
+      dgrid.querySelectorAll(".diff-opt").forEach(x =>
+        x.classList.toggle("sel", x.dataset.diff === "normal"));
       this.$("player-select").classList.add("hidden");
       this.$("title-new").classList.remove("hidden");
       this.$("name-input").focus();
@@ -811,6 +836,18 @@ const UI = {
 
     document.querySelectorAll(".navbtn").forEach(b =>
       b.addEventListener("click", () => { SFX.click(); this.show(b.dataset.nav); }));
+
+    this.$("diff-btn").addEventListener("click", () => {
+      if (!SAVE.state) return;
+      const cur = SAVE.state.settings.difficulty || "normal";
+      const next = DIFF_ORDER[(DIFF_ORDER.indexOf(cur) + 1) % DIFF_ORDER.length];
+      SAVE.state.settings.difficulty = next;
+      SAVE.save();
+      SFX.click();
+      this.renderTopbar();
+      const d = DIFFICULTY[next];
+      this.toast(`${d.e} Difficulty: <b>${d.label}</b> — ${d.desc}`);
+    });
 
     this.$("sound-btn").addEventListener("click", () => {
       SAVE.state.settings.sound = !SAVE.state.settings.sound;

@@ -9,6 +9,14 @@
 
 const AVATARS = ["🧢", "🦊", "🐱", "🐉", "🥷", "⚡", "⚽", "🦖", "🐼", "🚀"];
 
+// per-player difficulty: scales every prompt/catch timer; Turbo pays bonus XP
+const DIFFICULTY = {
+  chill:  { label: "Chill",  e: "🐢", time: 1.45, xp: 1,    desc: "Extra time to think" },
+  normal: { label: "Normal", e: "🙂", time: 1,    xp: 1,    desc: "The classic challenge" },
+  turbo:  { label: "Turbo",  e: "🔥", time: 0.7,  xp: 1.25, desc: "Less time, +25% XP" },
+};
+const DIFF_ORDER = ["chill", "normal", "turbo"];
+
 const TITLES = [
   [1, "New Trainer"], [3, "Trainer"], [5, "Gym Challenger"], [7, "Badge Collector"],
   [9, "Ace Trainer"], [12, "Gym Leader"], [15, "Elite Four"], [18, "Champion"], [22, "Pokemon Master"],

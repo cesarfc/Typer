@@ -17,7 +17,7 @@ const SAVE = {
       stages: {},                  // "w-s" -> best stars (s 0..4 levels, 5 boss)
       dex: {},                     // "w-i" -> {shiny:bool}
       trophies: {},                // id -> true
-      settings: { sound: true, hints: true },
+      settings: { sound: true, hints: true, difficulty: "normal" },
       streak: { last: null, count: 0 },
       stats: { keys: 0, correct: 0, bestWpm: 0, bestCombo: 0, history: [], perKey: {} },
     };
@@ -48,7 +48,8 @@ const SAVE = {
     }
 
     for (const id of Object.keys(this.root.players)) {
-      this.root.players[id] = Object.assign(this.defaults(), this.root.players[id]);
+      const p = this.root.players[id] = Object.assign(this.defaults(), this.root.players[id]);
+      if (!DIFFICULTY[p.settings.difficulty]) p.settings.difficulty = "normal";
     }
     this.state = this.root.active ? this.root.players[this.root.active] || null : null;
     return this.state;
@@ -66,14 +67,16 @@ const SAVE = {
       level: levelFromXp(s.xp).level,
       creatures: Object.keys(s.dex).length,
       trophies: Object.keys(s.trophies).length,
+      difficulty: s.settings.difficulty || "normal",
     }));
   },
 
-  createPlayer(name, avatar) {
+  createPlayer(name, avatar, difficulty) {
     if (Object.keys(this.root.players).length >= this.MAX_PLAYERS) return null;
     const id = "p" + Date.now().toString(36) + Math.floor(Math.random() * 100);
     const st = this.defaults();
     st.profile = { name, avatar };
+    if (DIFFICULTY[difficulty]) st.settings.difficulty = difficulty;
     this.root.players[id] = st;
     this.root.active = id;
     this.state = st;
