@@ -554,7 +554,8 @@ const UI = {
       const unlocked = SAVE.worldUnlocked(wi);
       const maxStars = (w.levels.length + 1) * 3;
       const mid = ns[Math.floor(ns.length / 2)];
-      html += `<div class="region-label" style="left:${mid.x}px;top:${mid.y - 138}px">
+      html += `<div class="region-label" data-rw="${wi}" role="button"
+        title="Who lives in ${this.esc(w.name)}?" style="left:${mid.x}px;top:${mid.y - 138}px">
         <b>${w.emoji} ${w.name}</b><span>★ ${SAVE.worldStars(wi)}/${maxStars}</span></div>`;
 
       // wild Pokemon living on the map: color when caught, silhouette when not
@@ -642,12 +643,68 @@ const UI = {
       SAVE.save();
       this._hintedThisRender = true;
       this.toast("🥚 You carry a Mystery Egg! Finish levels to warm it, then hatch it from the chip up top.");
+      return;
     }
+    if (!f.areaHint) {
+      f.areaHint = true;
+      SAVE.save();
+      this._hintedThisRender = true;
+      this.toast("🗺️ Click an area's name sign to see every Pokemon that lives there — and how to catch them!");
+    }
+  },
+
+  // ---------- area spawn guide (who lives here + how to catch them) ----------
+  whereLine(w, i) {
+    const chips = spawnSources(w, i).map(s =>
+      `<span title="${this.esc(s.title)}">${s.icon}</span>`).join("");
+    return chips ? `<div class="dex-where" title="Where to find it">${chips}</div>` : "";
+  },
+
+  openAreaPanel(w, hiKey) {
+    const panel = this.$("area-panel");
+    const rows = CREATURES[w].map((c, i) => {
+      const key = `${w}-${i}`;
+      const got = SAVE.state.dex[key];
+      const chips = spawnSources(w, i).map(s =>
+        `<span class="src-chip" title="${this.esc(s.title)}">${s.icon} ${this.esc(s.label)}</span>`).join("");
+      return `<div class="area-row ${key === hiKey ? "hi" : ""}">
+        <span class="area-sprite ${got ? "" : "silh"}">${this.pokeHtml(c.id, c.e, { shiny: got && got.shiny })}</span>
+        <div class="area-info">
+          <b>${got ? `${got.shiny ? "✨ " : ""}${this.esc(c.n)}` : "???"}</b>
+          <div class="area-srcs">${chips}</div>
+        </div>
+        ${got ? `<span class="area-got">✔ caught</span>` : `<span class="area-miss">not yet!</span>`}
+      </div>`;
+    }).join("");
+    const caught = CREATURES[w].filter((c, i) => SAVE.state.dex[`${w}-${i}`]).length;
+    panel.innerHTML = `<div class="area-card">
+      <button id="area-close" aria-label="Close">✕</button>
+      <h3>${WORLDS[w].emoji} ${this.esc(WORLDS[w].name)}</h3>
+      <p class="area-sub">Pokemon living here · ${caught}/${CREATURES[w].length} caught</p>
+      <div class="area-list">${rows}</div>
+    </div>`;
+    panel.classList.remove("hidden");
+    if (hiKey) {
+      // offsetTop math instead of scrollIntoView: the card's pop-in
+      // animation is mid-scale right now and would skew the measurement
+      const list = panel.querySelector(".area-list");
+      const el = panel.querySelector(".area-row.hi");
+      if (el) list.scrollTop = el.offsetTop - list.clientHeight / 2 + el.clientHeight / 2;
+    }
+  },
+
+  closeAreaPanel() {
+    this.$("area-panel").classList.add("hidden");
   },
 
   // ---------- keyboard map navigation (arrows walk the route, Enter starts) ----------
   mapKeyNav(e) {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    // while the area guide is open, Escape closes it and arrows stay put
+    if (!this.$("area-panel").classList.contains("hidden")) {
+      if (e.key === "Escape") { e.preventDefault(); this.closeAreaPanel(); }
+      return;
+    }
     const keys = ["ArrowRight", "ArrowLeft", "ArrowUp", "ArrowDown", "Enter"];
     if (!keys.includes(e.key)) return;
     e.preventDefault();
@@ -775,7 +832,8 @@ const UI = {
         this.show("practice");
         return;
       }
-      // wild Pokemon living on the map: say hi (caught) or tease (mystery)
+      // wild Pokemon living on the map: say hi (caught) or open the
+      // area guide so the mystery shows how it can be caught
       const pk = e.target.closest(".map-poke");
       if (pk) {
         SFX.init();
@@ -790,8 +848,16 @@ const UI = {
           this.toast(`${got.shiny ? "✨ " : ""}<b>${this.esc(c.n)}</b> says hi! It lives near ${WORLDS[w].emoji} ${WORLDS[w].name}.`);
         } else {
           SFX.combo();
-          this.toast(`👀 A mystery Pokemon lives near ${WORLDS[w].emoji} ${WORLDS[w].name} — finish levels there or check the tall grass to catch it!`);
+          this.openAreaPanel(w, `${w}-${i}`);
         }
+        return;
+      }
+      // area name signs open the spawn guide for that region
+      const rl = e.target.closest(".region-label");
+      if (rl) {
+        SFX.init();
+        SFX.word();
+        this.openAreaPanel(+rl.dataset.rw);
       }
     });
 
@@ -1461,7 +1527,7 @@ const UI = {
             (f.chain || f.choices || []).includes(key)) : null;
           const hint = fam ? `evolves from ${this.esc(CREATURES[fam.base.split("-")[0]][fam.base.split("-")[1]].n)}` : "???";
           return `<div class="dex-card unknown"><div class="dex-emoji">${this.pokeHtml(c.id, c.e)}</div>
-            <div class="dex-name ${fam ? "evo-hint" : ""}">${hint}</div></div>`;
+            <div class="dex-name ${fam ? "evo-hint" : ""}">${hint}</div>${fam ? "" : this.whereLine(wi, ci)}</div>`;
         }
         const candy = SAVE.state.candy[key] || 0;
         const fam = SAVE.familyFor(key);
@@ -1475,7 +1541,7 @@ const UI = {
         return `<div class="dex-card ${got.shiny ? "shiny" : ""}" style="--rc:${rar.color}">${partyBtn}
           <div class="dex-emoji">${this.pokeHtml(c.id, c.e, { shiny: got.shiny })}</div>
           <div class="dex-name">${got.shiny ? "✨" : ""}${this.esc(c.n)}</div>
-          <div class="dex-rar">${rar.label}</div>${candyHtml}${evoBtn}</div>`;
+          <div class="dex-rar">${rar.label}</div>${this.whereLine(wi, ci)}${candyHtml}${evoBtn}</div>`;
       }).join("");
       const caught = CREATURES[wi].filter((c, ci) => SAVE.state.dex[`${wi}-${ci}`]).length;
       return `<div class="dex-world"><h3>${w.emoji} ${w.name} <span>${caught}/${CREATURES[wi].length}</span></h3><div class="dex-grid">${cards}</div></div>`;
@@ -2239,6 +2305,12 @@ const UI = {
       }
       if (e.target.closest("#evo-cancel") || e.target.id === "evo-chooser") {
         this.$("evo-chooser").classList.add("hidden");
+      }
+    });
+    this.$("area-panel").addEventListener("click", e => {
+      if (e.target.closest("#area-close") || e.target.id === "area-panel") {
+        SFX.click();
+        this.closeAreaPanel();
       }
     });
 

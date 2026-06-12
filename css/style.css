@@ -570,8 +570,19 @@ button:active { transform: translateY(1px) scale(.98); }
 .map-city { position: absolute; transform: translate(-50%, -50%); text-align: center; pointer-events: none; z-index: 2; }
 .map-city span { font-size: 38px; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)); }
 .map-city b { font-size: 12px; background: rgba(10,13,30,.78); padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; }
-.region-label { position: absolute; transform: translate(-50%, -50%); text-align: center; pointer-events: none; z-index: 3; }
-.region-label b { display: block; font-size: 21px; text-shadow: 0 2px 10px rgba(0,0,0,.85); white-space: nowrap; }
+.region-label { position: absolute; transform: translate(-50%, -50%); text-align: center; pointer-events: auto; cursor: pointer; z-index: 3; }
+.region-label b {
+  display: block;
+  font-size: 21px;
+  text-shadow: 0 2px 10px rgba(0,0,0,.85);
+  white-space: nowrap;
+  background: rgba(10,13,30,.45);
+  border: 2px solid transparent;
+  border-radius: 12px;
+  padding: 3px 14px;
+  transition: background .15s, border-color .15s; /* paint only — pins never animate transforms */
+}
+.region-label:hover b { background: rgba(10,13,30,.9); border-color: var(--gold); }
 .region-label span { font-size: 13px; font-weight: 800; color: var(--gold); background: rgba(10,13,30,.7); padding: 2px 10px; border-radius: 999px; }
 .map-poke { position: absolute; transform: translate(-50%, -50%); z-index: 3; cursor: pointer; background: none; border: none; padding: 4px; }
 .map-poke-img { height: 48px; filter: drop-shadow(0 5px 8px rgba(0,0,0,.5)); }
@@ -1187,6 +1198,7 @@ button:active { transform: translateY(1px) scale(.98); }
 .map-grass:hover, .map-grass:active,
 .map-fish:hover, .map-fish:active,
 .map-roamer:hover, .map-roamer:active,
+.region-label:hover, .region-label:active,
 .map-poke:hover, .map-poke:active {
   transform: translate(-50%, -100%) rotateX(calc(-1 * var(--tilt)));
   filter: none; /* never toggle filters on 3D-positioned pins */
@@ -1297,3 +1309,75 @@ button:active { transform: translateY(1px) scale(.98); }
 }
 
 .mnode.kbsel { border-color: var(--gold); box-shadow: 0 0 0 4px rgba(255, 211, 77, .55), 0 8px 18px rgba(0,0,0,.5); }
+
+/* ============ Area spawn guide (who lives here + how to catch) ============ */
+/* fixed overlay, not a map pin — filters/animations are safe in here */
+#area-panel {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 10, 24, .8);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.area-card {
+  position: relative;
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: 20px;
+  padding: 20px 22px 14px;
+  width: min(560px, 92vw);
+  max-height: 84vh;
+  display: flex;
+  flex-direction: column;
+  animation: zoomIn .3s cubic-bezier(.2, 1.4, .4, 1);
+}
+.area-card h3 { font-size: 24px; font-weight: 900; margin: 0 30px 2px 0; }
+.area-sub { font-size: 13px; color: var(--dim); margin: 0 0 12px; font-weight: 700; }
+#area-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: var(--card2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 15px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+#area-close:hover { border-color: var(--gold); }
+.area-list { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; }
+.area-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card2);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 8px 12px;
+}
+.area-row.hi { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(255, 211, 77, .35); }
+.area-sprite { width: 52px; text-align: center; font-size: 36px; flex: none; }
+.area-sprite .poke-img, .area-sprite img { height: 48px; }
+.area-sprite.silh { filter: brightness(0) opacity(.45); }
+.area-info { flex: 1; min-width: 0; }
+.area-info b { font-size: 15px; display: block; }
+.area-srcs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.src-chip {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--dim);
+  background: rgba(10, 13, 30, .55);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+.area-got { color: var(--good); font-weight: 900; font-size: 12.5px; flex: none; }
+.area-miss { color: var(--gold); font-weight: 800; font-size: 12.5px; flex: none; }
+
+/* dex cards: tiny "found in" icon line (hover an icon for details) */
+.dex-where { font-size: 13px; margin-top: 3px; letter-spacing: 2px; cursor: help; }

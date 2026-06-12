@@ -420,6 +420,53 @@ function spriteUrl(id, shiny) {
 // dex keys of water Pokemon that can be hooked at fishing spots
 const WATER_POKEMON = ["0-0", "0-5", "3-0", "3-1", "3-2", "3-3", "4-2", "5-0"];
 
+// what an evolution-only Pokemon evolves FROM (chains may cross worlds,
+// e.g. Growlithe in the Stadium evolves into Arcanine on Mt. Moon)
+function evoSourceFor(key) {
+  for (const f of EVOLUTIONS) {
+    const links = f.chain || f.choices;
+    const idx = links.indexOf(key);
+    if (idx === -1) continue;
+    const prev = (f.choices || idx === 0) ? f.base : links[idx - 1];
+    const [pw, pi] = prev.split("-").map(Number);
+    return { key: prev, c: CREATURES[pw][pi] };
+  }
+  return null;
+}
+
+// every honest way to obtain a Pokemon — mirrors pickCatch / wildPick /
+// fishPick / eggPick / roamerNow so the spawn guide never lies
+function spawnSources(w, i) {
+  const c = CREATURES[w][i];
+  const key = `${w}-${i}`;
+  if (c.evoOnly) {
+    const from = evoSourceFor(key);
+    return from ? [{ icon: "✨", label: `evolve ${from.c.n}`,
+      title: `Catch ${from.c.n}, then feed it ${CANDY_COST} candy from duplicate catches` }] : [];
+  }
+  const stars = c.r <= 1 ? 1 : c.r === 2 ? 2 : 3;
+  const srcs = [
+    { icon: "🌿", label: "tall grass",
+      title: `Click the rustling grass in ${WORLDS[w].name}` },
+    { icon: "⭐".repeat(stars), label: "level win",
+      title: `Win a ${WORLDS[w].name} level with ${stars} star${stars > 1 ? "s" : ""} or more` },
+  ];
+  if (WATER_POKEMON.includes(key)) {
+    srcs.push({ icon: "🎣", label: "fishing", title: "Cast a line at any fishing spot" });
+  }
+  srcs.push({ icon: "🥚", label: "eggs", title: "Mystery Eggs can hatch it once this region is open" });
+  if (w === WORLDS.length - 1) {
+    srcs.push({ icon: "🌟", label: "weekly visit", title: "Can appear as the once-a-week legendary visitor" });
+  }
+  // some wild Pokemon (Arcanine, Pikachu...) can ALSO be evolved into
+  const from = evoSourceFor(key);
+  if (from) {
+    srcs.push({ icon: "✨", label: `evolve ${from.c.n}`,
+      title: `Or feed ${from.c.n} ${CANDY_COST} candy from duplicate catches` });
+  }
+  return srcs;
+}
+
 // the move a party partner uses when its typing-charged meter fills
 const PARTNER_MOVES = { 1: "Tackle", 2: "Take Down", 3: "Hyper Beam", 4: "Judgment" };
 const PARTY_MAX = 6;
