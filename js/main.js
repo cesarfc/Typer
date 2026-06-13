@@ -11,6 +11,11 @@ window.addEventListener("DOMContentLoaded", () => {
   // one routing point for keys, whether they arrive from a real keyboard
   // (keydown) or from a touch device's on-screen keyboard (beforeinput)
   const routeKey = e => {
+    // the spotlight coach-mark owns Enter/Space/Escape while open
+    if (UI.spotlightOpen && UI.spotlightOpen()) {
+      UI.spotlightKey(e);
+      return;
+    }
     if (UI.current === "game") {
       Engine.handleKey(e);
     } else if (UI.current === "tutorial") {

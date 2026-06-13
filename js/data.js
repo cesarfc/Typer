@@ -13,10 +13,18 @@ const AVATARS = ["🧢", "🦊", "🐱", "🐉", "🥷", "⚡", "🎒", "🦖", 
 const TRAINER_OPTS = {
   skin: ["#ffd5b3", "#f0b186", "#c98a5c", "#9c6238", "#6e4427"],
   hair: ["spiky", "bowl", "long", "curls"],
-  hairColor: ["#2d2a33", "#6b4226", "#d8a13c", "#b8453a", "#4a7fd6", "#9b59d6"],
+  hairColor: ["#2d2a33", "#6b4226", "#d8a13c", "#b8453a", "#4a7fd6", "#9b59d6", "#2eea9c"],
   hat: ["none", "cap", "beanie"],
-  hatColor: ["#e3350d", "#2a6df0", "#2eaf5b", "#f5c518", "#8e44ad"],
-  shirt: ["#e3350d", "#2a6df0", "#2eaf5b", "#f5c518", "#8e44ad", "#16a2b8"],
+  hatColor: ["#e3350d", "#2a6df0", "#2eaf5b", "#f5c518", "#8e44ad", "#ffd34d"],
+  shirt: ["#e3350d", "#2a6df0", "#2eaf5b", "#f5c518", "#8e44ad", "#16a2b8", "#ffd34d", "#1a1d2e"],
+};
+
+// wardrobe pieces earned through play ("part:index" -> requirement)
+const TRAINER_LOCKS = {
+  "hairColor:6": { need: "stamps", n: 6, label: "Earn 6 research stamps" },
+  "hatColor:5": { need: "champion", label: "Become the Champion" },
+  "shirt:6": { need: "champion", label: "Become the Champion" },
+  "shirt:7": { need: "stamps", n: 3, label: "Earn 3 research stamps" },
 };
 
 function defaultTrainer() {
@@ -72,6 +80,58 @@ const FINGER_NAMES = [
   "left pinky", "left ring", "left middle", "left index",
   "right index", "right middle", "right ring", "right pinky", "thumb",
 ];
+
+// ---- extra finger assignments for the number row and symbols (Scholar
+// Archipelago). Standard touch-typing reaches: index fingers take two
+// columns, pinkies the far edges. ----
+Object.assign(KEY_FINGER, {
+  "1": 0, "2": 1, "3": 2, "4": 3, "5": 3,
+  "6": 4, "7": 4, "8": 5, "9": 6, "0": 7,
+  "-": 7, "=": 7, "[": 7, "]": 7, "\\": 7,
+});
+
+// A target symbol -> the physical (base) key you press, so the keyboard
+// guide lights the right key and the Shift logic knows when Shift is held.
+// Keys NOT in this map are typed without Shift (digits, - = etc).
+const SHIFT_MAP = {
+  "(": "9", ")": "0", "_": "-", "+": "=",
+  "\"": "'", "<": ",", ">": ".", "?": "/",
+  "{": "[", "}": "]", "|": "\\",
+  "@": "2", "#": "3", "$": "4", "%": "5", "^": "6", "&": "7", "*": "8",
+  "!": "1", ":": ";",
+};
+
+// keyboard layouts a world can request (world.kb). "letters" keeps the
+// original 3-row board; "full" adds the number row for the math/CS islands.
+const KB_LAYOUTS = {
+  letters: KB_ROWS,
+  full: [
+    ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="],
+    ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "[", "]"],
+    ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";", "'"],
+    ["z", "x", "c", "v", "b", "n", "m", ",", ".", "/"],
+  ],
+};
+
+// ---- prompt objects: a prompt is either a plain string (display == typed)
+// or { d: question, a: answer, think: seconds } where the player reads `d`
+// and types `a`. These helpers let the whole engine treat both alike. ----
+function promptAnswer(p) { return typeof p === "string" ? p : p.a; }
+function promptDisplay(p) { return typeof p === "string" ? null : (p.d || null); }
+function promptThink(p) { return typeof p === "string" ? 0 : (p.think || 0); }
+function promptLen(p) { return promptAnswer(p).length; }
+function promptOut(p) { return typeof p === "string" ? null : (p.out || null); }  // code run result
+function promptCode(p) { return typeof p === "object" && !!p.code; }              // monospace prompt
+function promptSwatch(p) { return typeof p === "string" ? null : (p.swatch || null); } // hex color preview
+
+// iOS "smart punctuation" can deliver curly quotes / long dashes through
+// the on-screen keyboard — fold them to the plain ASCII we validate against.
+const CHAR_EQUIV = {
+  "‘": "'", "’": "'", "“": "\"", "”": "\"",
+  "–": "-", "—": "-", "×": "x", "÷": "/",
+};
+function normalizeKey(ch) { return CHAR_EQUIV[ch] || ch; }
+
 
 const WORLDS = [
   {
@@ -272,6 +332,7 @@ const WORLDS = [
     name: "Hall of Fame",
     tagline: "Capital letters and full sentences. Become the Champion!",
     emoji: "👑",
+    properNames: true, // creature names keep their capital letters here
     gradient: ["#241a4f", "#8a6d1d"],
     accent: "#ffd34d",
     targets: ["👾", "🤖", "🛸"],
@@ -417,6 +478,173 @@ function spriteUrl(id, shiny) {
   return `img/pokemon/${shiny ? "shiny-" : ""}${id}.png`;
 }
 
+// The Hall of Fame's world index. New islands will be appended AFTER this,
+// so "the legendary world" must never be computed as WORLDS.length - 1.
+const HALL_W = 5;
+
+// worlds where Pokemon names keep capitals in catch prompts
+function worldProperNames(w) {
+  return !!(WORLDS[w] && WORLDS[w].properNames);
+}
+
+// ---- World Mastery Medals (computed from per-stage bests, never stored) ----
+// A strict ladder: each tier includes the one below.
+//   Bronze: every stage 3-starred
+//   Silver: + every stage's best ≥ 95% accuracy and ≥ 15 wpm
+//   Gold:   + every stage's best ≥ 97% accuracy and ≥ 22 wpm
+//   Crown:  + every stage cleared in Ninja Mode (guide hidden, ≥ 95% acc)
+const MEDAL_TIERS = [
+  { tier: 1, id: "bronze", e: "🥉", name: "Bronze" },
+  { tier: 2, id: "silver", e: "🥈", name: "Silver", acc: 0.95, wpm: 15 },
+  { tier: 3, id: "gold",   e: "🥇", name: "Gold",   acc: 0.97, wpm: 22 },
+  { tier: 4, id: "crown",  e: "👑", name: "Crown" },
+];
+const MEDAL_E = ["", "🥉", "🥈", "🥇", "👑"];
+
+// ---- Professor's Letters: features introduce themselves when they unlock.
+// when(SAVE) decides if the parcel appears; pages are the letter panels;
+// spotlight steps run after the letter (nav = screen to open first).
+const FEATURE_INTROS = [
+  {
+    id: "medals",
+    icon: "🎖",
+    title: "A parcel from Professor Oak!",
+    when: S => {
+      for (let w = 0; w < WORLDS.length; w++) if (S.worldMedal(w) >= 1) return true;
+      return S.stageStars(HALL_W, WORLDS[HALL_W].levels.length) > 0;
+    },
+    pages: [
+      "Incredible work, Trainer! My research shows your levels are getting close to <b>perfect</b>.",
+      "So I've sent you a <b>Medal Case</b>! Every region can earn a medal: 🥉 Bronze, 🥈 Silver, 🥇 Gold... and the legendary 👑 <b>Crown</b> — for clearing levels with the keyboard guide hidden!",
+      "Replay any level to push your best speed and accuracy. Your Medal Case lives in the <b>Museum</b>. Go take a look!",
+    ],
+    spotlight: [
+      { nav: "trophies", tab: "medals", sel: "#museum-tabs", text: "Your Trophy Room is now a Museum — with wings!" },
+      { sel: "#medal-wing", text: "The Medal Case: every region shows what to do for the next medal." },
+    ],
+  },
+  {
+    id: "journal",
+    icon: "📔",
+    title: "The Professor's Journal",
+    when: S => (S.state.counters.levelsFinished || 0) >= 1,
+    pages: [
+      "I've started a <b>Journal</b> for you, Trainer! It tracks two new things.",
+      "The 📋 <b>Daily Drill</b>: one special run a day at the podium near the Trainer School, with surprise rules — finish it for XP and a 🎟 <b>candy voucher</b> (spend vouchers on any family in the Pokedex!).",
+      "And 🔬 <b>Research Tasks</b>: three missions each week that fill up as you play. Each one earns a <b>stamp</b> — collect stamps to unlock new trainer outfits!",
+    ],
+    spotlight: [
+      { nav: "journal", sel: "#jr-daily", text: "The Daily Drill: today's special rules live here." },
+      { sel: "#jr-research", text: "This week's research — claim rewards when a mission fills up!" },
+    ],
+  },
+  {
+    id: "bands",
+    icon: "🎚",
+    title: "Set your challenge level",
+    when: S => (S.state.counters.levelsFinished || 0) >= 3,
+    pages: [
+      "Every trainer is different — so you can set how hard the words are, up at the top!",
+      "🌱 <b>Explorer</b> has shorter words and extra time. ⚡ <b>Trainer</b> is the classic. 👑 <b>Ace</b> gets longer words, tougher bosses and <b>+15% XP</b>.",
+      "Tap the challenge button any time to switch — great for sharing with a younger or older player. Stars count the same at every level!",
+    ],
+    spotlight: [
+      { nav: "map", sel: "#band-btn", text: "Set your challenge here — easier or harder words for your age. Tap any time." },
+    ],
+  },
+  {
+    id: "elite",
+    icon: "⚔️",
+    title: "A challenge from the Elite Four",
+    when: S => S.stageStars(HALL_W, WORLDS[HALL_W].levels.length) > 0 && S.medalPoints() >= ELITE_NEED_MEDALS,
+    pages: [
+      "Word travels fast, Champion-in-waiting. The <b>Elite Four</b> have seen your medals... and they're waiting.",
+      "Four masters, back to back, sharing ONE pool of hearts — and then a final opponent I won't spoil. 😏",
+      "When you're ready, the challenge waits in your 📔 Journal. Make the whole island proud!",
+    ],
+    spotlight: [
+      { nav: "journal", sel: "#jr-elite", text: "The Elite Four await — challenge them from here!" },
+    ],
+  },
+  {
+    id: "shiny",
+    icon: "✨",
+    title: "Professor Oak's shiny research",
+    when: S => S.shinyCount() >= 3,
+    pages: [
+      "Astounding! You've found <b>several ✨ shiny Pokemon</b> — they're extraordinarily rare.",
+      "Keep collecting shinies and you'll earn the <b>Shiny Charm</b> (at 10, 25 and 50): each charm makes EVERY future shiny more likely!",
+      "Your shiny collection is on display in the Museum's <b>Gallery</b> wing. It's beautiful already.",
+    ],
+    spotlight: [
+      { nav: "trophies", tab: "gallery", sel: "#gallery-wing", text: "The Gallery: every shiny you find takes a pedestal. Fill the shelves!" },
+    ],
+  },
+];
+
+// ---- Skill bands: content difficulty, orthogonal to the time-based
+// difficulty. Band = what you face; Difficulty = how fast you must be. ----
+const BANDS = {
+  explorer: { label: "Explorer", e: "🌱", time: 1.2, bossHp: -2, xp: 1,
+              desc: "Shorter words, calmer pace" },
+  trainer:  { label: "Trainer", e: "⚡", time: 1, bossHp: 0, xp: 1,
+              desc: "The classic adventure" },
+  ace:      { label: "Ace", e: "👑", time: 1, bossHp: 2, xp: 1.15,
+              desc: "Longer words, tougher bosses, +15% XP" },
+};
+const BAND_ORDER = ["explorer", "trainer", "ace"];
+
+// filter a story pool for a band; never returns fewer than `count` prompts
+function bandPool(pool, band, count) {
+  let p;
+  if (band === "explorer") p = pool.filter(x => x.length <= 4);
+  else if (band === "ace") p = pool.filter(x => x.length >= 5);
+  else return pool;
+  if (p.length >= Math.min(count, 4)) return p;
+  // not enough words in range: take the closest-length ones instead
+  const sorted = pool.slice().sort((a, b) =>
+    band === "explorer" ? a.length - b.length : b.length - a.length);
+  return sorted.slice(0, Math.max(4, Math.ceil(pool.length / 2)));
+}
+
+// ---- Professor's Daily Drill: one seeded run a day, two mutators ----
+const DAILY_MUTATORS = [
+  { id: "lights", e: "🥷", name: "Lights Out", desc: "Keyboard guide hidden — type by feel! +50% XP", xp: 1.5 },
+  { id: "weakkey", e: "🎯", name: "Weak Key Day", desc: "Words full of YOUR trickiest keys" },
+  { id: "long", e: "🐍", name: "Long Words", desc: "Only the big ones today" },
+  { id: "caps", e: "🔠", name: "Capital Day", desc: "Every word starts with a capital", needHall: true },
+  { id: "flawless", e: "💎", name: "Flawless", desc: "Missed words come back for another go" },
+  { id: "turbo", e: "🌀", name: "Turbo Taste", desc: "A little less time on the clock", time: 0.85 },
+];
+
+// ---- Professor's Research: three tasks a week, progress from normal play ----
+const RESEARCH_TASKS = [
+  { id: "levels5", counter: "levelsFinished", need: 5, e: "🗺️", text: "Finish 5 levels" },
+  { id: "perfect1", counter: "perfectLevels", need: 1, e: "💯", text: "Win a level with 100% accuracy" },
+  { id: "ninja1", counter: "ninjaClears", need: 1, e: "🥷", text: "Clear a level in Ninja Mode" },
+  { id: "wild2", counter: "wildCatches", need: 2, e: "🌿", text: "Catch 2 Pokemon in the wild" },
+  { id: "fish1", counter: "fishCatches", need: 1, e: "🎣", text: "Catch a Pokemon by fishing" },
+  { id: "hatch1", counter: "hatches", need: 1, e: "🥚", text: "Hatch a Mystery Egg" },
+  { id: "evolve1", counter: "evolutions", need: 1, e: "🧬", text: "Evolve a Pokemon" },
+  { id: "record1", counter: "records", need: 1, e: "⏱", text: "Set a new Trainer School record" },
+  { id: "daily2", counter: "dailies", need: 2, e: "📋", text: "Finish 2 Daily Drills" },
+];
+
+// ---- The Elite Four & the Champion (entry: story done + 9 medal points) ----
+const ELITE_NEED_MEDALS = 9;
+const ELITE = [
+  { name: "Home-Row Hana", e: "🌸", aceId: 702, aceE: "🐹", worlds: [0, 1], hp: 10, time: 4.6,
+    taunt: "Welcome, challenger! My Dedenne and I never leave home row... or lose!" },
+  { name: "Cave Sage", e: "⛰️", aceId: 95, aceE: "🪨", worlds: [1, 2], hp: 10, time: 4.3,
+    taunt: "I trained in the deepest caves. Show me your foundation!" },
+  { name: "Dragon Duchess", e: "🐉", aceId: 149, aceE: "🐲", worlds: [3, 4], hp: 11, time: 4.1,
+    taunt: "My dragons devour slow fingers. Type like a storm!" },
+  { name: "The Glitch Heir", e: "👾", aceId: 474, aceE: "🤖", worlds: [5], hp: 11, time: 3.9,
+    taunt: "MissingNo taught me everything. I live between the pixels!" },
+  { name: "The Champion", e: "🏆", champion: true, worlds: [0, 1, 2, 3, 4, 5], hp: 12,
+    taunt: "I've watched every battle you ever typed. I AM you... but faster!" },
+];
+
 // dex keys of water Pokemon that can be hooked at fishing spots
 const WATER_POKEMON = ["0-0", "0-5", "3-0", "3-1", "3-2", "3-3", "4-2", "5-0"];
 
@@ -455,7 +683,7 @@ function spawnSources(w, i) {
     srcs.push({ icon: "🎣", label: "fishing", title: "Cast a line at any fishing spot" });
   }
   srcs.push({ icon: "🥚", label: "eggs", title: "Mystery Eggs can hatch it once this region is open" });
-  if (w === WORLDS.length - 1) {
+  if (w === HALL_W) {
     srcs.push({ icon: "🌟", label: "weekly visit", title: "Can appear as the once-a-week legendary visitor" });
   }
   // some wild Pokemon (Arcanine, Pikachu...) can ALSO be evolved into
@@ -478,6 +706,20 @@ const PRACTICE_TIERS = [
   { id: "medium", label: "Medium", e: "⭐", desc: "Words & moves · Stadium & Dragon's Den", worlds: [2, 3], count: 12, need: 2 },
   { id: "hard",   label: "Hard",   e: "🔥", desc: "Expert moves & long phrases · Eterna",  worlds: [4],    count: 10, need: 4 },
   { id: "expert", label: "Expert", e: "👑", desc: "Capitals & full sentences · Hall of Fame", worlds: [5], count: 6,  need: 5 },
+];
+
+// Story Typing: type a whole paragraph (no countdown — race your own wpm).
+// Uses capitals + punctuation, so it unlocks once world 6 (Hall of Fame) is
+// reached. `need` = world index that must be unlocked.
+const PARAGRAPHS = [
+  { id: "p1", title: "Sunrise at Pallet", e: "🌅", need: 5,
+    text: "A small Pikachu sat on the green hill. It watched the sun rise over Pallet Town. Soon it would meet a brave new trainer." },
+  { id: "p2", title: "The Big Catch", e: "🎣", need: 5,
+    text: "Misty threw her Poke Ball with a mighty cheer. The water sparkled as Staryu spun into battle. With fast fingers and a calm mind, the young trainer never gave up." },
+  { id: "p3", title: "The Long Road", e: "🗺️", need: 5,
+    text: "The road to the Pokemon League is long and full of surprises. You will cross tall grass, climb rocky caves, and sail across the bright blue sea. Every gym leader you meet will test your skill, but with practice you grow stronger each day." },
+  { id: "p4", title: "Welcome, Trainer", e: "📜", need: 5,
+    text: "Dear Trainer, welcome to the wonderful world of Pokemon! There are hundreds of creatures waiting to become your friends. Some live in deep forests, some hide in dark caves, and a few only appear under a full moon. Catch them, train them, and care for them. The journey is yours to write." },
 ];
 
 const RARITY = {
@@ -505,6 +747,14 @@ const TROPHIES = [
   { id: "shiny", e: "✨", name: "Shiny Hunter", desc: "Catch a shiny Pokemon" },
   { id: "evolve-1", e: "🧬", name: "Evolver", desc: "Evolve a Pokemon for the first time" },
   { id: "evolve-5", e: "🔮", name: "Evolution Expert", desc: "Evolve 5 Pokemon" },
+  { id: "champion", e: "🏆", name: "CHAMPION", desc: "Defeat the Elite Four and the Champion" },
+  { id: "medal-silver-1", e: "🥈", name: "Silver Standard", desc: "Earn a Silver region medal" },
+  { id: "medal-gold-1", e: "🥇", name: "Golden Touch", desc: "Earn a Gold region medal" },
+  { id: "crown-1", e: "👑", name: "Crowned", desc: "Earn a Crown: master a region in Ninja Mode" },
+  { id: "shiny-10", e: "✨", name: "Shiny Charm", desc: "Collect 10 shiny Pokemon" },
+  { id: "shiny-25", e: "💫", name: "Shiny Charm II", desc: "Collect 25 shiny Pokemon" },
+  { id: "shiny-50", e: "🌈", name: "Shiny Charm III", desc: "Collect 50 shiny Pokemon" },
+  { id: "storyteller", e: "📖", name: "Storyteller", desc: "Finish a Story Typing paragraph" },
   { id: "hatch-1", e: "🐣", name: "Hatched!", desc: "Hatch a Mystery Egg" },
   { id: "party-6", e: "🎽", name: "Full Squad", desc: "Put 6 Pokemon in your party" },
   { id: "legend-1", e: "🌟", name: "Legend Catcher", desc: "Catch a roaming legendary" },

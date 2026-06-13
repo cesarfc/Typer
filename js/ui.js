@@ -64,15 +64,45 @@ const UI = {
       .catch(() => { /* no backup file — that's fine */ });
   },
 
-  downloadBackup() {
+  async downloadBackup() {
     if (SAVE.state && SAVE.state.flags) {
       SAVE.state.flags.lastBackupXp = SAVE.state.xp;
       SAVE.save();
     }
-    const blob = new Blob([SAVE.exportData()], { type: "application/json" });
+    const data = SAVE.exportData();
+    const fname = "typequest-save.json";
+
+    // On an iPad/iPhone — and especially the installed home-screen app — a
+    // plain <a download> saves nothing (there's no Safari download tray), so
+    // the file just vanishes. The native share sheet works: it offers
+    // "Save to Files", AirDrop, Mail, etc. Use it on touch/standalone devices.
+    const standalone = navigator.standalone === true ||
+      matchMedia("(display-mode: standalone)").matches ||
+      matchMedia("(display-mode: fullscreen)").matches;
+    const iOS = /iP(hone|ad|od)/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    if ((iOS || standalone) && navigator.canShare) {
+      const file = new File([data], fname, { type: "application/json" });
+      if (navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: "TypeQuest backup" });
+          this.toast("💾 In the share sheet, tap <b>Save to Files</b> to keep your backup.", "gold");
+        } catch (e) {
+          if (e && e.name === "AbortError") return; // tapped cancel — fine
+          this.saveBackupLink(data, fname); // share failed — try the old way
+        }
+        return;
+      }
+    }
+    this.saveBackupLink(data, fname);
+  },
+
+  // classic browser download: a Blob behind a clicked <a download>
+  saveBackupLink(data, fname) {
+    const blob = new Blob([data], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "typequest-save.json";
+    a.download = fname;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     this.toast("💾 Backup downloaded! Move <b>typequest-save.json</b> into the game folder to keep it safe.", "gold");
@@ -128,10 +158,12 @@ const UI = {
     if (name === "map") this.renderMap();
     if (name === "dex") this.renderDex();
     if (name === "trophies") this.renderTrophies();
+    if (name === "journal") this.renderJournal();
     if (name === "stats") this.renderStats();
     if (name === "practice") this.renderPractice();
     if (name !== "title" && name !== "game") this.renderTopbar();
     this.touchKeyboard(name);
+    if (name === "map") this.maybeDayCard();
   },
 
   // on touch devices the on-screen keyboard only appears while an input is
@@ -214,6 +246,11 @@ const UI = {
     this.$("trainer-opts").addEventListener("click", e => {
       const b = e.target.closest(".swatch");
       if (!b) return;
+      if (b.dataset.lk) {
+        SFX.error();
+        this.toast(`🔒 ${b.dataset.lk}`);
+        return;
+      }
       this.builder[b.dataset.k] = +b.dataset.i;
       SFX.click();
       this.renderBuilder();
@@ -221,6 +258,9 @@ const UI = {
     this.$("btn-random-trainer").addEventListener("click", e => {
       e.preventDefault();
       this.builder = randomTrainer();
+      for (const part of ["hairColor", "hatColor", "shirt"]) {
+        if (!SAVE.wardrobeOk(part, this.builder[part]).ok) this.builder[part] = 0;
+      }
       SFX.combo();
       this.renderBuilder();
     });
@@ -247,8 +287,12 @@ const UI = {
     this.$("trainer-preview").innerHTML = this.trainerSvg(t, "trainer-svg preview");
     const row = (label, inner) =>
       `<div class="opt-row"><span>${label}</span><div class="opt-swatches">${inner}</div></div>`;
-    const colorSw = (key, colors) => colors.map((c, i) =>
-      `<button class="swatch ${t[key] === i ? "sel" : ""}" data-k="${key}" data-i="${i}" style="background:${c}"></button>`).join("");
+    const colorSw = (key, colors) => colors.map((c, i) => {
+      const lk = SAVE.wardrobeOk(key, i);
+      return lk.ok
+        ? `<button class="swatch ${t[key] === i ? "sel" : ""}" data-k="${key}" data-i="${i}" style="background:${c}"></button>`
+        : `<button class="swatch locked-sw" data-lk="${this.esc(lk.label)}" title="🔒 ${this.esc(lk.label)}" style="background:${c}">🔒</button>`;
+    }).join("");
     let html = row("Skin", colorSw("skin", TRAINER_OPTS.skin));
     html += row("Hair", TRAINER_OPTS.hair.map((h, i) =>
       `<button class="swatch hair-sw ${t.hair === i ? "sel" : ""}" data-k="hair" data-i="${i}">${this.trainerSvg({ ...t, hair: i, hat: 0 }, "trainer-svg mini")}</button>`).join(""));
@@ -282,6 +326,11 @@ const UI = {
     this.kbHidden = !SAVE.state.settings.hints;
     this.applyKbVisibility();
     const streak = SAVE.touchStreak();
+    if (streak && streak.rested) {
+      this.toast(`🛏 Your streak rested at the Pokemon Center while you were away! 🔥 ${streak.count}`, "gold");
+    } else if (streak && streak.sprouted) {
+      this.toast(`🌱 A fresh streak sprouts today!${streak.best > 1 ? ` Old best: <b>${streak.best} days</b> — beat it!` : ""}`);
+    }
     if (!SAVE.state.tutorialDone) { Tutorial.start(); return; }
     this.show("map");
     if (streak && streak.count > 1) {
@@ -299,13 +348,22 @@ const UI = {
     this.$("chip-name").textContent = p.name;
     this.$("chip-title").textContent = `${titleForLevel(lv.level)} · Lv ${lv.level}`;
     this.$("chip-xpfill").style.width = `${Math.round(100 * lv.into / lv.need)}%`;
-    this.$("streak-chip").textContent = `🔥 ${SAVE.state.streak.count || 0}`;
+    const tokens = SAVE.state.streak.tokens || 0;
+    this.$("streak-chip").textContent = `🔥 ${SAVE.state.streak.count || 0}${"🛏".repeat(tokens)}`;
+    this.$("streak-chip").title = tokens
+      ? `Daily play streak — ${tokens} rest token${tokens > 1 ? "s" : ""} banked (a rest covers a missed day)`
+      : "Daily play streak";
     this.$("sound-btn").textContent = SAVE.state.settings.sound ? "🔊" : "🔇";
     const d = DIFFICULTY[SAVE.state.settings.difficulty] || DIFFICULTY.normal;
     const db = this.$("diff-btn");
     db.textContent = `${d.e} ${d.label}`;
     db.title = `Difficulty: ${d.label} — click to change`;
     db.setAttribute("aria-label", `Difficulty ${d.label}, click to change`);
+    const band = BANDS[SAVE.state.band] || BANDS.trainer;
+    const bb = this.$("band-btn");
+    bb.textContent = `${band.e} ${band.label}`;
+    bb.title = `Challenge level: ${band.label} — ${band.desc}. Tap to make words easier or harder for your age.`;
+    bb.setAttribute("aria-label", `Challenge level ${band.label}, tap to change`);
   },
 
   // ---------- region map (pannable, DS-style tilted view) ----------
@@ -324,7 +382,7 @@ const UI = {
     { x: 1905, y: 290, sp: "volcano", s: 72, n: "Ember Town" },
     { x: 2010, y: 1190, sp: "lanternpost", s: 48, n: "Lantern Village" },
     { x: 2625, y: 425, sp: "hall", s: 80, n: "Hall of Fame" },
-    { x: 905, y: 1300, sp: "pier", s: 66, n: "Ferry Dock" },
+    { x: 905, y: 1300, sp: "pier", s: 66, n: "Fishing Pier" },
     { x: 1565, y: 690, sp: "berrybush", s: 48, n: "Berry Farm" },
   ],
   MAP_DECOR: [
@@ -366,7 +424,7 @@ const UI = {
     [{ x: 2350, y: 640 }, { x: 2600, y: 690 }, { x: 2550, y: 420 }, { x: 2450, y: 560 }],
   ],
   FISH_SPOTS: [
-    { x: 945, y: 1295, need: 0 },   // Ferry Dock lake
+    { x: 945, y: 1295, need: 0 },   // Fishing Pier lake
     { x: 1530, y: 1420, need: 2 },  // south coast pier
     { x: 2245, y: 1185, need: 4 },  // Eterna pond
   ],
@@ -380,7 +438,7 @@ const UI = {
     const rng = () => { h = (h * 1664525 + 1013904223) >>> 0; return h / 4294967296; };
     const candidates = [];
     WORLDS.forEach((w, wi) => {
-      if (!SAVE.worldUnlocked(wi)) return;
+      if (w.island || !this.GRASS_SPOTS[wi] || !SAVE.worldUnlocked(wi)) return;
       this.GRASS_SPOTS[wi].forEach((p, k) => candidates.push({ id: `${wi}-${k}`, w: wi, ...p }));
     });
     const order = candidates.map((c, i) => ({ c, r: rng() })).sort((a, b) => a.r - b.r);
@@ -470,10 +528,18 @@ const UI = {
     return out;
   },
 
+  // the main island only holds the story worlds; Scholar islands (world.island)
+  // live on their own route screens reached via the Sea Chart
+  mainWorldCount() {
+    let n = 0;
+    while (WORLDS[n] && !WORLDS[n].island) n++;
+    return n;
+  },
+
   mapNodes() {
     if (this._mapNodes) return this._mapNodes;
     const A = this.mapAnchors;
-    this._mapNodes = WORLDS.map((w, wi) => {
+    this._mapNodes = WORLDS.slice(0, this.mainWorldCount()).map((w, wi) => {
       const [ax, ay] = A[wi], [bx, by] = A[wi + 1];
       const n = w.levels.length + 1;
       const dx = bx - ax, dy = by - ay;
@@ -490,11 +556,12 @@ const UI = {
 
   mapFrontier() {
     for (let w = 0; w < WORLDS.length; w++) {
+      if (WORLDS[w].island) continue; // the marker stays on the main island
       for (let s = 0; s <= WORLDS[w].levels.length; s++) {
         if (SAVE.stageUnlocked(w, s) && SAVE.stageStars(w, s) === 0) return { w, s };
       }
     }
-    return { w: WORLDS.length - 1, s: WORLDS[WORLDS.length - 1].levels.length };
+    return { w: HALL_W, s: WORLDS[HALL_W].levels.length };
   },
 
   renderMap() {
@@ -512,7 +579,7 @@ const UI = {
 
     // painted island terrain + per-region color tints
     let html = this.terrainSvg();
-    const blobs = WORLDS.map((w, i) => {
+    const blobs = WORLDS.slice(0, this.mainWorldCount()).map((w, i) => {
       const [ax, ay] = this.mapAnchors[i], [bx, by] = this.mapAnchors[i + 1];
       return `radial-gradient(740px 580px at ${Math.round((ax + bx) / 2)}px ${Math.round((ay + by) / 2)}px, ${w.gradient[1]}59, transparent 72%)`;
     }).join(",");
@@ -564,14 +631,22 @@ const UI = {
     html += `<button class="map-school" style="left:430px;top:1330px" title="Trainer School — no countdown, race your records!">
       <span>${mapSprite("school", 68)}</span><b>Trainer School</b></button>`;
 
+    // Professor's Daily Drill podium beside the school
+    const daily = SAVE.dailyInfo();
+    html += `<button class="map-podium ${daily.done ? "done" : ""}"
+      style="left:585px;top:1372px" title="${daily.done ? "Daily Drill done — back tomorrow!" : "Professor's Daily Drill — one special run a day!"}">
+      <span class="${daily.done ? "" : "podium-glow"}">${daily.done ? "✅" : "📋"}</span><b>Daily Drill</b></button>`;
+
     WORLDS.forEach((w, wi) => {
+      if (w.island) return; // Scholar islands render on their own route screen
       const ns = nodes[wi];
       const unlocked = SAVE.worldUnlocked(wi);
       const maxStars = (w.levels.length + 1) * 3;
       const mid = ns[Math.floor(ns.length / 2)];
+      const medal = SAVE.worldMedal(wi);
       html += `<div class="region-label" data-rw="${wi}" role="button"
         title="Who lives in ${this.esc(w.name)}?" style="left:${mid.x}px;top:${mid.y - 138}px">
-        <b>${w.emoji} ${w.name}</b><span>★ ${SAVE.worldStars(wi)}/${maxStars}</span></div>`;
+        <b>${w.emoji} ${w.name}</b><span>★ ${SAVE.worldStars(wi)}/${maxStars}${medal ? ` ${MEDAL_E[medal]}` : ""}</span></div>`;
 
       // wild Pokemon living on the map: color when caught, silhouette when not
       [[0, 0, -90, -20], [2, 2, 95, 14], [4, 4, -105, 0], [6, 6, 100, 22], [7, 7, -100, 0]].forEach(([ci, ni, ox, oy]) => {
@@ -591,7 +666,7 @@ const UI = {
         const starsHtml = isBoss
           ? (st > 0 ? `<span class="mini-stars">🏆</span>` : "")
           : `<span class="mini-stars">${"★".repeat(st)}<span class="off">${"★".repeat(Math.max(0, 3 - st))}</span></span>`;
-        html += `<button class="mnode ${isBoss ? "boss" : ""} ${open ? "" : "locked"} ${next ? "next" : ""} ${st > 0 ? "done" : ""}"
+        html += `<button class="mnode ${isBoss ? "boss" : ""} ${open ? "" : "locked"} ${next ? "next" : ""} ${st > 0 ? "done" : ""} ${SAVE.medalStageOk(wi, s, 3) ? "gilded" : ""}"
           style="left:${p.x}px;top:${p.y}px" data-w="${wi}" data-s="${s}"
           title="${open ? (isBoss ? `BOSS: ${this.esc(w.boss.name)}` : this.esc(w.levels[s].name)) : "Locked"}">
           ${isBoss ? this.pokeHtml(w.boss.id, w.boss.emoji, { cls: "poke-img stage-img" }) : `<span>${s + 1}</span>`}${starsHtml}
@@ -613,6 +688,20 @@ const UI = {
     const egg = SAVE.state && SAVE.state.egg;
     html += `<div class="map-marker" style="left:${fp.x}px;top:${fp.y - 30}px">
       <span class="mk-bob">${this.avatarHtml(SAVE.state && SAVE.state.profile)}${egg ? `<span class="marker-egg">🥚</span>` : ""}</span><i>▼</i></div>`;
+
+    // a Professor's Letter waits when a new feature has unlocked
+    const intro = this.pendingIntro();
+    if (intro) {
+      html += `<button class="map-parcel" title="${this.esc(intro.title)}"
+        style="left:${fp.x + 84}px;top:${fp.y + 30}px"><span class="parcel-bob">📬</span></button>`;
+      this._hintedThisRender = true; // the letter is today's one teaching moment
+    }
+
+    const dayChip = this.$("day-chip");
+    const stamps = SAVE.dayStamps();
+    const dayDone = stamps.filter(x => x.done).length;
+    dayChip.textContent = `📜 ${dayDone}/3`;
+    dayChip.classList.toggle("ready", dayDone === 3);
 
     const eggChip = this.$("egg-chip");
     eggChip.classList.toggle("hidden", !egg);
@@ -712,6 +801,186 @@ const UI = {
     this.$("area-panel").classList.add("hidden");
   },
 
+  // ---------- Professor's Letters: features introduce themselves ----------
+  pendingIntro() {
+    if (this._introDoneThisSession || !SAVE.state) return null;
+    const seen = SAVE.state.flags.intros || {};
+    return FEATURE_INTROS.find(f => !seen[f.id] && f.when(SAVE)) || null;
+  },
+
+  startIntro(intro, replay) {
+    this._intro = { def: intro, page: 0, replay: !!replay };
+    this.$("letter-icon").textContent = intro.icon;
+    this.$("letter-title").textContent = intro.title;
+    this.renderLetterPage();
+    this.$("letter-overlay").classList.remove("hidden");
+    SFX.word();
+  },
+
+  renderLetterPage() {
+    const it = this._intro;
+    this.$("letter-page").innerHTML = it.def.pages[it.page];
+    this.$("letter-dots").innerHTML = it.def.pages.map((_, i) =>
+      `<i class="${i === it.page ? "on" : ""}"></i>`).join("");
+    this.$("letter-next").textContent =
+      it.page < it.def.pages.length - 1 ? "Next ▶"
+        : (it.replay || !it.def.spotlight ? "✔ Done" : "Show me! ▶");
+  },
+
+  letterNext() {
+    const it = this._intro;
+    if (!it) return;
+    if (it.page < it.def.pages.length - 1) {
+      it.page++;
+      this.renderLetterPage();
+      SFX.click();
+      return;
+    }
+    this.$("letter-overlay").classList.add("hidden");
+    this._intro = null;
+    if (!it.replay) {
+      SAVE.state.flags.intros = SAVE.state.flags.intros || {};
+      SAVE.state.flags.intros[it.def.id] = true;
+      SAVE.save();
+      this._introDoneThisSession = true;
+      if (this.current === "map") this.renderMap(); // the parcel is collected
+      if (it.def.spotlight) this.runSpotlight(it.def.spotlight, 0);
+    }
+  },
+
+  runSpotlight(steps, i) {
+    this._teardownStep();
+    clearTimeout(this._spotHideT); // a restart cancels any pending fade-out hide
+    if (i >= steps.length) { this._endSpotlight(); return; }
+    const st = steps[i];
+    if (st.nav) this.show(st.nav);
+    if (st.tab) { this._museumTab = st.tab; this.renderTrophies(); }
+
+    const sp = this.$("spotlight");
+    sp.classList.remove("hidden");
+    setTimeout(() => sp.classList.add("show"), 10);
+
+    const el = document.querySelector(st.sel);
+    if (!el || !el.getClientRects().length) { this.runSpotlight(steps, i + 1); return; } // missing/hidden -> skip
+
+    el.classList.add("spot-target");
+    el.classList.toggle("spot-small", el.getBoundingClientRect().width < 60);
+    this._spotEl = el;
+    // topbar is its own z-index:50 stacking context — lift the whole bar
+    // above the overlay so a topbar icon (e.g. #band-btn) can actually light
+    const bar = el.closest("#topbar");
+    if (bar) { this._liftedBar = bar; bar.style.zIndex = "141"; el.style.pointerEvents = "none"; this._liftedEl = el; }
+
+    const total = steps.length;
+    this.$("spot-text").textContent = st.text;
+    const count = this.$("spot-count");
+    count.textContent = `${i + 1} of ${total}`;
+    count.classList.toggle("hidden", total < 2);
+    this.$("spot-next").textContent = i === total - 1 ? "Got it! ✓" : "Next ▶";
+
+    const tall = el.getBoundingClientRect().height > innerHeight - 120;
+    el.scrollIntoView({ block: tall ? "start" : "nearest", behavior: "auto" });
+
+    // place AFTER nav/tab/scroll layout settles (setTimeout, not rAF, so it
+    // still fires when frames are throttled — scrollIntoView is synchronous)
+    setTimeout(() => {
+      if (this._spotEl !== el) return;
+      this._placeCaption(el.getBoundingClientRect());
+      this.$("spot-caption").classList.add("spot-in");
+    }, 40);
+
+    this._spotReflow = () => { if (this._spotEl) this._placeCaption(this._spotEl.getBoundingClientRect()); };
+    addEventListener("resize", this._spotReflow);
+    addEventListener("scroll", this._spotReflow, true);
+    this._spotNext = () => this.runSpotlight(steps, i + 1);
+  },
+
+  _placeCaption(r) {
+    const cap = this.$("spot-caption");
+    const vw = innerWidth, vh = innerHeight, GAP = 16, M = 12;
+    const cw = cap.offsetWidth, ch = cap.offsetHeight;
+    const spaceBelow = vh - r.bottom, spaceAbove = r.top;
+    let side, top, left;
+    if (r.bottom < vh * 0.45 && spaceBelow > ch + GAP + M) side = "below";
+    else if (r.top > vh * 0.55 && spaceAbove > ch + GAP + M) side = "above";
+    else if (spaceBelow >= spaceAbove && spaceBelow > ch + GAP + M) side = "below";
+    else if (spaceAbove > ch + GAP + M) side = "above";
+    else side = "beside";
+
+    if (side === "below") { top = r.bottom + GAP; left = r.left + r.width / 2 - cw / 2; }
+    else if (side === "above") { top = r.top - GAP - ch; left = r.left + r.width / 2 - cw / 2; }
+    else {
+      if (r.left > vw - r.right) { side = "left"; left = r.left - GAP - cw; }
+      else { side = "right"; left = r.right + GAP; }
+      top = Math.max(M, Math.min(r.top + r.height / 2 - ch / 2, vh - ch - M));
+    }
+    left = Math.max(M, Math.min(left, vw - cw - M));
+    top = Math.max(M, Math.min(top, vh - ch - M));
+    cap.style.top = `${Math.round(top)}px`;
+    cap.style.left = `${Math.round(left)}px`;
+    this._positionArrow(side, left, top, cw, ch, r.left + r.width / 2, r.top + r.height / 2);
+  },
+
+  _positionArrow(side, capLeft, capTop, cw, ch, tcx, tcy) {
+    const a = this.$("spot-arrow");
+    a.style.cssText = "";
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, hi));
+    if (side === "below") { a.style.top = "-8px"; a.style.left = `${clamp(tcx - capLeft, 14, cw - 14)}px`; a.dataset.dir = "up"; }
+    else if (side === "above") { a.style.bottom = "-8px"; a.style.left = `${clamp(tcx - capLeft, 14, cw - 14)}px`; a.dataset.dir = "down"; }
+    else if (side === "right") { a.style.left = "-8px"; a.style.top = `${clamp(tcy - capTop, 14, ch - 14)}px`; a.dataset.dir = "left"; }
+    else { a.style.right = "-8px"; a.style.top = `${clamp(tcy - capTop, 14, ch - 14)}px`; a.dataset.dir = "right"; }
+  },
+
+  _teardownStep() {
+    if (this._spotEl) { this._spotEl.classList.remove("spot-target", "spot-small"); this._spotEl = null; }
+    if (this._liftedBar) { this._liftedBar.style.zIndex = ""; this._liftedBar = null; }
+    if (this._liftedEl) { this._liftedEl.style.pointerEvents = ""; this._liftedEl = null; }
+    const cap = this.$("spot-caption");
+    cap.classList.remove("spot-in");
+    if (this._spotReflow) {
+      removeEventListener("resize", this._spotReflow);
+      removeEventListener("scroll", this._spotReflow, true);
+      this._spotReflow = null;
+    }
+  },
+
+  _endSpotlight() {
+    const sp = this.$("spotlight");
+    sp.classList.remove("show");
+    this._spotNext = null;
+    clearTimeout(this._spotHideT);
+    this._spotHideT = setTimeout(() => sp.classList.add("hidden"), 200);
+  },
+
+  // skip/escape: tear down the current step and close
+  endSpotlight() {
+    this._teardownStep();
+    this._endSpotlight();
+  },
+
+  spotlightOpen() {
+    return !this.$("spotlight").classList.contains("hidden");
+  },
+
+  // Enter/Space advance, Escape skips (routed from main.js so it never
+  // double-fires with the game/map key handlers)
+  spotlightKey(e) {
+    if (e.key === "Escape") { e.preventDefault(); this.endSpotlight(); }
+    else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (this._advanceSpot) this._advanceSpot(); }
+  },
+
+  museumShowMe(kind) {
+    if (kind !== "dex") return;
+    const worldsMissing = [];
+    for (let w = 0; w < WORLDS.length; w++) {
+      if (CREATURES[w].some((c, i) => !SAVE.state.dex[`${w}-${i}`])) worldsMissing.push(w);
+    }
+    if (!worldsMissing.length) return;
+    const w = worldsMissing.find(x => SAVE.worldUnlocked(x));
+    this.show("map");
+    this.openAreaPanel(w === undefined ? worldsMissing[0] : w);
+  },
+
   // ---------- keyboard map navigation (arrows walk the route, Enter starts) ----------
   mapKeyNav(e) {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -720,11 +989,18 @@ const UI = {
       if (e.key === "Escape") { e.preventDefault(); this.closeAreaPanel(); }
       return;
     }
+    if (!this.$("day-card").classList.contains("hidden")) {
+      if (e.key === "Escape" || e.key === "Enter") {
+        e.preventDefault();
+        this.$("day-card").classList.add("hidden");
+      }
+      return;
+    }
     const keys = ["ArrowRight", "ArrowLeft", "ArrowUp", "ArrowDown", "Enter"];
     if (!keys.includes(e.key)) return;
     e.preventDefault();
     const flat = [];
-    WORLDS.forEach((w, wi) => { for (let s = 0; s <= w.levels.length; s++) flat.push({ w: wi, s }); });
+    WORLDS.forEach((w, wi) => { if (w.island) return; for (let s = 0; s <= w.levels.length; s++) flat.push({ w: wi, s }); });
     if (this._mapSel === null || this._mapSel === undefined) {
       const f = this.mapFrontier();
       this._mapSel = flat.findIndex(n => n.w === f.w && n.s === f.s);
@@ -805,6 +1081,7 @@ const UI = {
       if (b) {
         SFX.init();
         if (!b.classList.contains("locked")) {
+          // tap = play, straight away (at the player's challenge setting)
           Engine.startStage(+b.dataset.w, +b.dataset.s);
         } else {
           // locked: never answer a click with silence
@@ -847,6 +1124,13 @@ const UI = {
         this.show("practice");
         return;
       }
+      const pd = e.target.closest(".map-podium");
+      if (pd) {
+        SFX.init();
+        if (SAVE.dailyInfo().done) this.toast("✅ Today's drill is done — the Professor preps a new one overnight!");
+        else Engine.startDaily();
+        return;
+      }
       // wild Pokemon living on the map: say hi (caught) or open the
       // area guide so the mystery shows how it can be caught
       const pk = e.target.closest(".map-poke");
@@ -873,6 +1157,13 @@ const UI = {
         SFX.init();
         SFX.word();
         this.openAreaPanel(+rl.dataset.rw);
+        return;
+      }
+      const pc = e.target.closest(".map-parcel");
+      if (pc) {
+        SFX.init();
+        const f2 = this.pendingIntro();
+        if (f2) this.startIntro(f2, false);
       }
     });
 
@@ -889,6 +1180,21 @@ const UI = {
         t.classList.add("denied");
         const tier = PRACTICE_TIERS.find(x => x.id === t.dataset.tier);
         if (tier) this.toast(`🔒 Reach ${WORLDS[tier.need].emoji} ${WORLDS[tier.need].name} to unlock ${tier.label} practice!`);
+      }
+    });
+
+    this.$("paragraph-list").addEventListener("click", e => {
+      const c = e.target.closest(".para-card");
+      if (!c) return;
+      SFX.init();
+      if (!c.classList.contains("locked")) {
+        Engine.startParagraph(c.dataset.para);
+      } else {
+        SFX.error();
+        c.classList.remove("denied");
+        void c.offsetWidth;
+        c.classList.add("denied");
+        this.toast(`🔒 Story Typing unlocks at ${WORLDS[5].emoji} ${WORLDS[5].name} — you'll need your capital letters!`);
       }
     });
 
@@ -948,19 +1254,36 @@ const UI = {
     return `<svg class="hand" viewBox="0 0 116 112" aria-hidden="true">${svg}</svg>`;
   },
 
-  buildKeyboard() {
+  // upper-case legends that sit in the corner of a key for shifted symbols
+  _shiftLegend(base) {
+    const m = { "1": "!", "2": "@", "3": "#", "4": "$", "5": "%", "6": "^",
+      "7": "&", "8": "*", "9": "(", "0": ")", "-": "_", "=": "+",
+      "[": "{", "]": "}", "'": "\"", ";": ":", ",": "<", ".": ">", "/": "?", "\\": "|" };
+    return m[base] || null;
+  },
+
+  _kbLayout: "letters",
+
+  buildKeyboard(layoutId = "letters") {
+    this._kbLayout = layoutId;
+    const rows = KB_LAYOUTS[layoutId] || KB_ROWS;
+    const shiftRowIdx = rows.length - 2; // the row that gets the ⇧ keys
     let html = "";
-    KB_ROWS.forEach((row, ri) => {
+    rows.forEach((row, ri) => {
       html += `<div class="kb-row">`;
-      if (ri === 2) html += `<div class="key wide shift" data-key="shift-l">⇧</div>`;
+      if (ri === shiftRowIdx) html += `<div class="key wide shift" data-key="shift-l">⇧</div>`;
       row.forEach(k => {
         const home = "fj".includes(k) ? " home" : "";
-        html += `<div class="key f${KEY_FINGER[k] ?? 0}${home}" data-key="${this.esc(k)}">${k === "'" ? "&#39;" : k}</div>`;
+        const leg = this._shiftLegend(k);
+        const disp = k === "'" ? "&#39;" : k === "\\" ? "\\" : k;
+        html += `<div class="key f${KEY_FINGER[k] ?? 0}${home}" data-key="${this.esc(k)}">${
+          leg ? `<small class="shift-legend">${this.esc(leg)}</small>` : ""}${disp}</div>`;
       });
-      if (ri === 2) html += `<div class="key wide shift" data-key="shift-r">⇧</div>`;
+      if (ri === shiftRowIdx) html += `<div class="key wide shift" data-key="shift-r">⇧</div>`;
       html += `</div>`;
     });
     html += `<div class="kb-row"><div class="key space f8" data-key=" ">space</div></div>`;
+    this.$("kb").classList.toggle("kb-full", layoutId === "full");
     // one keyboard + hands for the game screen, one set for the tutorial
     this.$("kb").innerHTML = html;
     this.$("tut-kb").innerHTML = html;
@@ -978,19 +1301,32 @@ const UI = {
   },
 
   highlightKey(ch) {
-    document.querySelectorAll(".key.hl").forEach(k => k.classList.remove("hl"));
+    document.querySelectorAll(".key.hl, .key.hl-shift").forEach(k => k.classList.remove("hl", "hl-shift"));
     document.querySelectorAll(".hand-finger.on").forEach(f => f.classList.remove("on"));
     const hint = this.$("finger-hint");
     if (!ch) { hint.innerHTML = "&nbsp;"; return; }
-    const lower = ch.toLowerCase();
-    const isUpper = ch !== lower && /[a-z]/.test(lower);
-    document.querySelectorAll(`.key[data-key="${CSS.escape(lower)}"]`).forEach(el => el.classList.add("hl"));
-    const f = KEY_FINGER[lower];
+
+    // shifted symbols (parens, quotes, +, etc.) press a base key + Shift
+    const shifted = SHIFT_MAP[ch];
+    const base = shifted || ch.toLowerCase();
+    const lowerLetter = ch.toLowerCase();
+    const isUpper = !shifted && ch !== lowerLetter && /[a-z]/.test(lowerLetter);
+    const needShift = isUpper || !!shifted;
+
+    document.querySelectorAll(`.key[data-key="${CSS.escape(base)}"]`).forEach(el =>
+      el.classList.add(shifted ? "hl-shift" : "hl"));
+    const f = KEY_FINGER[base];
     let txt = f === undefined ? "" : FINGER_NAMES[f];
     if (f !== undefined) {
       document.querySelectorAll(`.hand-finger[data-f="${f}"]`).forEach(el => el.classList.add("on"));
     }
-    if (isUpper) {
+    // name the symbol so kids learn "parenthesis", "quotes", etc.
+    const SYM_NAMES = { "(": "open paren (", ")": "close paren )", "\"": "quote \"",
+      "{": "open brace {", "}": "close brace }", ";": "semicolon ;", ":": "colon :",
+      "+": "plus +", "=": "equals =", "-": "minus -", "/": "slash /", "_": "under_score",
+      "#": "hash #", "@": "at @", "<": "less than <", ">": "greater than >" };
+    if (SYM_NAMES[ch]) txt = `${SYM_NAMES[ch]} — ${txt}`;
+    if (needShift) {
       const leftHand = f <= 3;
       document.querySelectorAll(`.key[data-key="${leftHand ? "shift-r" : "shift-l"}"]`).forEach(el => el.classList.add("hl"));
       document.querySelectorAll(`.hand-finger[data-f="${leftHand ? 7 : 0}"]`).forEach(el => el.classList.add("on"));
@@ -1009,9 +1345,18 @@ const UI = {
   // ---------- game screen ----------
   gameStart(S) {
     this.show("game");
+    this.$("screen-game").classList.remove("paragraph-mode");
     const w = S.world;
     document.body.classList.remove("super-mode");
     this.$("capslock-warn").classList.add("hidden");
+    // Scholar islands need the number row / symbols; others keep the
+    // original letters board (and its tight small-screen height budget)
+    const layout = w.kb || "letters";
+    if (this._kbLayout !== layout) this.buildKeyboard(layout);
+    this.$("question-card").classList.add("hidden");
+    this.$("helper-card").classList.add("hidden");
+    this.$("think-pill").classList.add("hidden");
+    this.$("code-output").classList.add("hidden");
     this.applyKbVisibility();
     this.practiceTimerUI(false);
 
@@ -1080,13 +1425,21 @@ const UI = {
     const target = this.$("target");
     const wrap = this.$("target-wrap");
     if (S.isBoss) {
-      target.innerHTML = this.pokeHtml(S.world.boss.id, S.world.boss.emoji);
+      if (S.elite && S.elite.def.champion) {
+        // the Champion is the player's own rival — their trainer, mirrored
+        target.innerHTML = `<span class="rival">${this.avatarHtml(SAVE.state.profile)}</span>`;
+      } else {
+        target.innerHTML = this.pokeHtml(S.world.boss.id, S.world.boss.emoji);
+      }
       target.className = "boss-size";
     } else if (S.wild) {
       // the wild Pokemon stays on screen for the whole battle
       const c = S.wild.creature;
-      target.innerHTML = this.pokeHtml(c.id, c.e);
-      target.className = "catch-size";
+      const shiny = !!S.wild.shiny;
+      target.innerHTML = this.pokeHtml(c.id, c.e, { shiny });
+      target.className = "catch-size" + (shiny ? " shiny-poke" : "");
+      // for fishing the fish appears at the bite (here), not in wildScene
+      if (shiny && !S._shinyRevealed && S.state === "play") this.shinyReveal(S);
     } else {
       // levels shoot neutral targets — Pokemon are caught, not shot at
       target.textContent = S.world.targets[S.idx % S.world.targets.length];
@@ -1097,44 +1450,212 @@ const UI = {
     }
     wrap.style.opacity = 1;
     wrap.style.transform = "none";
+    this.$("helper-card").classList.add("hidden"); // fresh prompt, fresh start
+    this.$("code-output").classList.add("hidden");
     this.renderPromptText(S);
     this.$("hud-progress-fill").style.width = `${Math.round(100 * S.idx / S.prompts.length)}%`;
   },
 
   renderPromptText(S) {
     const pw = this.$("prompt-word");
-    pw.classList.remove("long", "xlong");
+    const qc = this.$("question-card");
+    // the question (math problem / code-output prompt) above the answer slots
+    if (S.display) {
+      qc.classList.remove("hidden");
+      qc.classList.toggle("long", S.display.length > 18);
+      qc.innerHTML = this.esc(S.display).replace(/❓|\?$/g, m => `<span class="q-mark">${m}</span>`);
+    } else if (S.swatch) {
+      // hex color prompt: show the live color the code paints
+      qc.classList.remove("hidden");
+      qc.classList.remove("long");
+      qc.innerHTML = `<span class="hex-swatch" style="background:${this.esc(S.swatch)}"></span>`;
+    } else {
+      qc.classList.add("hidden");
+      qc.innerHTML = "";
+    }
+    // Story Typing: the whole paragraph as flowing prose — chars are grouped
+    // into non-breaking words so lines wrap at spaces, never mid-word
+    if (S.paragraphMode) {
+      pw.className = "paragraph";
+      const chs = [...S.text];
+      const chSpan = i => `<span class="ch ${i < S.pos ? "done" : i === S.pos ? "cur" : ""}">${this.esc(chs[i])}</span>`;
+      let html = "", i = 0;
+      while (i < chs.length) {
+        if (chs[i] === " ") {
+          html += `<span class="ch sp ${i < S.pos ? "done" : i === S.pos ? "cur" : ""}"> </span>`;
+          i++;
+        } else {
+          html += `<span class="pword">`;
+          while (i < chs.length && chs[i] !== " ") { html += chSpan(i); i++; }
+          html += `</span>`;
+        }
+      }
+      pw.innerHTML = html;
+      this.highlightKey(S.text[S.pos]);
+      return;
+    }
+    pw.className = "";
+    pw.classList.toggle("code-prompt", !!S.codeMode);
     if (S.text.length > 30) pw.classList.add("xlong");
     else if (S.text.length > 16) pw.classList.add("long");
-    pw.innerHTML = [...S.text].map((c, i) =>
-      `<span class="ch ${i < S.pos ? "done" : i === S.pos ? "cur" : ""} ${c === " " ? "sp" : ""}">${c === " " ? "·" : this.esc(c)}</span>`
-    ).join("");
-    this.highlightKey(S.text[S.pos]);
+    // answer-mode: untyped characters render as blank slots, not the answer
+    pw.innerHTML = [...S.text].map((c, i) => {
+      const typed = i < S.pos;
+      const cur = i === S.pos;
+      const hideAnswer = S.answerMode && !typed;
+      const glyph = c === " " ? "·" : hideAnswer ? "_" : this.esc(c);
+      return `<span class="ch ${typed ? "done" : cur ? "cur" : ""} ${c === " " ? "sp" : ""} ${hideAnswer ? "mystery" : ""}">${glyph}</span>`;
+    }).join("");
+    // suppress the answer guide in answer-mode until 2 errors turn it into a rescue
+    if (S.answerMode && S.errorsThisPrompt < 2) this.highlightKey(null);
+    else this.highlightKey(S.text[S.pos]);
   },
 
   charDone(S) {
-    const spans = this.$("prompt-word").children;
+    const pw = this.$("prompt-word");
+    // paragraph chars are nested inside .pword groups, so index the flat .ch list
+    const spans = S.paragraphMode ? pw.querySelectorAll(".ch") : pw.children;
     if (spans[S.pos - 1]) {
-      spans[S.pos - 1].classList.remove("cur");
+      spans[S.pos - 1].classList.remove("cur", "mystery");
       spans[S.pos - 1].classList.add("done", "pop");
+      // reveal the real character now that the slot is filled (paragraph
+      // mode keeps real spaces; the battle word shows · for a space)
+      const c = S.text[S.pos - 1];
+      if (!S.paragraphMode) spans[S.pos - 1].textContent = c === " " ? "·" : c;
     }
     if (spans[S.pos]) spans[S.pos].classList.add("cur");
-    this.highlightKey(S.text[S.pos]);
-    const r = this.$("prompt-word").getBoundingClientRect();
+    if (S.answerMode && S.errorsThisPrompt < 2) this.highlightKey(null);
+    else this.highlightKey(S.text[S.pos]);
+    if (S.paragraphMode) {
+      // keep the cursor line in view as the story scrolls
+      if (spans[S.pos]) spans[S.pos].scrollIntoView({ block: "nearest", inline: "nearest" });
+      return; // skip the particle burst — it'd fire on every keystroke
+    }
+    const r = pw.getBoundingClientRect();
     this.burst(r.left + r.width / 2, r.top, [S.world.accent], 3, 2.2);
   },
 
-  charError(S) {
+  // ---------- Scholar islands: think/type, helper cards, ghost answers ----------
+  thinkPhase(S, on) {
+    const pill = this.$("think-pill");
+    const bar = this.$("timer-bar");
+    if (on) {
+      pill.classList.remove("hidden");
+      pill.textContent = "🤔 think it through…";
+      bar.classList.add("thinking"); // dim, breathing — no countdown yet
+    } else {
+      pill.classList.remove("hidden");
+      pill.textContent = "⌨️ go!";
+      bar.classList.remove("thinking");
+      setTimeout(() => { if (this.$("think-pill").textContent === "⌨️ go!") this.$("think-pill").classList.add("hidden"); }, 600);
+    }
+  },
+
+  showHelper(S) {
+    const card = this.$("helper-card");
+    const html = this.helperContent(S);
+    if (!html) return;
+    card.innerHTML = `<div class="helper-inner"><span class="helper-tag">📝 trainer's notes</span>${html}</div>`;
+    card.classList.remove("hidden");
+  },
+
+  // pictorial scaffolds matched to the operation in the question
+  helperContent(S) {
+    const d = S.display || "";
+    let m;
+    if ((m = d.match(/(\d+)\s*×\s*(\d+)/))) {
+      const a = +m[1], b = +m[2];
+      const strip = Array.from({ length: a }, (_, i) => `<span>${b * (i + 1)}</span>`).join("<i>·</i>");
+      return `<div class="help-skip">count by ${b}s: ${strip}</div>`;
+    }
+    if ((m = d.match(/(\d+)\s*÷\s*(\d+)/))) {
+      const a = +m[1], b = +m[2];
+      return `<div class="help-triangle"><b>${a}</b><span>${b} × ❓ = ${a}</span></div>`;
+    }
+    if ((m = d.match(/1\/(\d+)\s*of\s*(\d+)/))) {
+      const parts = +m[1], whole = +m[2];
+      return `<div class="help-pie">split ${whole} into ${parts} equal parts: ${whole} ÷ ${parts}</div>`;
+    }
+    if ((m = d.match(/([01]{2,})/))) {
+      // binary: show the 8-4-2-1 place values lit up
+      const bits = m[1];
+      const vals = [8, 4, 2, 1].slice(-bits.length);
+      const cells = [...bits].map((b, i) =>
+        `<span class="bin-cell ${b === "1" ? "on" : ""}">${vals[i]}<i>${b}</i></span>`).join("");
+      const sum = [...bits].reduce((a, b, i) => a + (b === "1" ? vals[i] : 0), 0);
+      return `<div class="help-bin">${cells}<b>= ${sum}</b></div>`;
+    }
+    if (/AND|OR|NOT/.test(d)) {
+      return `<div class="help-line">AND needs <b>both</b> true · OR needs <b>one</b> true · NOT <b>flips</b> it</div>`;
+    }
+    if (/shift back/.test(d)) {
+      return `<div class="help-line">move each letter back: b→a, c→b, d→c… use the alphabet!</div>`;
+    }
+    if ((m = d.match(/(\d+)\s*([+\-])\s*(\d+)/))) {
+      return `<div class="help-line">work it out step by step — line up the ones, then the tens</div>`;
+    }
+    return `<div class="help-line">take your time — you've got this! 💪</div>`;
+  },
+
+  ghostAnswer(S, cb) {
+    // type the answer in blue, slot by slot — shown, not earned (stays
+    // a "mystery" reveal). Then the kid echoes it once to continue.
     const spans = this.$("prompt-word").children;
+    let i = S.pos;
+    const step = () => {
+      if (i >= S.text.length) { if (cb) cb(); return; }
+      const el = spans[i];
+      if (el) { el.classList.add("ghost"); el.textContent = S.text[i] === " " ? "·" : S.text[i]; el.classList.remove("mystery"); }
+      i++;
+      setTimeout(step, 300);
+    };
+    this.$("finger-hint").innerHTML = "💡 Here's the answer — now type it once to go on!";
+    step();
+  },
+
+  floatText(text) {
+    const a = this.$("arena");
+    const el = document.createElement("div");
+    el.className = "float-text";
+    el.textContent = text;
+    a.appendChild(el);
+    setTimeout(() => el.remove(), 1400);
+  },
+
+  // the payoff on the coding island: a completed line of code runs and
+  // typewriters its output into a little console
+  runCode(out) {
+    const box = this.$("code-output");
+    box.classList.remove("hidden");
+    box.innerHTML = `<span class="co-prompt">&gt; </span><span class="co-text"></span><span class="co-cursor">▋</span>`;
+    const txt = box.querySelector(".co-text");
+    let i = 0;
+    const step = () => {
+      if (i >= out.length) { SFX.word(); return; }
+      txt.textContent += out[i++];
+      setTimeout(step, 38);
+    };
+    step();
+  },
+
+  charError(S) {
+    const pw = this.$("prompt-word");
+    const spans = S.paragraphMode ? pw.querySelectorAll(".ch") : pw.children;
     const el = spans[S.pos];
     if (el) {
       el.classList.add("err");
       setTimeout(() => el.classList.remove("err"), 260);
     }
-    const pw = this.$("prompt-word");
     pw.classList.remove("shake");
     void pw.offsetWidth;
     pw.classList.add("shake");
+    // first slip on a Scholar prompt: gentle nudge, no content hint yet;
+    // at 2 the guide wakes as a rescue
+    if (S.scholar) {
+      if (S.answerMode && S.errorsThisPrompt >= 2) this.highlightKey(S.text[S.pos]);
+      const hint = this.$("finger-hint");
+      if (S.errorsThisPrompt === 1) { hint.innerHTML = "Not quite — check it again! ✋"; }
+    }
   },
 
   setTimer(frac) {
@@ -1279,6 +1800,9 @@ const UI = {
     this.$("kb-flex").classList.remove("ninja");
     const wrap = this.$("target-wrap");
     const target = this.$("target");
+    // a wild knows its shininess from the field; a post-level catch decided it
+    // in startCatch — show the shiny sprite the instant the ball bursts open
+    const isShiny = S.wild ? !!S.wild.shiny : !!S.catchShiny;
     this.$("hud-progress-fill").style.width = "100%";
     this.$("target-label").classList.add("hidden");
     // one mystery "?" per letter of the hidden name
@@ -1312,11 +1836,13 @@ const UI = {
       flash.className = "poke-flash";
       wrap.appendChild(flash);
       setTimeout(() => flash.remove(), 550);
-      target.innerHTML = `<span class="poke-pop">${this.pokeHtml(creature.id, creature.e)}</span>`;
+      target.className = "catch-size" + (isShiny ? " shiny-poke" : "");
+      target.innerHTML = `<span class="poke-pop">${this.pokeHtml(creature.id, creature.e, { shiny: isShiny })}</span>`;
+      if (isShiny) this.shinyReveal(S);
     }, 1780);
     setTimeout(() => {
       if (!alive()) return;
-      this.announce(`A wild ${creature.n} appeared!`, 1600);
+      this.announce(isShiny ? `✨ A SHINY ${creature.n}! ✨` : `A wild ${creature.n} appeared!`, 1600);
       SFX.combo();
       done();
     }, 2380);
@@ -1355,6 +1881,7 @@ const UI = {
     this.renderTopbar();
     this._lastStage = [res.w, res.s];
     this._practiceNext = null;
+    this._paragraphNext = null;
     this._practiceMode = false;
     this._resultsAt = performance.now();
     this.$("btn-replay").textContent = "↻ Replay";
@@ -1469,10 +1996,33 @@ const UI = {
       eggBox.innerHTML = "";
     }
 
+    // personal bests + the mastery-medal moment
+    const medalBox = this.$("results-medal");
+    medalBox.className = "hidden";
+    medalBox.innerHTML = "";
+    if (res.best && (res.best.wpm || res.best.acc || res.best.ninja)) {
+      const bits = [];
+      if (res.best.wpm) bits.push(`${res.wpm} wpm`);
+      if (res.best.acc) bits.push(`${Math.round(res.acc * 100)}% accuracy`);
+      if (res.best.ninja) bits.push("🥷 ninja clear");
+      medalBox.className = "best-only";
+      medalBox.innerHTML = `<span class="best-note">⭐ New personal best: <b>${bits.join(" · ")}</b>!</span>`;
+    }
+    if (res.medalUp) {
+      const m = MEDAL_TIERS[res.medalUp - 1];
+      setTimeout(() => {
+        medalBox.className = "medal-on";
+        medalBox.innerHTML = `<span class="medal-drop">${m.e}</span>
+          <span class="medal-text"><b>${WORLDS[res.w].name} — ${m.name.toUpperCase()} MEDAL!</b>
+          <i>Mastered. This region's medal is yours forever.</i></span>`;
+        SFX.medal();
+      }, 1600);
+    }
+
     // big moments
     if (res.isBoss && res.firstClear) {
       this.confetti();
-      if (res.w < WORLDS.length - 1) {
+      if (res.w < HALL_W) {
         setTimeout(() => this.toast(`🌍 New world unlocked: ${WORLDS[res.w + 1].emoji} ${WORLDS[res.w + 1].name}!`, "gold"), 800);
       } else {
         setTimeout(() => this.toast(`👑 YOU ARE THE KEY MASTER! You beat the whole game!`, "gold"), 800);
@@ -1484,12 +2034,26 @@ const UI = {
         this.toast(`⬆️ LEVEL UP! You are now Lv ${res.levelUp.to} — ${res.levelUp.title}!`, "gold");
       }, 1300);
     }
+    const trophyAt = res.medalUp ? 2600 : 1800; // a medal beat owns its moment
     (res.trophies || []).forEach((t, i) =>
-      setTimeout(() => this.trophyToast(t), 1800 + i * 900));
+      setTimeout(() => this.trophyToast(t), trophyAt + i * 900));
+
+    // band coaching: offer a step up after flawless mastery — never automatic
+    delete this._failCount[`${res.w}-${res.s}`];
+    const offer = this.$("results-offer");
+    offer.className = "hidden";
+    offer.innerHTML = "";
+    const bi = BAND_ORDER.indexOf(res.band);
+    if (res.stars === 3 && res.acc >= 0.98 && bi >= 0 && bi < BAND_ORDER.length - 1) {
+      const up = BANDS[BAND_ORDER[bi + 1]];
+      offer.className = "band-offer";
+      offer.innerHTML = `<button id="btn-bandup" data-band="${BAND_ORDER[bi + 1]}">
+        ${up.e} That looked easy... try <b>${up.label}</b> band? ${up.desc}</button>`;
+    }
 
     // buttons
     const next = this.$("btn-next");
-    const lastWorld = WORLDS.length - 1;
+    const lastWorld = HALL_W;
     next.classList.remove("hidden");
     let nextLabel = null;
     if (!res.isBoss) nextLabel = res.s === WORLDS[res.w].levels.length - 1 ? "Boss Fight! 👊" : "Next Level ▶";
@@ -1505,10 +2069,23 @@ const UI = {
     this.renderTopbar();
     this._lastStage = [S.w, S.s];
     this._practiceNext = null;
+    this._paragraphNext = null;
     this._practiceMode = false;
     this._resultsAt = performance.now();
     this.$("results-egg").className = "hidden";          // no stale egg note
+    this.$("results-medal").className = "hidden";        // no stale medal beat
     this.$("btn-replay").classList.add("hidden");        // same as Try Again
+    // a second stumble earns a gentle one-run time assist — offered, never forced
+    const fk = `${S.w}-${S.s}`;
+    this._failCount[fk] = (this._failCount[fk] || 0) + 1;
+    const offer = this.$("results-offer");
+    offer.className = "hidden";
+    offer.innerHTML = "";
+    if (this._failCount[fk] >= 2 && S.s >= 0) {
+      offer.className = "band-offer";
+      offer.innerHTML = `<button id="btn-assist" data-w="${S.w}" data-s="${S.s}">
+        🐢 Tough one! Want <b>extra time</b>, just for this try?</button>`;
+    }
     this.$("btn-replay").textContent = "↻ Replay";
     const card = this.$("results-card");
     card.classList.add("defeat");
@@ -1547,7 +2124,11 @@ const UI = {
         const candy = SAVE.state.candy[key] || 0;
         const fam = SAVE.familyFor(key);
         const targets = SAVE.evoTargetsFor(key);
-        const candyHtml = fam ? `<div class="dex-candy">🍬 ${candy}/${CANDY_COST}</div>` : "";
+        const candyHtml = fam ? (fam.coins
+          ? `<div class="dex-candy">🪙 ${SAVE.state.coins || 0}/${fam.coins}</div>`
+          : `<div class="dex-candy">🍬 ${candy}/${CANDY_COST}${
+              SAVE.state.vouchers > 0 ? ` <button class="btn-voucher" data-vbase="${key}" title="Spend a candy voucher here">🎟+1</button>` : ""
+            }</div>`) : "";
         const evoBtn = targets.length
           ? `<button class="btn-evolve" data-base="${key}">EVOLVE!</button>` : "";
         const inParty = SAVE.state.party.includes(key);
@@ -1665,12 +2246,15 @@ const UI = {
 
   practiceScene(S) {
     this.show("game");
+    // Story Typing is a pure typing test — no battle arena up top
+    this.$("screen-game").classList.toggle("paragraph-mode", !!S.paragraph);
     const w = S.world;
     document.body.classList.remove("super-mode");
     this.$("capslock-warn").classList.add("hidden");
     this.applyKbVisibility();
     this.practiceTimerUI(true);
-    this.$("hud-stage").textContent = `🏫 Practice · ${S.practice.label}`;
+    this.$("hud-stage").textContent = S.paragraph
+      ? `📖 Story · ${S.paragraph.def.title}` : `🏫 Practice · ${S.practice.label}`;
     this.$("hud-progress").classList.remove("hidden");
     this.$("hud-progress-fill").style.width = "0%";
     this.$("hud-hearts").classList.add("hidden");
@@ -1718,12 +2302,28 @@ const UI = {
         </span>
       </button>`;
     }).join("");
+
+    this.$("paragraph-list").innerHTML = PARAGRAPHS.map(p => {
+      const open = SAVE.worldUnlocked(p.need);
+      const pb = (SAVE.state.paragraphs || {})[p.id];
+      const pbHtml = pb ? `⚡ best ${pb.wpm} wpm · ${Math.round(pb.acc * 100)}%` : "no record yet — set one!";
+      const words = p.text.trim().split(/\s+/).length;
+      return `<button class="para-card ${open ? "" : "locked"}" data-para="${p.id}">
+        <span class="tier-e">${p.e}</span>
+        <span class="tier-info">
+          <b>${this.esc(p.title)}</b>
+          <i>${open ? `“${this.esc(p.text.slice(0, 46))}…”` : `Reach ${WORLDS[p.need].emoji} ${WORLDS[p.need].name} to unlock`}</i>
+          <em>${open ? `${words} words · ${pbHtml}` : "🔒 capitals & punctuation"}</em>
+        </span>
+      </button>`;
+    }).join("");
   },
 
   showPracticeResults(res) {
     this.show("results");
     this.renderTopbar();
     this._practiceNext = res.tier.id;
+    this._paragraphNext = null;
     this._practiceMode = true;
     this._nextTarget = null;
     this._lastStage = null;
@@ -1749,6 +2349,8 @@ const UI = {
     catchBox.className = "catch-result";
     catchBox.innerHTML = `<div class="record-note ${record ? "gold" : ""}">${lines.join("<br>")}</div>`;
     this.$("results-egg").className = "hidden";
+    this.$("results-medal").className = "hidden";
+    this.$("results-offer").className = "hidden";
 
     this.$("xp-gained").textContent = `+${res.xp} XP`;
     const lv = levelFromXp(SAVE.state.xp);
@@ -1769,9 +2371,55 @@ const UI = {
     }
   },
 
+  showParagraphResults(res) {
+    this.show("results");
+    this.renderTopbar();
+    this._paragraphNext = res.def.id;
+    this._practiceNext = null;
+    this._practiceMode = true; // btn-replay returns to the Trainer School
+    this._nextTarget = null;
+    this._lastStage = null;
+    this._resultsAt = performance.now();
+    const card = this.$("results-card");
+    card.classList.remove("defeat");
+    card.style.setProperty("--wa", "#7ee787");
+    this.$("results-title").textContent = `📖 ${res.def.title}`;
+    this.$("results-stars").classList.add("hidden");
+    this.$("results-grid").innerHTML = `
+      <div class="rstat"><div class="rstat-v">${res.wpm}</div><div class="rstat-l">words/min</div></div>
+      <div class="rstat"><div class="rstat-v">${Math.round(res.acc * 100)}%</div><div class="rstat-l">accuracy</div></div>
+      <div class="rstat"><div class="rstat-v">${this.fmtTime(res.timeMs)}</div><div class="rstat-l">your time</div></div>`;
+
+    const record = res.betterWpm;
+    const lines = [];
+    if (res.betterWpm) lines.push(`⚡ <b>NEW BEST SPEED!</b>${res.prevWpm ? ` (was ${res.prevWpm} wpm)` : ""}`);
+    else lines.push(`Your best: ⚡ ${res.prevWpm} wpm — read it again to beat it!`);
+    const catchBox = this.$("results-catch");
+    catchBox.className = "catch-result";
+    catchBox.innerHTML = `<div class="record-note ${record ? "gold" : ""}">${lines.join("<br>")}</div>`;
+    this.$("results-egg").className = "hidden";
+    this.$("results-medal").className = "hidden";
+    this.$("results-offer").className = "hidden";
+
+    this.$("xp-gained").textContent = `+${res.xp} XP`;
+    const lv = levelFromXp(SAVE.state.xp);
+    this.$("xp-level").textContent = `Lv ${lv.level} · ${titleForLevel(lv.level)}`;
+    this.$("results-xpfill").style.width = `${100 * lv.into / lv.need}%`;
+
+    const next = this.$("btn-next");
+    next.classList.remove("hidden");
+    next.innerHTML = `📖 Read Again <small class="key-hint">Enter</small>`;
+    this.$("btn-replay").classList.remove("hidden");
+    this.$("btn-replay").textContent = "🏫 Trainer School";
+    (res.newTrophies || []).forEach((t, i) => setTimeout(() => this.trophyToast(t), 900 + i * 800));
+    if (record) { this.confetti(); SFX.fanfare(); }
+    else SFX.word();
+  },
+
   // ---------- wild encounter scene (grass + fishing + legendary) ----------
   wildScene(S) {
     this.show("game");
+    this.$("screen-game").classList.remove("paragraph-mode");
     const w = S.world;
     const c = S.wild.creature;
     const fishing = S.wild.source === "fish";
@@ -1824,13 +2472,45 @@ const UI = {
       this.highlightKey(null);
       this.announce("Wait for it...", 1500);
     } else {
-      target.className = "catch-size";
-      target.innerHTML = `<span class="poke-pop">${this.pokeHtml(c.id, c.e)}</span>`;
-      this.announce(legendary ? `The legendary ${c.n} appeared!` : `A wild ${c.n} jumped out!`, 1900);
+      const shiny = !!S.wild.shiny;
+      target.className = "catch-size" + (shiny ? " shiny-poke" : "");
+      target.innerHTML = `<span class="poke-pop">${this.pokeHtml(c.id, c.e, { shiny })}</span>`;
+      if (shiny) {
+        this.shinyReveal(S);
+      } else {
+        this.announce(legendary ? `The legendary ${c.n} appeared!` : `A wild ${c.n} jumped out!`, 1900);
+        SFX.pop();
+        if (legendary) SFX.fanfare();
+      }
       this.speech(legendary ? "Pass my trial of three words!" : "Weaken me with words first!", 2600);
-      SFX.pop();
-      if (legendary) SFX.fanfare();
     }
+  },
+
+  // the moment a shiny wild Pokemon is revealed: sparkles, a twinkle, a shout
+  shinyReveal(S) {
+    if (S._shinyRevealed) return;
+    S._shinyRevealed = true;
+    const wrap = this.$("target-wrap");
+    // a white→gold flash behind the Pokemon
+    const flash = document.createElement("div");
+    flash.className = "shiny-flash";
+    wrap.appendChild(flash);
+    setTimeout(() => flash.remove(), 700);
+    // a burst of ✨ around it
+    for (let i = 0; i < 9; i++) {
+      const s = document.createElement("span");
+      s.className = "shiny-spark";
+      s.textContent = "✨";
+      s.style.left = `${15 + Math.random() * 70}%`;
+      s.style.top = `${5 + Math.random() * 80}%`;
+      s.style.animationDelay = `${Math.random() * 0.35}s`;
+      wrap.appendChild(s);
+      setTimeout(() => s.remove(), 1500);
+    }
+    const r = this.$("target").getBoundingClientRect();
+    this.burst(r.left + r.width / 2, r.top + r.height / 2, ["#fff", "#ffd34d", "#ffe9a8"], 22, 5.5);
+    SFX.shiny();
+    this.announce(`✨ A SHINY ${S.wild.creature.n}!! ✨`, 2400);
   },
 
   // ---------- Mystery Egg hatching ----------
@@ -1922,6 +2602,7 @@ const UI = {
   // ---------- evolution scene ----------
   evolutionScene(S) {
     this.show("game");
+    this.$("screen-game").classList.remove("paragraph-mode");
     const w = S.world;
     document.body.classList.remove("super-mode");
     this.$("capslock-warn").classList.add("hidden");
@@ -1972,10 +2653,53 @@ const UI = {
   },
 
   // ---------- trophies ----------
+  _museumTab: "trophies",
+  _failCount: {},
+
   renderTrophies() {
     const got = SAVE.state.trophies;
     const fresh = (SAVE.state.flags && SAVE.state.flags.newTrophies) || {};
     this.$("trophy-count").textContent = `${Object.keys(got).length} / ${TROPHIES.length}`;
+
+    // ---- ledger: every long-term collection at a glance ----
+    const dexGot = SAVE.caughtCount(), dexAll = CREATURES.flat().length;
+    const shiny = SAVE.shinyCount();
+    let medals = 0;
+    WORLDS.forEach((w, wi) => { medals += SAVE.worldMedal(wi); });
+    const fams = EVOLUTIONS.filter(f => {
+      if (!SAVE.state.dex[f.base]) return false;
+      const links = f.chain || f.choices;
+      return f.choices ? links.some(k => SAVE.state.dex[k]) : links.every(k => SAVE.state.dex[k]);
+    }).length;
+    const rows = [
+      { e: "🏆", label: "Trophies", n: Object.keys(got).length, max: TROPHIES.length },
+      { e: "🎖", label: "Medals", n: medals, max: WORLDS.length * 4 },
+      { e: "📕", label: "Pokedex", n: dexGot, max: dexAll, link: "dex" },
+      { e: "✨", label: "Shinies", n: shiny, max: dexAll },
+      { e: "🧬", label: "Families", n: fams, max: EVOLUTIONS.length },
+    ];
+    this.$("museum-ledger").innerHTML = rows.map(r => {
+      const pct = r.n / r.max;
+      const segs = 20, fill = Math.round(pct * segs);
+      const closing = pct >= 0.9 && r.n < r.max;
+      return `<div class="ledger-row">
+        <span class="ledger-label">${r.e} ${r.label}</span>
+        <span class="ledger-meter">${Array.from({ length: segs }, (_, i) =>
+          `<i class="${i < fill ? "on" : ""}"></i>`).join("")}</span>
+        <span class="ledger-count ${closing ? "closing" : ""}">${closing
+          ? `${r.max - r.n} to find! ${r.link ? `<button class="ledger-link" data-link="${r.link}">show me</button>` : ""}`
+          : `${r.n} / ${r.max}`}</span>
+      </div>`;
+    }).join("");
+
+    // ---- tabs ----
+    document.querySelectorAll("#museum-tabs .mtab").forEach(b =>
+      b.classList.toggle("active", b.dataset.tab === this._museumTab));
+    this.$("trophy-grid").classList.toggle("hidden", this._museumTab !== "trophies");
+    this.$("medal-wing").classList.toggle("hidden", this._museumTab !== "medals");
+    this.$("gallery-wing").classList.toggle("hidden", this._museumTab !== "gallery");
+
+    // ---- trophies wing ----
     this.$("trophy-grid").innerHTML = TROPHIES.map(t => `
       <div class="trophy-card ${got[t.id] ? "on" : ""}">
         ${fresh[t.id] ? `<span class="new-chip">NEW</span>` : ""}
@@ -1983,10 +2707,62 @@ const UI = {
         <div class="trophy-name">${t.name}</div>
         <div class="trophy-desc">${t.desc}</div>
       </div>`).join("");
-    // visiting the room marks everything as seen
-    if (SAVE.state.flags && Object.keys(fresh).length) {
+    if (this._museumTab === "trophies" && SAVE.state.flags && Object.keys(fresh).length) {
       SAVE.state.flags.newTrophies = {};
       SAVE.save();
+    }
+
+    // ---- medal wing: per region, what the next medal needs ----
+    this.$("medal-wing").innerHTML = WORLDS.map((w, wi) => {
+      const tier = SAVE.worldMedal(wi);
+      const unlocked = SAVE.worldUnlocked(wi);
+      let nextLine = "";
+      if (!unlocked) nextLine = `<i class="medal-next dim">🔒 Reach this region first</i>`;
+      else if (tier >= 4) nextLine = `<i class="medal-next done">Fully mastered. Legendary work!</i>`;
+      else {
+        const t = MEDAL_TIERS[tier]; // the next tier up
+        const p = SAVE.medalProgress(wi, t.tier);
+        const req = t.tier === 1 ? "3-star every level"
+          : t.tier === 4 ? "clear every level in 🥷 Ninja Mode (95%+ accuracy)"
+          : `best ≥ ${Math.round(t.acc * 100)}% accuracy and ≥ ${t.wpm} wpm on every level`;
+        nextLine = `<i class="medal-next">${t.e} ${t.name}: <b>${p.ok}/${p.total}</b> levels — ${req}</i>`;
+      }
+      return `<div class="medal-card ${tier ? "has" : ""}">
+        <span class="medal-big">${tier ? MEDAL_E[tier] : "⚪"}</span>
+        <div class="medal-info"><b>${w.emoji} ${this.esc(w.name)}</b>${nextLine}</div>
+      </div>`;
+    }).join("");
+
+    // ---- gallery wing: Hall of Fame photos, then the shiny showcase ----
+    const hof = (SAVE.state.hof || []).map(h => `
+      <div class="hof-photo">
+        <div class="hof-party">${(h.party || []).slice(0, 6).map(k => {
+          const c = SAVE.creatureByKey(k);
+          return c ? `<span>${this.pokeHtml(c.id, c.e, { shiny: c.shiny, cls: "poke-img hof-img" })}</span>` : "";
+        }).join("")}</div>
+        <div class="hof-plate">🏆 Hall of Fame — ${this.esc(SAVE.state.profile.name)}, ${h.date} · ${h.wpm} wpm</div>
+      </div>`).join("");
+    const hofShelf = hof ? `<div class="shelf"><div class="shelf-title">🏛️ Hall of Fame</div>${hof}</div>` : "";
+    this.$("gallery-wing").innerHTML = hofShelf + WORLDS.map((w, wi) => {
+      const shelf = CREATURES[wi].map((c, ci) => {
+        const d = SAVE.state.dex[`${wi}-${ci}`];
+        return `<span class="pedestal ${d && d.shiny ? "lit" : ""}" title="${d && d.shiny ? `✨ ${this.esc(c.n)}` : "Still to shine..."}">
+          ${d && d.shiny ? this.pokeHtml(c.id, c.e, { shiny: true, cls: "poke-img shelf-img" }) : `<i>?</i>`}
+        </span>`;
+      }).join("");
+      const n = CREATURES[wi].filter((c, ci) => {
+        const d = SAVE.state.dex[`${wi}-${ci}`];
+        return d && d.shiny;
+      }).length;
+      return `<div class="shelf"><div class="shelf-title">${w.emoji} ${this.esc(w.name)} <span>✨ ${n}/${CREATURES[wi].length}</span></div>
+        <div class="shelf-row">${shelf}</div></div>`;
+    }).join("");
+
+    // received Professor's letters, replayable
+    const letters = FEATURE_INTROS.filter(f => SAVE.state.flags.intros && SAVE.state.flags.intros[f.id]);
+    if (letters.length) {
+      this.$("museum-ledger").innerHTML += `<div class="letters-row">📬 Letters:
+        ${letters.map(f => `<button class="letter-chip" data-letter="${f.id}">${f.icon} ${this.esc(f.title)}</button>`).join("")}</div>`;
     }
   },
 
@@ -2039,6 +2815,152 @@ const UI = {
           `<span class="key-pill bad">${this.esc(e.k)} ${Math.round(e.acc * 100)}%</span>`).join("")
           : `<span class="dim">No tricky keys — amazing! 🌟</span>`}</div>`
       : `<p class="dim">Type more to discover your power keys! 🔑</p>`;
+  },
+
+
+  // ---------- special scene (Daily Drill & friends: countdown, no boss) ----------
+  specialScene(S, label) {
+    this.show("game");
+    this.$("screen-game").classList.remove("paragraph-mode");
+    const w = S.world;
+    document.body.classList.remove("super-mode");
+    this.$("capslock-warn").classList.add("hidden");
+    this.applyKbVisibility();
+    this.practiceTimerUI(false);
+    this.$("hud-stage").textContent = label;
+    this.$("hud-progress").classList.remove("hidden");
+    this.$("hud-progress-fill").style.width = "0%";
+    this.$("hud-hearts").classList.add("hidden");
+    this.$("boss-bar").classList.add("hidden");
+    this.$("target-label").classList.add("hidden");
+    this.$("player-avatar").innerHTML = this.avatarHtml(SAVE.state.profile);
+    this.showPartner(S);
+    this.partnerMeter(S);
+    const arena = this.$("arena");
+    arena.style.background = `linear-gradient(160deg, ${w.gradient[0]}, ${w.gradient[1]})`;
+    arena.style.setProperty("--wa", w.accent);
+    const scene = this.$("scene-emojis");
+    scene.innerHTML = "";
+    for (let i = 0; i < 7; i++) {
+      const e = document.createElement("span");
+      e.textContent = w.sceneEmojis[i % w.sceneEmojis.length];
+      e.style.left = `${5 + Math.random() * 90}%`;
+      e.style.top = `${5 + Math.random() * 80}%`;
+      e.style.fontSize = `${14 + Math.random() * 22}px`;
+      e.style.animationDelay = `${Math.random() * 3}s`;
+      scene.appendChild(e);
+    }
+    this.announce(label, 2200);
+    this.updateHud(S);
+  },
+
+  // ---------- Journal: daily drill, research board, Elite Four ----------
+  renderJournal() {
+    const d = SAVE.dailyInfo();
+    const muts = d.mutators.map(id => DAILY_MUTATORS.find(m => m.id === id)).filter(Boolean);
+    const wk = SAVE.state.dailyWeek && SAVE.state.dailyWeek.week === SAVE.weekKey()
+      ? SAVE.state.dailyWeek.count : 0;
+    this.$("jr-daily").innerHTML = `
+      <h3>📋 Daily Drill</h3>
+      <div class="jr-muts">${muts.map(m =>
+        `<span class="src-chip" title="${this.esc(m.desc)}">${m.e} ${m.name}</span>`).join("")}</div>
+      <p class="jr-note">${d.done
+        ? "✅ Done today! The Professor preps a fresh drill overnight."
+        : "One special run — 12 words under today's rules."}</p>
+      <p class="jr-note">This week: <b>${Math.min(5, wk)}/5</b> drills ${wk >= 5
+        ? "— bonus egg sent! 🥚" : "<span class=\"dim\">(5 earns a special Mystery Egg)</span>"}</p>
+      ${d.done ? "" : `<button id="btn-daily" class="mid-btn">▶ Start today's drill</button>`}
+      <p class="jr-note">🎟 Candy vouchers: <b>${SAVE.state.vouchers}</b> — spend them in the Pokedex.</p>`;
+
+    const r = SAVE.researchNow();
+    this.$("jr-research").innerHTML = `
+      <h3>🔬 Research Tasks <span class="jr-sub">fresh every week</span></h3>
+      ${r.tasks.map(t => {
+        const p = SAVE.taskProgress(t);
+        return `<div class="task-row ${t.claimed ? "claimed" : p.done ? "ready" : ""}">
+          <span class="task-e">${p.def.e}</span>
+          <div class="task-info"><b>${this.esc(p.def.text)}</b>
+            <div class="task-meter"><i style="width:${Math.round(100 * p.now / p.def.need)}%"></i></div></div>
+          ${t.claimed ? `<span class="task-done">✔</span>`
+            : p.done ? `<button class="task-claim" data-claim="${t.id}">CLAIM</button>`
+            : `<span class="task-count">${p.now}/${p.def.need}</span>`}
+        </div>`;
+      }).join("")}
+      <p class="jr-note">📮 Stamps: <b>${SAVE.state.unlocks.stamps}</b> — they unlock trainer outfits in the builder!</p>`;
+
+    const el = SAVE.state.elite || { bestRound: 0, clears: 0 };
+    const pts = SAVE.medalPoints();
+    const open = Engine.eliteUnlocked();
+    const hof = SAVE.state.hof || [];
+    this.$("jr-elite").innerHTML = `
+      <h3>⚔️ The Elite Four</h3>
+      ${open
+        ? `<p class="jr-note">${el.clears > 0
+            ? `🏆 Champion ×${el.clears}! Your photos hang in the Museum Gallery.`
+            : el.bestRound > 0
+              ? `Best run so far: <b>Round ${el.bestRound} of ${ELITE.length}</b>. They remember you...`
+              : "Four masters back to back — your hearts carry between rounds. Then... someone is waiting."}</p>
+           <button id="btn-elite" class="mid-btn">⚔️ ${el.clears ? "Challenge again" : "Begin the challenge"}</button>`
+        : `<p class="jr-note">🔒 Opens when the story is complete and you hold
+            <b>${ELITE_NEED_MEDALS} medal points</b> (you have <b>${pts}</b> — grow them in the Museum's Medal Case).</p>`}
+      ${hof.length ? `<p class="jr-note">📸 Hall of Fame entries: <b>${hof.length}</b></p>` : ""}`;
+  },
+
+  // ---------- Today's Adventure: three stamps and a soft landing ----------
+  maybeDayCard(force) {
+    if (!SAVE.state) return;
+    const d = SAVE.dayInfo();
+    const stamps = SAVE.dayStamps();
+    const all = stamps.every(x => x.done);
+    if (!force && (!all || d.shown)) return;
+    if (!force && all) { d.shown = true; SAVE.save(); }
+    const egg = SAVE.state.egg;
+    let hook;
+    if (egg && egg.progress >= 3) hook = "your Mystery Egg is ready to hatch!";
+    else if (egg) hook = `${3 - egg.progress} more level${3 - egg.progress > 1 ? "s" : ""} will hatch your Mystery Egg!`;
+    else hook = "fresh tall grass will rustle somewhere new!";
+    const lead = SAVE.leadCreature();
+    this.$("day-card").innerHTML = `<div class="dc-card">
+      <div class="dc-partner">${lead
+        ? this.pokeHtml(lead.id, lead.e, { shiny: lead.shiny, cls: "poke-img dc-img" })
+        : "🎒"}<span class="dc-zzz">💤</span></div>
+      <h3>${all ? "Today's Adventure — complete! 🌟" : "Today's Adventure"}</h3>
+      <div class="dc-stamps">${stamps.map(x =>
+        `<div class="dc-stamp ${x.done ? "on" : ""}">${x.done ? "✅" : "⬜"} ${x.e} ${this.esc(x.text)}${
+          x.need ? ` <b>${x.now}/${x.need}</b>` : ""}</div>`).join("")}</div>
+      <p class="dc-hook">🌅 Tomorrow: ${this.esc(hook)} The streak grows to 🔥 ${(SAVE.state.streak.count || 0) + 1}.</p>
+      <div class="dc-buttons">
+        <button id="dc-done" class="big-btn">🌙 Done for today</button>
+        <button id="dc-more" class="link-btn">keep exploring</button>
+      </div>
+    </div>`;
+    this.$("day-card").classList.remove("hidden");
+  },
+
+  // ---------- Hall of Fame induction (the once-per-save ceremony) ----------
+  hofCeremony(entry, trophies) {
+    const party = (entry.party || []).slice(0, 6);
+    this.$("ceremony").innerHTML = `<div class="cer-room">
+      <h2 class="cer-title">🏛️ HALL OF FAME</h2>
+      <div class="cer-pedestals">${party.length ? party.map((k, i) => {
+        const c = SAVE.creatureByKey(k);
+        return `<div class="cer-slot" style="animation-delay:${i * 0.35}s">
+          ${c ? this.pokeHtml(c.id, c.e, { shiny: c.shiny, cls: "poke-img cer-img" }) : "⭐"}<i></i></div>`;
+      }).join("") : `<div class="cer-slot">🎒<i></i></div>`}</div>
+      <div class="cer-trainer">${this.avatarHtml(SAVE.state.profile)}</div>
+      <div class="cer-flash"></div>
+      <div class="cer-photo">
+        <b>${this.esc(SAVE.state.profile.name)} — CHAMPION</b>
+        <span>${entry.date} · ${entry.wpm} wpm · ${entry.acc}% accuracy</span>
+        <i>✨ Framed forever in the Museum Gallery</i>
+      </div>
+      <button id="cer-continue" class="big-btn">✔ Continue</button>
+    </div>`;
+    this.$("ceremony").classList.remove("hidden");
+    SFX.fanfare();
+    setTimeout(() => SFX.medal(), 900);
+    this.confetti();
+    this._cerTrophies = trophies || [];
   },
 
   // ---------- toasts (queued: kids read slowly — max 2 at once, ~5s) ----------
@@ -2275,18 +3197,34 @@ const UI = {
     });
 
     this.$("btn-next").addEventListener("click", () => {
-      if (this._practiceNext) Engine.startPractice(this._practiceNext);
-      else if (this._nextTarget) Engine.startStage(this._nextTarget[0], this._nextTarget[1]);
-      else this.show("map");
+      if (this._paragraphNext) Engine.startParagraph(this._paragraphNext);
+      else if (this._practiceNext) Engine.startPractice(this._practiceNext);
+      else if (this._nextTarget) {
+        const [w, s] = this._nextTarget;
+        Engine.startStage(w, s);
+      } else this.show("map");
     });
     this.$("btn-replay").addEventListener("click", () => {
       if (this._practiceMode) this.show("practice");
-      else if (this._lastStage) Engine.startStage(this._lastStage[0], this._lastStage[1]);
+      else if (this._lastStage) {
+        const [w, s] = this._lastStage;
+        Engine.startStage(w, s);
+      }
     });
     this.$("btn-tomap").addEventListener("click", () => this.show("map"));
 
     // evolution: EVOLVE! buttons in the dex + the chooser modal
     this.$("dex-list").addEventListener("click", e => {
+      const vb = e.target.closest(".btn-voucher");
+      if (vb) {
+        const r = SAVE.useVoucher(vb.dataset.vbase);
+        if (r) {
+          SFX.catchJingle();
+          this.toast(`🎟 Voucher spent! 🍬 ${r.count}/${CANDY_COST} candy`, "gold");
+          this.renderDex();
+        }
+        return;
+      }
       const pb = e.target.closest(".btn-party");
       if (pb) {
         SFX.click();
@@ -2327,6 +3265,103 @@ const UI = {
         SFX.click();
         this.closeAreaPanel();
       }
+    });
+
+    this.$("museum-tabs").addEventListener("click", e => {
+      const b = e.target.closest(".mtab");
+      if (!b) return;
+      SFX.click();
+      this._museumTab = b.dataset.tab;
+      this.renderTrophies();
+    });
+    this.$("museum-ledger").addEventListener("click", e => {
+      const link = e.target.closest(".ledger-link");
+      if (link) { SFX.click(); this.museumShowMe(link.dataset.link); return; }
+      const chip = e.target.closest(".letter-chip");
+      if (chip) {
+        const f = FEATURE_INTROS.find(x => x.id === chip.dataset.letter);
+        if (f) { SFX.click(); this.startIntro(f, true); }
+      }
+    });
+    this.$("letter-next").addEventListener("click", () => this.letterNext());
+    const advanceSpot = () => {
+      if (!this._spotNext) return;
+      SFX.click();
+      const fn = this._spotNext;
+      this._spotNext = null;
+      fn();
+    };
+    this._advanceSpot = advanceSpot;
+    this.$("spot-next").addEventListener("click", e => { e.stopPropagation(); advanceSpot(); });
+    this.$("spot-skip").addEventListener("click", e => { e.stopPropagation(); SFX.click(); this.endSpotlight(); });
+    // tapping the dim area is a secondary accelerator; the button is primary
+    this.$("spotlight").addEventListener("click", e => { if (e.target.id === "spotlight") advanceSpot(); });
+
+    this.$("band-btn").addEventListener("click", () => {
+      const next = BAND_ORDER[(BAND_ORDER.indexOf(SAVE.state.band) + 1) % BAND_ORDER.length];
+      SAVE.state.band = next;
+      SAVE.save();
+      SFX.click();
+      this.renderTopbar();
+      const bd = BANDS[next];
+      this.toast(`${bd.e} Challenge: <b>${bd.label}</b> — ${bd.desc}`);
+    });
+    this.$("day-chip").addEventListener("click", () => { SFX.click(); this.maybeDayCard(true); });
+    this.$("school-chip").addEventListener("click", () => { SFX.click(); this.show("practice"); });
+    this.$("day-card").addEventListener("click", e => {
+      if (e.target.closest("#dc-done")) {
+        SFX.click();
+        this.$("day-card").classList.add("hidden");
+        this.toast("🌙 Wonderful adventuring today. See you tomorrow, Trainer!", "gold");
+        return;
+      }
+      if (e.target.closest("#dc-more") || e.target.id === "day-card") {
+        SFX.click();
+        this.$("day-card").classList.add("hidden");
+      }
+    });
+    this.$("journal-wrap").addEventListener("click", e => {
+      const cl = e.target.closest(".task-claim");
+      if (cl) {
+        const r = SAVE.claimTask(cl.dataset.claim);
+        if (r) {
+          SFX.fanfare();
+          this.toast(`🔬 Research complete! +${r.xp} XP · +1 📮 stamp${r.allDone ? " · ALL THREE: +1 🎟 voucher!" : ""}`, "gold");
+          this.renderJournal();
+          this.renderTopbar();
+        }
+        return;
+      }
+      if (e.target.closest("#btn-daily")) { SFX.click(); Engine.startDaily(); return; }
+      if (e.target.closest("#btn-elite")) { SFX.click(); Engine.startElite(); }
+    });
+    this.$("results-offer").addEventListener("click", e => {
+      const up = e.target.closest("#btn-bandup");
+      if (up) {
+        SAVE.state.band = up.dataset.band;
+        SAVE.save();
+        SFX.fanfare();
+        const bd = BANDS[SAVE.state.band];
+        this.$("results-offer").className = "hidden";
+        this.toast(`${bd.e} <b>${bd.label}</b> band ON! ${bd.desc}`, "gold");
+        this.renderTopbar();
+        return;
+      }
+      const as = e.target.closest("#btn-assist");
+      if (as) {
+        SFX.click();
+        this.$("results-offer").className = "hidden";
+        Engine.startStage(+as.dataset.w, +as.dataset.s, { assist: true });
+      }
+    });
+    this.$("ceremony").addEventListener("click", e => {
+      if (!e.target.closest("#cer-continue")) return;
+      SFX.click();
+      this.$("ceremony").classList.add("hidden");
+      this.show("map");
+      this.renderTopbar();
+      this.toast("🏆 YOU ARE THE CHAMPION! Your photo hangs in the Museum Gallery.", "gold");
+      (this._cerTrophies || []).forEach((t, i) => setTimeout(() => this.trophyToast(t), 600 + i * 900));
     });
 
     this.$("results-catch").addEventListener("click", e => {

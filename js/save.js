@@ -53,12 +53,30 @@ const SAVE = {
       party: [],                   // up to 6 dex keys; first one is the lead partner
       roamer: null,                // { week, done } — weekly legendary attempt
       practice: {},                // tier id -> { time: bestMs, wpm: best }
+      paragraphs: {},              // story id -> { wpm, acc } personal bests
       flags: {},                   // one-time hints / NEW badges bookkeeping
       trophies: {},                // id -> true
       settings: { sound: true, hints: true, difficulty: "normal" },
       streak: { last: null, count: 0 },
       stats: { keys: 0, correct: 0, bestWpm: 0, bestCombo: 0, history: [], perKey: {} },
+      stageBest: {},               // "w-s" -> { wpm, acc, ninja } personal bests
+      counters: {},                // lifetime tallies (hatches, wildCatches, ...)
+      band: "trainer",             // skill band: explorer | trainer | ace
+      vouchers: 0,                 // 🎟 candy vouchers (daily drill / research)
+      daily: null,                 // { date, done, mutators: [id, id] }
+      dailyWeek: null,             // { week, count } — dailies finished this week
+      research: null,              // { week, tasks: [{id, base, claimed}] }
+      unlocks: { stamps: 0 },      // wardrobe currency from research
+      day: null,                   // today's adventure stamps { date, levels, wild, school, shown }
+      elite: null,                 // { bestRound, clears }
+      hof: [],                     // Hall of Fame entries { date, party, wpm }
+      coins: 0,                    // 🪙 Gold Coins from Gimmighoul Coast (math)
+      scholar: {},                 // per-subject facts solved { math, code, cs }
     };
+  },
+
+  bump(counter, n = 1) {
+    this.state.counters[counter] = (this.state.counters[counter] || 0) + n;
   },
 
   load() {
@@ -153,7 +171,7 @@ const SAVE = {
     if (this.state.roamer.done) return null;
     let h = 0;
     for (const ch of wk) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-    const W6 = WORLDS.length - 1;
+    const W6 = HALL_W;
     const pool = CREATURES[W6].map((c, i) => ({ c, i })).filter(x => !x.c.evoOnly);
     const un = pool.filter(x => !this.state.dex[`${W6}-${x.i}`]);
     const list = un.length ? un : pool;
@@ -264,21 +282,164 @@ const SAVE = {
     this.save();
   },
 
-  // ---- daily streak: returns {count, bonusXp} when today extends/starts a streak ----
+  // ---- daily streak with Pokemon Center rest tokens: every 7 straight
+  // days banks one 🛏 token (max 2); a token silently absorbs a single
+  // missed day, and a true reset sprouts fresh — never a dead flame ----
   touchStreak() {
     const today = new Date().toISOString().slice(0, 10);
     const st = this.state.streak;
     if (st.last === today) return null;
     const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-    st.count = st.last === yesterday ? st.count + 1 : 1;
+    const dayBefore = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
+    let rested = false, sprouted = false;
+    if (st.last === yesterday) {
+      st.count++;
+    } else if (st.last === dayBefore && (st.tokens || 0) > 0) {
+      st.tokens--;
+      st.count++;
+      rested = true;
+    } else {
+      if (st.count > 1) sprouted = true;
+      st.best = Math.max(st.best || 0, st.count || 0);
+      st.count = 1;
+    }
     st.last = today;
+    if (st.count > 0 && st.count % 7 === 0) st.tokens = Math.min(2, (st.tokens || 0) + 1);
     const bonusXp = st.count > 1 ? Math.min(25 * st.count, 100) : 0;
     if (bonusXp) this.state.xp += bonusXp;
     const newTrophies = [];
     if (st.count >= 3) this.award("streak-3", newTrophies);
     if (st.count >= 7) this.award("streak-7", newTrophies);
     this.save();
-    return { count: st.count, bonusXp, newTrophies };
+    return { count: st.count, bonusXp, newTrophies, rested, sprouted, best: st.best || 0 };
+  },
+
+  // ---- Today's Adventure: three gentle daily stamps ----
+  dayInfo() {
+    const today = new Date().toISOString().slice(0, 10);
+    if (!this.state.day || this.state.day.date !== today) {
+      this.state.day = { date: today, levels: 0, wild: false, school: false, shown: false };
+    }
+    return this.state.day;
+  },
+
+  dayStamps() {
+    const d = this.dayInfo();
+    return [
+      { e: "🗺️", text: "Finish 3 levels", done: d.levels >= 3, now: Math.min(3, d.levels), need: 3 },
+      { e: "🌿", text: "Visit the wild", done: d.wild },
+      { e: "🏫", text: "School or a catch", done: d.school },
+    ];
+  },
+
+  // ---- Professor's Daily Drill ----
+  dailyInfo() {
+    const today = new Date().toISOString().slice(0, 10);
+    if (!this.state.daily || this.state.daily.date !== today) {
+      let h = 0;
+      for (const ch of today) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+      const pool = DAILY_MUTATORS.filter(m =>
+        !m.needHall || this.stageStars(HALL_W, WORLDS[HALL_W].levels.length) > 0);
+      const a = pool[h % pool.length];
+      const rest = pool.filter(m => m !== a);
+      const b = rest[(h >> 3) % rest.length];
+      this.state.daily = { date: today, done: false, mutators: [a.id, b.id] };
+      this.save();
+    }
+    return this.state.daily;
+  },
+
+  completeDaily(xp) {
+    const d = this.dailyInfo();
+    if (d.done) return null;
+    d.done = true;
+    this.bump("dailies");
+    this.state.xp += xp;
+    this.state.vouchers++;
+    const wk = this.weekKey();
+    if (!this.state.dailyWeek || this.state.dailyWeek.week !== wk) {
+      this.state.dailyWeek = { week: wk, count: 0 };
+    }
+    this.state.dailyWeek.count++;
+    let eggBonus = false;
+    if (this.state.dailyWeek.count === 5 && !this.state.egg) {
+      const today = new Date().toISOString().slice(0, 10);
+      this.state.egg = { date: today, progress: 0, boost: true };
+      this.state.eggDate = today;
+      eggBonus = true;
+    }
+    this.save();
+    return { xp, voucher: true, eggBonus, weekCount: this.state.dailyWeek.count };
+  },
+
+  // ---- Professor's Research: 3 weekly tasks, weighted to neglected systems ----
+  researchNow() {
+    const wk = this.weekKey();
+    if (!this.state.research || this.state.research.week !== wk) {
+      let h = 0;
+      for (const ch of wk) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+      const c = this.state.counters;
+      // least-practiced systems first, hash breaks ties for variety
+      const ranked = RESEARCH_TASKS.slice().sort((a, b) =>
+        ((c[a.counter] || 0) - (c[b.counter] || 0)) || (((h >> 2) % 7) - 3));
+      const picks = ranked.slice(0, 5);
+      const tasks = [];
+      for (let i = 0; tasks.length < 3 && i < picks.length; i++) {
+        const t = picks[(i + h) % picks.length];
+        if (!tasks.some(x => x.id === t.id)) {
+          tasks.push({ id: t.id, base: c[t.counter] || 0, claimed: false });
+        }
+      }
+      this.state.research = { week: wk, tasks };
+      this.save();
+    }
+    return this.state.research;
+  },
+
+  taskProgress(task) {
+    const def = RESEARCH_TASKS.find(t => t.id === task.id);
+    const now = (this.state.counters[def.counter] || 0) - task.base;
+    return { def, now: Math.max(0, Math.min(def.need, now)), done: now >= def.need };
+  },
+
+  claimTask(id) {
+    const r = this.researchNow();
+    const task = r.tasks.find(t => t.id === id);
+    if (!task || task.claimed || !this.taskProgress(task).done) return null;
+    task.claimed = true;
+    this.state.unlocks.stamps++;
+    this.state.xp += 30;
+    const allDone = r.tasks.every(t => t.claimed);
+    if (allDone) this.state.vouchers++;
+    this.save();
+    return { xp: 30, stamp: true, allDone };
+  },
+
+  useVoucher(baseKey) {
+    if (this.state.vouchers <= 0 || !this.familyFor(baseKey)) return null;
+    this.state.vouchers--;
+    const count = this.addCandy(baseKey);
+    return { count };
+  },
+
+  // ---- wardrobe locks ----
+  wardrobeOk(part, idx) {
+    const lock = TRAINER_LOCKS[`${part}:${idx}`];
+    if (!lock) return { ok: true };
+    if (!this.state) return { ok: false, label: lock.label }; // new-player builder
+    if (lock.need === "stamps") {
+      return { ok: this.state.unlocks.stamps >= lock.n, label: lock.label };
+    }
+    if (lock.need === "champion") {
+      return { ok: !!this.state.trophies.champion, label: lock.label };
+    }
+    return { ok: true };
+  },
+
+  medalPoints() {
+    let n = 0;
+    WORLDS.forEach((w, wi) => { n += this.worldMedal(wi); });
+    return n;
   },
 
   award(id, list) {
@@ -307,7 +468,10 @@ const SAVE = {
   },
 
   worldUnlocked(w) {
-    return w === 0 || this.stageStars(w - 1, WORLDS[w - 1].levels.length) > 0;
+    if (w === 0) return true;
+    // islands may unlock after an earlier world than their predecessor
+    const prev = WORLDS[w].unlockAfter === undefined ? w - 1 : WORLDS[w].unlockAfter;
+    return this.stageStars(prev, WORLDS[prev].levels.length) > 0;
   },
 
   stageUnlocked(w, s) {
@@ -345,6 +509,7 @@ const SAVE = {
 
   addCreature(w, i, shiny) {
     const newTrophies = [];
+    this.dayInfo().school = true; // any catch counts for the day's third stamp
     this.state.dex[`${w}-${i}`] = { shiny: !!shiny };
     // a trainer is never partner-less: the first catch joins the party
     if (this.state.party.length === 0) {
@@ -352,7 +517,13 @@ const SAVE = {
       this._justAutoPartied = `${w}-${i}`;
     }
     this.award("first-catch", newTrophies);
-    if (shiny) this.award("shiny", newTrophies);
+    if (shiny) {
+      this.award("shiny", newTrophies);
+      const n = this.shinyCount();
+      if (n >= 10) this.award("shiny-10", newTrophies);
+      if (n >= 25) this.award("shiny-25", newTrophies);
+      if (n >= 50) this.award("shiny-50", newTrophies);
+    }
     this.collectTrophies(newTrophies);
     this.save();
     return newTrophies;
@@ -378,11 +549,13 @@ const SAVE = {
 
   useGrass(id) {
     this.wildToday().grassUsed.push(id);
+    this.dayInfo().wild = true;
     this.save();
   },
 
   useCast() {
     this.wildToday().casts++;
+    this.dayInfo().wild = true;
     this.save();
   },
 
@@ -431,11 +604,22 @@ const SAVE = {
     return EVOLUTIONS.find(f => f.base === baseKey) || null;
   },
 
+  // ---- Gold Coins (Gimmighoul Coast) -> Gholdengo evolution ----
+  addCoins(n) {
+    this.state.coins = (this.state.coins || 0) + n;
+    this.save();
+    return this.state.coins;
+  },
+
   // which evolutions this base can do right now (caught + enough candy);
   // chains unlock in order, choice families offer everything (uncaught first)
   evoTargetsFor(baseKey) {
     const fam = this.familyFor(baseKey);
     if (!fam || !this.state.dex[baseKey]) return [];
+    // Gimmighoul evolves with Gold Coins instead of candy (canon!)
+    if (fam.coins) {
+      return (this.state.coins || 0) >= fam.coins && !this.state.dex[fam.chain[0]] ? [fam.chain[0]] : [];
+    }
     if ((this.state.candy[baseKey] || 0) < CANDY_COST) return [];
     if (fam.choices) {
       const un = fam.choices.filter(k => !this.state.dex[k]);
@@ -446,8 +630,11 @@ const SAVE = {
   },
 
   applyEvolution(baseKey, targetKey) {
+    this.bump("evolutions");
     const newTrophies = [];
-    this.state.candy[baseKey] = Math.max(0, (this.state.candy[baseKey] || 0) - CANDY_COST);
+    const fam = this.familyFor(baseKey);
+    if (fam && fam.coins) this.state.coins = Math.max(0, (this.state.coins || 0) - fam.coins);
+    else this.state.candy[baseKey] = Math.max(0, (this.state.candy[baseKey] || 0) - CANDY_COST);
     const t = this.state.dex[targetKey];
     let outcome;
     if (!t) { this.state.dex[targetKey] = { shiny: false }; outcome = "new"; }
@@ -478,6 +665,8 @@ const SAVE = {
     const prev = st.practice[tierId] || {};
     const betterTime = !prev.time || timeMs < prev.time;
     const betterWpm = !prev.wpm || wpm > prev.wpm;
+    if (betterTime || betterWpm) this.bump("records");
+    this.dayInfo().school = true;
     const result = { betterTime, betterWpm, prevTime: prev.time || null, prevWpm: prev.wpm || null };
     st.practice[tierId] = {
       time: betterTime ? timeMs : prev.time,
@@ -504,10 +693,36 @@ const SAVE = {
     return result;
   },
 
+  // ---- Story Typing: personal bests per paragraph ----
+  applyParagraph(id, timeMs, wpm, acc) {
+    const st = this.state;
+    const prev = st.paragraphs[id] || {};
+    const betterWpm = !prev.wpm || wpm > prev.wpm;
+    const betterAcc = prev.acc === undefined || acc > prev.acc;
+    if (betterWpm || betterAcc) this.bump("records");
+    this.dayInfo().school = true;
+    st.paragraphs[id] = { wpm: Math.max(wpm, prev.wpm || 0), acc: Math.max(acc, prev.acc || 0) };
+
+    const newTrophies = [];
+    this.award("storyteller", newTrophies);
+    if (wpm >= 15) this.award("wpm-15", newTrophies);
+    if (wpm >= 25) this.award("wpm-25", newTrophies);
+    if (wpm >= 35) this.award("wpm-35", newTrophies);
+    if (acc >= 1) this.award("perfect", newTrophies);
+    st.stats.bestWpm = Math.max(st.stats.bestWpm, wpm);
+
+    const xp = 15 + Math.min(20, wpm) + (betterWpm ? 10 : 0);
+    st.xp += xp;
+    this.collectTrophies(newTrophies);
+    this.save();
+    return { xp, betterWpm, betterAcc, prevWpm: prev.wpm || null, newTrophies };
+  },
+
   // ---- Mystery Egg: what hatches depends on streak (better odds when
   // playing daily) and the current dex; duplicates hatch into 3 candy ----
   eggPick() {
-    const streak = this.state.streak.count || 1;
+    let streak = this.state.streak.count || 1;
+    if (this.state.egg && this.state.egg.boost) streak = Math.max(streak, 7);
     const wEpic = streak >= 7 ? 30 : streak >= 3 ? 15 : 6;
     const wRare = streak >= 7 ? 40 : streak >= 3 ? 35 : 25;
     const weight = r => (r <= 1 ? 100 - wEpic - wRare : r === 2 ? wRare : wEpic);
@@ -535,7 +750,8 @@ const SAVE = {
   },
 
   eggShinyChance() {
-    return Math.min(0.10 + (this.state.streak.count || 1) * 0.02, 0.25);
+    const cap = 0.25 + 0.02 * this.charmTier();
+    return Math.min(0.10 + (this.state.streak.count || 1) * 0.02, cap);
   },
 
   // ---- apply a finished level/boss result; returns {newTrophies, levelUps} ----
@@ -545,13 +761,40 @@ const SAVE = {
     const before = levelFromXp(st.xp);
 
     const key = `${res.w}-${res.s}`;
+    const medalBefore = this.worldMedal(res.w);
     st.stages[key] = Math.max(st.stages[key] || 0, res.stars);
     st.xp += res.xp;
 
-    st.stats.bestWpm = Math.max(st.stats.bestWpm, res.wpm);
     st.stats.bestCombo = Math.max(st.stats.bestCombo, res.bestCombo);
-    st.stats.history.push({ d: new Date().toISOString().slice(0, 10), wpm: res.wpm, acc: res.acc });
-    if (st.stats.history.length > 30) st.stats.history = st.stats.history.slice(-30);
+    // facts islands (math/code/cs) have tiny WPM by nature — keep them out
+    // of the speed chart and best-WPM so they never distort the typing stats
+    if (!res.factsLane) {
+      st.stats.bestWpm = Math.max(st.stats.bestWpm, res.wpm);
+      st.stats.history.push({ d: new Date().toISOString().slice(0, 10), wpm: res.wpm, acc: res.acc });
+      if (st.stats.history.length > 30) st.stats.history = st.stats.history.slice(-30);
+    }
+
+    // personal bests per stage — the raw material of mastery medals.
+    // Explorer-band runs count for stars and Crown, but Silver/Gold speed
+    // and accuracy bests must be earned at Trainer band or above.
+    const b = st.stageBest[key] || (st.stageBest[key] = {});
+    const best = {};
+    if (res.band !== "explorer") {
+      if (res.wpm > (b.wpm || 0)) { b.wpm = res.wpm; best.wpm = true; }
+      if (res.acc > (b.acc || 0)) { b.acc = res.acc; best.acc = true; }
+    }
+    if (res.ninja && res.acc >= 0.95 && !b.ninja) { b.ninja = true; best.ninja = true; }
+    this.bump("levelsFinished");
+    this.dayInfo().levels++;
+
+    if (res.acc >= 1 && res.errors === 0) this.bump("perfectLevels");
+    if (res.ninja) this.bump("ninjaClears");
+
+    const medalAfter = this.worldMedal(res.w);
+    const medalUp = medalAfter > medalBefore ? medalAfter : 0;
+    if (medalAfter >= 2) this.award("medal-silver-1", newTrophies);
+    if (medalAfter >= 3) this.award("medal-gold-1", newTrophies);
+    if (medalAfter >= 4) this.award("crown-1", newTrophies);
 
     this.award("first-level", newTrophies);
     if (res.bestCombo >= 10) this.award("combo-10", newTrophies);
@@ -583,7 +826,56 @@ const SAVE = {
     return {
       newTrophies,
       egg,
+      best,
+      medalUp,
       levelUps: after.level > before.level ? { from: before.level, to: after.level, title: titleForLevel(after.level) } : null,
+    };
+  },
+
+  // ---- World Mastery Medals (computed; tier 0..4 = none..crown) ----
+  // Does every stage of world w meet the requirement for `tier`?
+  medalStageOk(w, s, tier) {
+    const stars = this.stageStars(w, s);
+    const b = this.state.stageBest[`${w}-${s}`] || {};
+    if (tier === 1) return stars === 3;
+    if (tier === 2) return stars === 3 && (b.acc || 0) >= 0.95 && (b.wpm || 0) >= 15;
+    if (tier === 3) return stars === 3 && (b.acc || 0) >= 0.97 && (b.wpm || 0) >= 22;
+    if (tier === 4) return this.medalStageOk(w, s, 3) && !!b.ninja;
+    return false;
+  },
+
+  medalProgress(w, tier) {
+    const total = WORLDS[w].levels.length + 1;
+    let ok = 0;
+    for (let s = 0; s < total; s++) if (this.medalStageOk(w, s, tier)) ok++;
+    return { ok, total };
+  },
+
+  worldMedal(w) {
+    let tier = 0;
+    for (let t = 1; t <= 4; t++) {
+      const p = this.medalProgress(w, t);
+      if (p.ok === p.total) tier = t;
+      else break;
+    }
+    return tier;
+  },
+
+  // ---- Shiny Charm: more shinies caught -> better shiny odds everywhere ----
+  shinyCount() {
+    return Object.values(this.state.dex).filter(d => d.shiny).length;
+  },
+
+  charmTier() {
+    const n = this.shinyCount();
+    return n >= 50 ? 3 : n >= 25 ? 2 : n >= 10 ? 1 : 0;
+  },
+
+  shinyOdds() {
+    const t = this.charmTier();
+    return {
+      catch3: 0.25 + 0.04 * t,  // 3-star post-level catch
+      wild: 0.12 + 0.03 * t,    // grass / fishing / legendary
     };
   },
 };

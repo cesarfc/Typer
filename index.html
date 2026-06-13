@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192.png">
-<link rel="stylesheet" href="css/style.css?v=19">
+<link rel="stylesheet" href="css/style.css?v=40">
 </head>
 <body>
 <div id="app">
@@ -30,12 +30,14 @@
     <nav id="main-nav">
       <button class="navbtn active" data-nav="map">🗺️ Map</button>
       <button class="navbtn" data-nav="dex">📕 Dex</button>
-      <button class="navbtn" data-nav="trophies">🏆 Trophies</button>
+      <button class="navbtn" data-nav="trophies">🏛️ Museum</button>
+      <button class="navbtn" data-nav="journal">📔 Journal</button>
       <button class="navbtn" data-nav="stats">📊 Stats</button>
     </nav>
     <div id="top-right">
       <span id="streak-chip" title="Daily play streak">🔥 1</span>
       <button id="tutorial-btn" title="Replay the typing lesson" aria-label="Replay the typing lesson">🎓</button>
+      <button id="band-btn" title="Skill band — click to change">⚡</button>
       <button id="diff-btn" title="Difficulty — click to change">🙂</button>
       <button id="sound-btn" title="Sound on/off" aria-label="Toggle sound">🔊</button>
     </div>
@@ -83,6 +85,8 @@
           <span class="map-hint">🖐️ drag to explore · ⌨️ arrows + Enter</span>
           <button id="wild-chip" class="map-hint" title="Wild encounters left today — click to learn more" aria-label="Wild encounters left today">🌿 · 🎣</button>
           <button id="egg-chip" class="map-hint hidden">🥚</button>
+          <button id="day-chip" class="map-hint" title="Today's Adventure">📜 0/3</button>
+          <button id="school-chip" class="map-hint" title="Trainer School — practice with no countdown, race your records">🏫 Practice</button>
           <button id="btn-findme">📍 Find me</button>
         </div>
         <div id="party-bar"></div>
@@ -127,7 +131,11 @@
       </div>
 
       <div id="prompt-area">
+        <div id="question-card" class="hidden"></div>
+        <div id="helper-card" class="hidden"></div>
         <div id="prompt-word"></div>
+        <div id="think-pill" class="hidden">🤔 think it through…</div>
+        <div id="code-output" class="hidden"></div>
         <div id="timer-bar"><div id="timer-fill"></div></div>
         <div id="stopwatch" class="hidden">⏱ <span id="stopwatch-time">0.0s</span> · <span id="stopwatch-wpm">0 wpm</span></div>
         <div id="finger-hint">&nbsp;</div>
@@ -171,7 +179,10 @@
     <section id="screen-practice" class="screen hidden">
       <h2 class="screen-title">🏫 Trainer School</h2>
       <p class="practice-sub">No countdown in here — just you against your own records. ⏱</p>
+      <h3 class="practice-head">⚡ Speed Drills</h3>
       <div id="practice-tiers"></div>
+      <h3 class="practice-head">📖 Story Typing <span class="practice-note">type a whole paragraph!</span></h3>
+      <div id="paragraph-list"></div>
     </section>
 
     <!-- ============ RESULTS ============ -->
@@ -179,6 +190,8 @@
       <div id="results-card">
         <h2 id="results-title">Level Complete!</h2>
         <div id="results-stars"><span class="star">★</span><span class="star">★</span><span class="star">★</span></div>
+        <div id="results-medal" class="hidden"></div>
+        <div id="results-offer" class="hidden"></div>
         <div id="results-grid"></div>
         <div id="results-xp">
           <div class="xp-label"><span id="xp-gained"></span><span id="xp-level"></span></div>
@@ -200,10 +213,28 @@
       <div id="dex-list"></div>
     </section>
 
-    <!-- ============ TROPHIES ============ -->
+    <!-- ============ MUSEUM (trophies · medals · gallery) ============ -->
     <section id="screen-trophies" class="screen hidden">
-      <h2 class="screen-title">Trophy Room <span id="trophy-count"></span></h2>
+      <h2 class="screen-title">🏛️ Museum <span id="trophy-count"></span></h2>
+      <div id="museum-tabs">
+        <button class="mtab active" data-tab="trophies">🏆 Trophies</button>
+        <button class="mtab" data-tab="medals">🎖 Medals</button>
+        <button class="mtab" data-tab="gallery">✨ Gallery</button>
+      </div>
+      <div id="museum-ledger"></div>
       <div id="trophy-grid"></div>
+      <div id="medal-wing" class="hidden"></div>
+      <div id="gallery-wing" class="hidden"></div>
+    </section>
+
+    <!-- ============ JOURNAL (daily · research · elite) ============ -->
+    <section id="screen-journal" class="screen hidden">
+      <h2 class="screen-title">📔 Journal</h2>
+      <div id="journal-wrap">
+        <div class="journal-panel" id="jr-daily"></div>
+        <div class="journal-panel" id="jr-research"></div>
+        <div class="journal-panel" id="jr-elite"></div>
+      </div>
     </section>
 
     <!-- ============ STATS ============ -->
@@ -227,7 +258,8 @@
           <h3>💾 Save data</h3>
           <p class="backup-note">Progress lives in this browser. Download a backup and keep
             <b>typequest-save.json</b> inside the game folder — the game finds it automatically
-            on a new computer or browser, and restoring never erases newer progress.</p>
+            on a new computer or browser, and restoring never erases newer progress.
+            <br><span class="ipad-hint">📱 On an iPad, the backup opens the share sheet — tap <b>Save to Files</b>.</span></p>
           <div class="backup-buttons">
             <button id="btn-backup" class="mid-btn">⬇ Download backup</button>
             <button id="btn-restore" class="mid-btn">📂 Restore from file</button>
@@ -245,6 +277,29 @@
        desktop never focuses it -->
   <input id="kb-catcher" type="text" autocomplete="off" autocapitalize="none"
          autocorrect="off" spellcheck="false" aria-hidden="true" tabindex="-1">
+
+  <div id="day-card" class="hidden"></div>
+  <div id="ceremony" class="hidden"></div>
+
+  <div id="letter-overlay" class="hidden">
+    <div class="letter-card">
+      <div class="letter-head"><span id="letter-icon">📬</span><b id="letter-title"></b></div>
+      <p id="letter-page"></p>
+      <div id="letter-dots"></div>
+      <button id="letter-next" class="big-btn">Next ▶</button>
+    </div>
+  </div>
+  <div id="spotlight" class="hidden">
+    <div id="spot-caption">
+      <div id="spot-arrow" aria-hidden="true"></div>
+      <button id="spot-skip" aria-label="Skip this tour">Skip ✕</button>
+      <p id="spot-text"></p>
+      <div class="spot-foot">
+        <span id="spot-count" class="spot-count"></span>
+        <button id="spot-next" class="spot-next">Next ▶</button>
+      </div>
+    </div>
+  </div>
 
   <div id="trophy-splash" class="hidden" aria-live="polite">
     <div class="ts-card">
@@ -267,13 +322,13 @@
   <div id="area-panel" class="hidden"></div>
 
 </div>
-<script src="js/data.js?v=19"></script>
-<script src="js/audio.js?v=19"></script>
-<script src="js/save.js?v=19"></script>
-<script src="js/engine.js?v=19"></script>
-<script src="js/sprites.js?v=19"></script>
-<script src="js/ui.js?v=19"></script>
-<script src="js/tutorial.js?v=19"></script>
-<script src="js/main.js?v=19"></script>
+<script src="js/data.js?v=40"></script>
+<script src="js/audio.js?v=40"></script>
+<script src="js/save.js?v=40"></script>
+<script src="js/engine.js?v=40"></script>
+<script src="js/sprites.js?v=40"></script>
+<script src="js/ui.js?v=40"></script>
+<script src="js/tutorial.js?v=40"></script>
+<script src="js/main.js?v=40"></script>
 </body>
 </html>
