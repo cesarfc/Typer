@@ -2023,63 +2023,145 @@ button, .screen, #topbar { touch-action: manipulation; }
   text-align: left;
 }
 
-/* ---- island route screen ---- */
+/* ---- island route screen: a painted vertical "trail map" you climb ---- */
 #screen-island { position: relative; flex: 1; overflow: hidden; padding: 0; }
-#island-viewport { position: absolute; inset: 0; overflow-y: auto; background: linear-gradient(180deg, #0b2036, #16344f); }
-#island-route { position: relative; min-height: 100%; padding: 30px 0 40px; display: flex; flex-direction: column-reverse; align-items: center; gap: 24px; }
-.isle-header { text-align: center; order: 99; margin-bottom: 10px; }
-.isle-header h2 { font-size: 26px; font-weight: 900; }
-.isle-header p { color: var(--dim); font-size: 14px; }
-.coin-count { display: inline-block; margin-top: 6px; background: rgba(255,211,77,.15); border: 1px solid var(--gold); color: var(--gold); font-weight: 800; padding: 4px 14px; border-radius: 999px; }
-.isle-node {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: var(--card);
-  border: 2px solid var(--line);
-  border-radius: 16px;
-  padding: 12px 20px;
-  cursor: pointer;
-  min-width: 240px;
+#island-viewport { position: absolute; inset: 0; overflow: auto; background: #0a0e1d; }
+#island-route { position: relative; margin: 0 auto; }   /* width/height set inline */
+.isle-bg-svg, .isle-trail-svg { position: absolute; left: 0; top: 0; }
+.isle-bg-svg { z-index: 0; }
+.isle-trail-svg { z-index: 1; pointer-events: none; }
+.isle-trail-base { fill: none; stroke: rgba(0,0,0,.30); stroke-width: 20; stroke-linecap: round; }
+.isle-trail-dots { fill: none; stroke: rgba(255,255,255,.5); stroke-width: 9; stroke-dasharray: 2 22; stroke-linecap: round; }
+.isle-trail-done { fill: none; stroke: var(--isle-accent); stroke-width: 9; stroke-dasharray: 2 22; stroke-linecap: round; opacity: .95; }
+
+/* the HUD bar (name, mastery, coins) — fixed at the top, doesn't scroll */
+#island-hud {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 20;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px 10px 60px;
+  background: linear-gradient(180deg, rgba(10,14,30,.94), rgba(10,14,30,.7));
+  backdrop-filter: blur(6px);
+  border-bottom: 2px solid var(--isle-accent, var(--info));
 }
-.isle-node.left { align-self: flex-start; margin-left: 12%; }
-.isle-node.right { align-self: flex-end; margin-right: 12%; }
-.isle-node.next { border-color: var(--gold); animation: pulseGlow 1.6s ease-in-out infinite; }
-.isle-node.done { border-color: var(--good); }
-.isle-node.locked { opacity: .5; cursor: not-allowed; }
-.isle-node.boss { background: linear-gradient(180deg, var(--card), #3a1d2e); border-color: var(--bad); }
-.isle-node.denied { animation: deniedFlash .4s; }
-.node-num { font-size: 22px; font-weight: 900; width: 40px; text-align: center; }
-.node-num .poke-img { height: 40px; }
-.node-label { flex: 1; font-weight: 700; font-size: 14px; }
-.node-stars { color: var(--gold); font-size: 14px; }
-.node-stars .off { color: var(--line); }
-.isle-tutor {
-  order: 100;
-  background: var(--card2);
-  border: 2px solid var(--info);
-  border-radius: 16px;
-  padding: 12px 22px;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-.isle-tutor .tutor-img { height: 56px; }
-.isle-tutor b { font-size: 13px; color: var(--info); }
+.hud-title b { display: block; font-size: 18px; font-weight: 900; }
+.hud-title span { font-size: 11.5px; color: var(--dim); }
+.hud-stats { margin-left: auto; display: flex; gap: 6px; flex: none; }
+.hud-pill { font-size: 13px; font-weight: 800; background: var(--card2); border: 1px solid var(--line); color: var(--text); padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+.hud-pill.coin { color: var(--gold); border-color: var(--gold); background: rgba(255,211,77,.12); }
+.hud-pill.coin.ready { animation: pulseGlow 1.4s ease-in-out infinite; }
+
 #island-back {
   position: absolute;
-  top: 12px; left: 12px;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  color: var(--text);
-  padding: 8px 16px;
-  font-weight: 700;
-  cursor: pointer;
-  z-index: 5;
+  top: 9px; left: 12px; z-index: 25;
+  width: 38px; height: 38px;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 50%; color: var(--text);
+  font-size: 16px; cursor: pointer;
+}
+
+/* level stops: round stepping-stone discs pinned on the trail */
+.isle-node {
+  position: absolute; transform: translate(-50%, -50%);
+  background: none; border: none; padding: 0; cursor: pointer; z-index: 5;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  transition: filter .15s;
+}
+.node-disc {
+  width: 62px; height: 62px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 38% 30%, var(--card2), var(--card));
+  border: 3px solid var(--line);
+  box-shadow: 0 6px 0 rgba(0,0,0,.35), inset 0 2px 4px rgba(255,255,255,.08);
+}
+.node-num { font-size: 23px; font-weight: 900; color: var(--text); }
+.node-stars { font-size: 13px; color: var(--gold); letter-spacing: 1px; line-height: 1; }
+.node-stars .off { color: var(--line); }
+.node-label {
+  font-size: 12px; font-weight: 800; max-width: 150px; text-align: center;
+  color: var(--text); background: rgba(8,12,28,.78); padding: 3px 9px;
+  border-radius: 999px; border: 1px solid var(--line); white-space: nowrap;
+}
+.isle-node.next .node-disc {
+  border-color: var(--isle-accent);
+  box-shadow: 0 6px 0 rgba(0,0,0,.35), 0 0 0 4px rgba(255,255,255,.14), 0 0 22px var(--isle-accent);
+  animation: pulseGlow 1.6s ease-in-out infinite;
+}
+.isle-node.next .node-label { border-color: var(--isle-accent); color: var(--isle-accent); }
+.isle-node.done .node-disc { border-color: var(--good); }
+.isle-node.done .node-num { color: var(--good); }
+.isle-node.locked { cursor: not-allowed; }
+.isle-node.locked .node-disc { opacity: .55; }
+.isle-node.locked .node-num { font-size: 18px; }
+.isle-node.locked .node-label { opacity: .6; }
+.isle-node:not(.locked):hover .node-disc { filter: brightness(1.18); }
+.isle-node:hover, .isle-node:active { transform: translate(-50%, -50%); } /* keep centering vs global button:hover */
+.isle-node.denied .node-disc { animation: deniedFlash .4s; }
+
+/* the boss looming at the summit */
+.isle-node.boss { z-index: 6; }
+.isle-node.boss .boss-poke .poke-img { height: 92px; filter: drop-shadow(0 8px 10px rgba(0,0,0,.55)); }
+.isle-node.boss.locked .boss-poke .poke-img { filter: grayscale(1) brightness(.45); } /* silhouette until reachable */
+.boss-aura {
+  position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+  width: 150px; height: 150px; border-radius: 50%;
+  background: radial-gradient(circle, var(--isle-accent), transparent 66%);
+  filter: blur(6px); animation: pulseGlow 2.4s ease-in-out infinite; z-index: -1;
+}
+.boss-name { font-size: 13px; font-weight: 800; color: var(--bad); background: rgba(20,8,14,.85); border: 1px solid var(--bad); padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+.isle-node.boss.done .boss-name { color: var(--good); border-color: var(--good); }
+
+/* the tutor's school on the pier */
+.isle-tutor {
+  position: absolute; transform: translate(-50%, -100%); transform-origin: 50% 100%;
+  background: none; border: none; padding: 0; cursor: pointer; z-index: 7;
+  display: flex; flex-direction: column; align-items: center;
+}
+.isle-tutor:hover, .isle-tutor:active { transform: translate(-50%, -100%); }
+.tutor-bldg { position: relative; font-size: 56px; filter: drop-shadow(0 5px 8px rgba(0,0,0,.5)); }
+.tutor-poke { position: absolute; right: -22px; bottom: -4px; }
+.isle-tutor .tutor-img { height: 42px; }
+.isle-tutor b { font-size: 12px; color: var(--info); background: rgba(8,12,28,.82); padding: 3px 10px; border-radius: 999px; border: 1px solid var(--info); margin-top: 2px; animation: pulseGlow 1.8s ease-in-out infinite; }
+
+/* the tutor's framing speech bubble at the pier */
+.isle-framing {
+  position: absolute; transform: translate(-50%, -100%);
+  width: 240px; z-index: 8;
+  background: #fdf6e3; color: #2c2a24;
+  border: 2px solid #d9c081; border-radius: 14px 14px 14px 4px;
+  padding: 10px 14px; font-size: 12.5px; font-weight: 700; line-height: 1.4;
+  box-shadow: 0 8px 20px rgba(0,0,0,.4);
+}
+
+/* you-are-here marker (avatar + lead partner) */
+.isle-marker { position: absolute; transform: translate(-50%, -100%); z-index: 9; text-align: center; pointer-events: none; }
+.isle-marker .mk-bob { display: inline-block; animation: bob 1.6s ease-in-out infinite; position: relative; }
+.isle-marker .mk-partner { position: absolute; left: 30px; bottom: -2px; }
+.isle-marker .mk-partner .poke-img { height: 32px; }
+.isle-marker i { display: block; color: #fff; font-style: normal; font-size: 13px; filter: drop-shadow(0 1px 2px #000); }
+
+/* "island restored" completion banner */
+.isle-restored {
+  position: absolute; transform: translate(-50%, 0); z-index: 8;
+  background: var(--isle-accent); color: #1a1404;
+  font-weight: 900; font-size: 14px; padding: 6px 16px;
+  border-radius: 999px; white-space: nowrap;
+  box-shadow: 0 0 20px var(--isle-accent);
+}
+
+/* ambient life — props sit in the gutters, never over a node, never tappable */
+.isle-cloud { position: absolute; font-size: 42px; opacity: .45; pointer-events: none; z-index: 1; transform: translate(-50%, -50%); animation: floatY 9s ease-in-out infinite; }
+.isle-prop { position: absolute; font-size: 28px; pointer-events: none; z-index: 2; transform: translate(-50%, -50%); filter: drop-shadow(0 3px 5px rgba(0,0,0,.4)); animation: floatY 5s ease-in-out infinite; }
+
+/* per-island distinctness (everything else keys off --isle-accent) */
+#island-route[data-subject="code"] .isle-trail-base { stroke: rgba(46,234,156,.35); }
+#island-route[data-subject="cs"] .isle-trail-dots { animation: powerFlicker 4s steps(2) infinite; }
+@keyframes powerFlicker { 0%, 92%, 100% { opacity: 1; } 94% { opacity: .4; } 96% { opacity: .85; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .isle-cloud, .isle-prop, .isle-marker .mk-bob, .boss-aura,
+  .isle-node.next .node-disc, .isle-tutor b, .hud-pill.coin.ready,
+  #island-route[data-subject="cs"] .isle-trail-dots { animation: none !important; }
+  .isle-node.next .node-disc { box-shadow: 0 6px 0 rgba(0,0,0,.35), 0 0 0 4px var(--isle-accent); }
 }
 
 /* ---- Sea Chart ---- */

@@ -833,37 +833,189 @@ const UI = {
     this.show("island");
   },
 
+  // per-island fantasy: each is a place you climb with a verb and a payoff
+  ISLAND_LORE: {
+    math: { framing: "Climb the treasure coast! The Vault at the top only opens for someone who can count past Gholdengo.",
+            lockTease: "A bigger chest waits up here…", restored: "🪙 THE COAST IS CLEARED!" },
+    code: { framing: "MissingNo crashed Circuit Town! Every line of code you finish reboots another block. Light the whole city!",
+            lockTease: "This block's screen is still dark…", restored: "💾 THE CITY IS BACK ONLINE!" },
+    cs:   { framing: "The plant's been dead for years. Bring every system back online and you'll wake what sleeps in the generator.",
+            lockTease: "This breaker is sealed shut…", restored: "⚡ THE PLANT IS RESTORED!" },
+  },
+
+  // hex colour lerp so painted land can tint toward each island's accent
+  mix(a, b, t) {
+    const h = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
+    const [r1, g1, b1] = h(a), [r2, g2, b2] = h(b);
+    const m = (x, y) => Math.round(x + (y - x) * t).toString(16).padStart(2, "0");
+    return `#${m(r1, r2)}${m(g1, g2)}${m(b1, b2)}`;
+  },
+
+  // serpentine stop centres from the pier (bottom) up to the boss (top)
+  islandPts(n, W, H) {
+    const padTop = 130, padBottom = 150, usable = H - padTop - padBottom;
+    return Array.from({ length: n }, (_, i) => ({
+      y: Math.round(H - padBottom - (i / (n - 1)) * usable),
+      x: Math.round(W * 0.5 + Math.sin(i * 1.15 + 0.4) * W * 0.26),
+    }));
+  },
+
+  // smooth quadratic path through the stop centres (same recipe as the map route)
+  islandTrailPath(pts) {
+    let d = `M${pts[0].x},${pts[0].y}`;
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1], b = pts[i];
+      d += ` Q${a.x},${(a.y + b.y) / 2} ${(a.x + b.x) / 2},${(a.y + b.y) / 2} T${b.x},${b.y}`;
+    }
+    return d;
+  },
+
+  // painted themed backdrop: water gradient + a snaking coastline the trail climbs
+  islandBgSvg(world, W, H) {
+    const [dark, light] = world.gradient;
+    const land = this.mix(dark, light, 0.28);
+    const coast = this.smoothClosed([
+      [W * 0.62, 20], [W * 0.92, H * 0.16], [W * 0.55, H * 0.34], [W * 0.86, H * 0.52],
+      [W * 0.45, H * 0.70], [W * 0.82, H * 0.86], [W * 0.5, H + 30], [W * 0.06, H * 0.6], [W * 0.18, H * 0.2],
+    ]);
+    return `<svg class="isle-bg-svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true">
+      <defs><linearGradient id="ig${world.subject}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="${dark}"/><stop offset="1" stop-color="${this.mix(dark, "#0a0e1d", 0.5)}"/>
+      </linearGradient></defs>
+      <rect width="${W}" height="${H}" fill="url(#ig${world.subject})"/>
+      <path d="${coast}" fill="none" stroke="${light}" stroke-width="30" opacity=".14"/>
+      <path d="${coast}" fill="none" stroke="${light}" stroke-width="13" opacity=".42"/>
+      <path d="${coast}" fill="${land}"/>
+      ${this.islandThemeShapes(world, W, H, land, light)}
+    </svg>`;
+  },
+
+  islandThemeShapes(world, W, H, land, light) {
+    if (world.subject === "math") { // half-buried coins on the sand
+      return [0.3, 0.55, 0.78].map((t, i) =>
+        `<circle cx="${W * (i % 2 ? 0.7 : 0.3)}" cy="${H * t}" r="9" fill="${this.mix(land, '#ffd34d', .5)}" opacity=".5"/>`).join("");
+    }
+    if (world.subject === "code") { // faint right-angle PCB traces
+      return [0.25, 0.5, 0.75].map(t =>
+        `<polyline points="${W * 0.15},${H * t} ${W * 0.15},${H * (t + .04)} ${W * 0.4},${H * (t + .04)}"
+          fill="none" stroke="${light}" stroke-width="2" opacity=".22"/>`).join("");
+    }
+    // cs: catwalk grating slats
+    return [0.3, 0.5, 0.7, 0.85].map(t =>
+      `<rect x="0" y="${H * t}" width="${W}" height="3" fill="${light}" opacity=".12"/>`).join("");
+  },
+
   renderIsland(w) {
     if (w == null) w = this._islandW;
     if (w == null || !WORLDS[w]) { this.show("map"); return; }
     this._islandW = w;
     const world = WORLDS[w];
     const route = this.$("island-route");
-    const n = world.levels.length + 1; // + boss
-    // a gentle winding column of nodes from bottom (start) to top (boss)
-    let html = `<div class="isle-header"><h2>${world.emoji} ${this.esc(world.name)}</h2>
-      <p>${this.esc(world.tagline)}</p>
-      ${world.subject === "math" ? `<span class="coin-count">🪙 ${SAVE.state.coins || 0} Gold Coins</span>` : ""}</div>`;
-    // tutor building at the pier
-    html += `<button class="isle-tutor" data-lesson="intro" title="${this.esc(world.tutor ? world.tutor.name : "Tutor")}'s lesson">
-      ${this.pokeHtml(world.tutor && world.tutor.id, world.tutor ? world.tutor.e : "🎓", { cls: "poke-img tutor-img" })}
-      <b>${this.esc(world.tutor ? world.tutor.name : "Tutor")}'s School</b></button>`;
-    for (let s = 0; s < n; s++) {
-      const isBoss = s === world.levels.length;
+    const vp = this.$("island-viewport");
+    const lore = this.ISLAND_LORE[world.subject] || this.ISLAND_LORE.math;
+    const tutor = world.tutor || { name: "Tutor", e: "🎓" };
+    const levels = world.levels.length;
+    const stops = levels + 2; // tutor pier + levels + boss
+    const W = Math.max(320, Math.min(540, vp.clientWidth || 540));
+    const H = 200 + (stops - 1) * 132;
+    const pts = this.islandPts(stops, W, H); // [0]=pier, [1..levels]=levels, [last]=boss
+    const maxStars = (levels + 1) * 3;
+    const stars = SAVE.worldStars(w);
+    const beaten = SAVE.stageStars(w, levels) > 0; // boss cleared
+
+    route.style.setProperty("--isle-accent", world.accent);
+    route.dataset.subject = world.subject;
+    route.style.width = W + "px";
+    route.style.height = H + "px";
+
+    // the frontier = first unlocked, un-cleared stop (where "you are")
+    let frontierStop = -1;
+    for (let s = 0; s <= levels; s++) {
+      if (SAVE.stageUnlocked(w, s) && SAVE.stageStars(w, s) === 0) { frontierStop = s + 1; break; }
+    }
+    if (frontierStop === -1) frontierStop = stops - 1; // all done -> at the boss
+
+    // ---- the HUD bar (name, mastery, coins) — does not scroll ----
+    const dexGot = CREATURES[w].filter((c, i) => SAVE.state.dex[`${w}-${i}`]).length;
+    const coinGate = (EVOLUTIONS.find(f => f.coins && f.base.startsWith(w + "-")) || {}).coins;
+    this.$("island-hud").innerHTML = `
+      <div class="hud-title"><b>${world.emoji} ${this.esc(world.name)}</b>
+        <span>${this.esc(world.tagline)}</span></div>
+      <div class="hud-stats">
+        <span class="hud-pill">★ ${stars}/${maxStars}</span>
+        <span class="hud-pill">📕 ${dexGot}/${CREATURES[w].length}</span>
+        ${world.subject === "math" ? `<span class="hud-pill coin ${coinGate && (SAVE.state.coins || 0) >= coinGate ? "ready" : ""}">🪙 ${SAVE.state.coins || 0}${coinGate ? `/${coinGate}` : ""}</span>` : ""}
+      </div>`;
+
+    // ---- the scrolling trail canvas ----
+    let html = this.islandBgSvg(world, W, H);
+    // trail: full dotted path, plus a glowing "climbed" overlay up to the frontier
+    const full = this.islandTrailPath(pts);
+    const donePts = pts.slice(0, Math.max(2, frontierStop + 1));
+    html += `<svg class="isle-trail-svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true">
+      <path class="isle-trail-base" d="${full}"/>
+      <path class="isle-trail-dots" d="${full}"/>
+      <path class="isle-trail-done" d="${this.islandTrailPath(donePts)}"/>
+    </svg>`;
+
+    // drifting clouds + themed scene props in the side gutters (never over nodes)
+    html += [0, 1, 2].map(i =>
+      `<span class="isle-cloud" style="top:${160 + i * (H / 3)}px;left:${i % 2 ? W - 70 : 30}px;animation-delay:-${i * 5}s">☁️</span>`).join("");
+    html += world.sceneEmojis.map((e, i) =>
+      `<span class="isle-prop" style="left:${i % 2 ? W - 26 : 18}px;top:${240 + i * (H / 5)}px;animation-delay:-${i * 1.3}s">${e}</span>`).join("");
+
+    // ---- the tutor's school on the pier (bottom) ----
+    const pier = pts[0];
+    html += `<button class="isle-tutor" data-lesson="intro" style="left:${pier.x}px;top:${pier.y}px"
+      title="${this.esc(tutor.name)}'s lesson">
+      <span class="tutor-bldg">🏫<span class="tutor-poke">${this.pokeHtml(tutor.id, tutor.e, { cls: "poke-img tutor-img" })}</span></span>
+      <b>${this.esc(tutor.name)}'s School</b></button>`;
+    // the tutor's framing speech, shown until the island is cleared
+    if (!beaten) {
+      html += `<div class="isle-framing" style="left:${pier.x}px;top:${pier.y - 96}px">${this.esc(lore.framing)}</div>`;
+    }
+
+    // ---- level stops along the trail ----
+    for (let s = 0; s < levels; s++) {
+      const p = pts[s + 1];
       const open = SAVE.stageUnlocked(w, s);
       const st = SAVE.stageStars(w, s);
       const next = open && st === 0;
-      const side = s % 2 === 0 ? "left" : "right";
-      const stars = isBoss ? (st > 0 ? "🏆" : "") : `${"★".repeat(st)}<span class="off">${"★".repeat(3 - st)}</span>`;
-      const label = isBoss ? `BOSS: ${world.boss.name}` : world.levels[s].name;
-      html += `<button class="isle-node ${side} ${isBoss ? "boss" : ""} ${open ? "" : "locked"} ${next ? "next" : ""} ${st > 0 ? "done" : ""}"
-        data-w="${w}" data-s="${s}" title="${this.esc(open ? label : "Locked")}">
-        <span class="node-num">${isBoss ? this.pokeHtml(world.boss.id, world.boss.emoji, { cls: "poke-img" }) : s + 1}</span>
-        <span class="node-label">${this.esc(label)}</span>
-        <span class="node-stars">${stars}</span></button>`;
+      const starHtml = `${"★".repeat(st)}<span class="off">${"★".repeat(3 - st)}</span>`;
+      html += `<button class="isle-node ${open ? "" : "locked"} ${next ? "next" : ""} ${st > 0 ? "done" : ""}"
+        data-w="${w}" data-s="${s}" style="left:${p.x}px;top:${p.y}px"
+        title="${this.esc(open ? world.levels[s].name : "Locked — " + lore.lockTease)}">
+        <span class="node-disc"><span class="node-num">${open ? s + 1 : "🔒"}</span></span>
+        <span class="node-stars">${starHtml}</span>
+        <span class="node-label">${this.esc(world.levels[s].name)}</span></button>`;
     }
+
+    // ---- the boss looming at the summit ----
+    const bp = pts[stops - 1];
+    const bossStars = SAVE.stageStars(w, levels);
+    const bossOpen = SAVE.stageUnlocked(w, levels);
+    const charge = Math.round(100 * stars / maxStars);
+    html += `<button class="isle-node boss ${bossOpen ? "" : "locked"} ${bossStars > 0 ? "done" : ""}"
+      data-w="${w}" data-s="${levels}" style="left:${bp.x}px;top:${bp.y}px"
+      title="BOSS: ${this.esc(world.boss.name)}">
+      <span class="boss-aura" style="opacity:${0.25 + 0.6 * charge / 100}"></span>
+      <span class="boss-poke">${this.pokeHtml(world.boss.id, world.boss.emoji, { cls: "poke-img" })}</span>
+      <span class="boss-name">${bossStars > 0 ? "🏆 " : ""}${world.boss.emoji} ${this.esc(world.boss.name)}</span></button>`;
+
+    // ---- "you are here": avatar + lead partner stand on the frontier stop ----
+    if (!beaten && frontierStop >= 0) {
+      const fp = pts[frontierStop];
+      const lead = SAVE.leadCreature();
+      html += `<div class="isle-marker" style="left:${fp.x}px;top:${fp.y - 30}px">
+        <span class="mk-bob">${this.avatarHtml(SAVE.state.profile)}${lead ? `<span class="mk-partner">${this.pokeHtml(lead.id, lead.e, { shiny: lead.shiny, cls: "poke-img" })}</span>` : ""}</span><i>▼</i></div>`;
+    }
+    // restored banner once the island is fully cleared
+    if (beaten) {
+      html += `<div class="isle-restored" style="left:${bp.x}px;top:${bp.y + 70}px">${lore.restored}</div>`;
+    }
+
     route.innerHTML = html;
-    route.scrollTop = route.scrollHeight; // start at the pier (bottom)
+    vp.scrollTop = vp.scrollHeight; // open at the pier (bottom); boss is up the climb
   },
 
   // ---------- concept lessons (assume the trainer is new to the subject) ----------
