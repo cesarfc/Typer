@@ -332,9 +332,9 @@ const UI = {
     db.setAttribute("aria-label", `Difficulty ${d.label}, click to change`);
     const band = BANDS[SAVE.state.band] || BANDS.trainer;
     const bb = this.$("band-btn");
-    bb.textContent = band.e;
-    bb.title = `Skill band: ${band.label} — ${band.desc} (click to change)`;
-    bb.setAttribute("aria-label", `Skill band ${band.label}, click to change`);
+    bb.textContent = `${band.e} ${band.label}`;
+    bb.title = `Challenge level: ${band.label} — ${band.desc}. Tap to make words easier or harder for your age.`;
+    bb.setAttribute("aria-label", `Challenge level ${band.label}, tap to change`);
   },
 
   // ---------- region map (pannable, DS-style tilted view) ----------
@@ -1480,20 +1480,14 @@ const UI = {
       e.preventDefault();
       this.setMapPos(this.mapX - e.deltaX, this.mapY - e.deltaY / Math.cos(this.TILT));
     }, { passive: false });
-    vp.addEventListener("dblclick", e => {
-      // double-click skips the level card and dives straight in
-      const b = e.target.closest(".mnode");
-      if (!b || b.classList.contains("locked")) return;
-      this.closeLevelCard();
-      Engine.startStage(+b.dataset.w, +b.dataset.s);
-    });
     vp.addEventListener("click", e => {
       if (this._mapDragged) return;
       const b = e.target.closest(".mnode");
       if (b) {
         SFX.init();
         if (!b.classList.contains("locked")) {
-          this.openLevelCard(+b.dataset.w, +b.dataset.s);
+          // tap = play, straight away (at the player's challenge setting)
+          Engine.startStage(+b.dataset.w, +b.dataset.s);
         } else {
           // locked: never answer a click with silence
           SFX.error();
@@ -3600,7 +3594,7 @@ const UI = {
       SFX.click();
       this.renderTopbar();
       const bd = BANDS[next];
-      this.toast(`${bd.e} Skill band: <b>${bd.label}</b> — ${bd.desc}`);
+      this.toast(`${bd.e} Challenge: <b>${bd.label}</b> — ${bd.desc}`);
     });
     this.$("day-chip").addEventListener("click", () => { SFX.click(); this.maybeDayCard(true); });
     this.$("chart-chip").addEventListener("click", () => { SFX.click(); this.openSeaChart(); });
@@ -3629,7 +3623,8 @@ const UI = {
         this.toast("🔒 Finish the level before this one first!");
         return;
       }
-      this.openLevelCard(+node.dataset.w, +node.dataset.s);
+      // tap = play (plays the concept lesson first if it's a new idea)
+      this.startLevelWithLesson(+node.dataset.w, +node.dataset.s, {});
     });
     this.$("lesson-next").addEventListener("click", () => this.lessonNext());
     this.$("lesson-skip").addEventListener("click", () => { SFX.click(); this.lessonFinish(true); });

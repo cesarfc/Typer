@@ -848,15 +848,15 @@ const FEATURE_INTROS = [
   {
     id: "bands",
     icon: "🎚",
-    title: "Pick your challenge level",
+    title: "Set your challenge level",
     when: S => (S.state.counters.levelsFinished || 0) >= 3,
     pages: [
-      "Every trainer is different — so every level now has <b>skill bands</b>!",
-      "🌱 <b>Explorer</b> faces shorter words with extra time. ⚡ <b>Trainer</b> is the classic. 👑 <b>Ace</b> gets longer words, tougher bosses and <b>+15% XP</b>.",
-      "Switch any time with the band button up top, or pick a band for one level from its level card. Stars count at every band!",
+      "Every trainer is different — so you can set how hard the words are, up at the top!",
+      "🌱 <b>Explorer</b> has shorter words and extra time. ⚡ <b>Trainer</b> is the classic. 👑 <b>Ace</b> gets longer words, tougher bosses and <b>+15% XP</b>.",
+      "Tap the challenge button any time to switch — great for sharing with a younger or older player. Stars count the same at every level!",
     ],
     spotlight: [
-      { nav: "map", sel: "#band-btn", text: "Your band button — click it any time to change challenge." },
+      { nav: "map", sel: "#band-btn", text: "Set your challenge here — easier or harder words for your age. Tap any time." },
     ],
   },
   {
