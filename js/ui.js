@@ -126,7 +126,6 @@ const UI = {
     document.querySelectorAll(".navbtn").forEach(b =>
       b.classList.toggle("active", b.dataset.nav === name));
     if (name === "map") this.renderMap();
-    if (name === "island") this.renderIsland();
     if (name === "dex") this.renderDex();
     if (name === "trophies") this.renderTrophies();
     if (name === "journal") this.renderJournal();
@@ -353,7 +352,7 @@ const UI = {
     { x: 1905, y: 290, sp: "volcano", s: 72, n: "Ember Town" },
     { x: 2010, y: 1190, sp: "lanternpost", s: 48, n: "Lantern Village" },
     { x: 2625, y: 425, sp: "hall", s: 80, n: "Hall of Fame" },
-    { x: 905, y: 1300, sp: "pier", s: 66, n: "Ferry Dock" },
+    { x: 905, y: 1300, sp: "pier", s: 66, n: "Fishing Pier" },
     { x: 1565, y: 690, sp: "berrybush", s: 48, n: "Berry Farm" },
   ],
   MAP_DECOR: [
@@ -395,7 +394,7 @@ const UI = {
     [{ x: 2350, y: 640 }, { x: 2600, y: 690 }, { x: 2550, y: 420 }, { x: 2450, y: 560 }],
   ],
   FISH_SPOTS: [
-    { x: 945, y: 1295, need: 0 },   // Ferry Dock lake
+    { x: 945, y: 1295, need: 0 },   // Fishing Pier lake
     { x: 1530, y: 1420, need: 2 },  // south coast pier
     { x: 2245, y: 1185, need: 4 },  // Eterna pond
   ],
@@ -674,9 +673,6 @@ const UI = {
     dayChip.textContent = `📜 ${dayDone}/3`;
     dayChip.classList.toggle("ready", dayDone === 3);
 
-    // the ferry to the Scholar Archipelago appears once it's unlocked
-    this.$("chart-chip").classList.toggle("hidden", !this.archUnlocked());
-
     const eggChip = this.$("egg-chip");
     eggChip.classList.toggle("hidden", !egg);
     if (egg) {
@@ -773,431 +769,6 @@ const UI = {
 
   closeAreaPanel() {
     this.$("area-panel").classList.add("hidden");
-  },
-
-  // ---------- Scholar Archipelago: Sea Chart + island route screens ----------
-  ARCH_ISLANDS: [
-    { w: 6, name: "Gimmighoul Coast", emoji: "🪙", subject: "Math", blurb: "Number row · times tables · fractions", x: 26, y: 58, rumor: "Sailors hear counting in the fog…" },
-    { w: 7, name: "Circuit Town", emoji: "💾", subject: "Coding", blurb: "Symbols · real code that runs", x: 54, y: 34, rumor: "Strange glowing words flicker offshore…" },
-    { w: 8, name: "Power Plant", emoji: "⚡", subject: "Computer Science", blurb: "Binary · logic gates · secret codes", x: 80, y: 60, rumor: "A low electric hum rolls across the water…" },
-  ],
-
-  archUnlocked() {
-    return SAVE.worldUnlocked(6); // the whole chain opens with the first island
-  },
-
-  openSeaChart() {
-    const sc = this.$("sea-chart");
-    const kbDone = SAVE.medalPoints();
-    const islandCard = isl => {
-      const exists = !!WORLDS[isl.w];
-      const open = exists && SAVE.worldUnlocked(isl.w);
-      const stars = exists ? SAVE.worldStars(isl.w) : 0;
-      const maxStars = exists ? (WORLDS[isl.w].levels.length + 1) * 3 : 0;
-      const ring = open ? Math.round(100 * stars / maxStars) : 0;
-      if (!exists || !open) {
-        return `<div class="chart-isle locked" style="left:${isl.x}%;top:${isl.y}%">
-          <div class="isle-blob locked"><span class="isle-cloud">☁️</span><span class="isle-cloud c2">☁️</span></div>
-          <b>???</b><i class="isle-rumor">${this.esc(isl.rumor)}</i>
-          <span class="isle-lock">🔒 Beat the Hall of Fame to sail here</span></div>`;
-      }
-      return `<button class="chart-isle" data-isle="${isl.w}" style="left:${isl.x}%;top:${isl.y}%">
-        <div class="isle-blob" style="--ring:${ring}%"><span class="isle-emoji">${isl.emoji}</span></div>
-        <b>${this.esc(isl.name)}</b><i>${this.esc(isl.subject)} · ★ ${stars}/${maxStars}</i>
-        <span class="isle-blurb">${this.esc(isl.blurb)}</span></button>`;
-    };
-    sc.innerHTML = `<div class="chart-card">
-      <button id="chart-close" aria-label="Close">✕</button>
-      <h2>🗺️ Sea Chart</h2>
-      <p class="chart-sub">Sail the Scholar Archipelago — new islands that teach real skills!</p>
-      <div class="chart-sea">
-        <button class="chart-isle home" data-isle="home" style="left:8%;top:30%">
-          <div class="isle-blob home"><span class="isle-emoji">⌨️</span></div>
-          <b>Keyboard Island</b><i>Home · ${kbDone} medals</i></button>
-        ${this.ARCH_ISLANDS.map(islandCard).join("")}
-        <svg class="chart-routes" viewBox="0 0 100 100" preserveAspectRatio="none">
-          <path d="M14,33 Q30,45 28,56" /><path d="M32,56 Q45,42 54,37" /><path d="M58,37 Q72,44 80,58" />
-        </svg>
-      </div>
-    </div>`;
-    sc.classList.remove("hidden");
-  },
-
-  closeSeaChart() { this.$("sea-chart").classList.add("hidden"); },
-
-  sailTo(w) {
-    this.closeSeaChart();
-    if (w === "home") { this.show("map"); return; }
-    this._islandW = +w;
-    SFX.fanfare();
-    this.show("island");
-  },
-
-  // per-island fantasy: each is a place you climb with a verb and a payoff
-  ISLAND_LORE: {
-    math: { framing: "Climb the treasure coast! The Vault at the top only opens for someone who can count past Gholdengo.",
-            lockTease: "A bigger chest waits up here…", restored: "🪙 THE COAST IS CLEARED!" },
-    code: { framing: "MissingNo crashed Circuit Town! Every line of code you finish reboots another block. Light the whole city!",
-            lockTease: "This block's screen is still dark…", restored: "💾 THE CITY IS BACK ONLINE!" },
-    cs:   { framing: "The plant's been dead for years. Bring every system back online and you'll wake what sleeps in the generator.",
-            lockTease: "This breaker is sealed shut…", restored: "⚡ THE PLANT IS RESTORED!" },
-  },
-
-  // hex colour lerp so painted land can tint toward each island's accent
-  mix(a, b, t) {
-    const h = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
-    const [r1, g1, b1] = h(a), [r2, g2, b2] = h(b);
-    const m = (x, y) => Math.round(x + (y - x) * t).toString(16).padStart(2, "0");
-    return `#${m(r1, r2)}${m(g1, g2)}${m(b1, b2)}`;
-  },
-
-  // serpentine stop centres from the pier (bottom) up to the boss (top)
-  islandPts(n, W, H) {
-    const padTop = 130, padBottom = 150, usable = H - padTop - padBottom;
-    return Array.from({ length: n }, (_, i) => ({
-      y: Math.round(H - padBottom - (i / (n - 1)) * usable),
-      x: Math.round(W * 0.5 + Math.sin(i * 1.15 + 0.4) * W * 0.26),
-    }));
-  },
-
-  // smooth quadratic path through the stop centres (same recipe as the map route)
-  islandTrailPath(pts) {
-    let d = `M${pts[0].x},${pts[0].y}`;
-    for (let i = 1; i < pts.length; i++) {
-      const a = pts[i - 1], b = pts[i];
-      d += ` Q${a.x},${(a.y + b.y) / 2} ${(a.x + b.x) / 2},${(a.y + b.y) / 2} T${b.x},${b.y}`;
-    }
-    return d;
-  },
-
-  // painted themed backdrop: water gradient + a snaking coastline the trail climbs
-  islandBgSvg(world, W, H) {
-    const [dark, light] = world.gradient;
-    const land = this.mix(dark, light, 0.28);
-    const coast = this.smoothClosed([
-      [W * 0.62, 20], [W * 0.92, H * 0.16], [W * 0.55, H * 0.34], [W * 0.86, H * 0.52],
-      [W * 0.45, H * 0.70], [W * 0.82, H * 0.86], [W * 0.5, H + 30], [W * 0.06, H * 0.6], [W * 0.18, H * 0.2],
-    ]);
-    return `<svg class="isle-bg-svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true">
-      <defs><linearGradient id="ig${world.subject}" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="${dark}"/><stop offset="1" stop-color="${this.mix(dark, "#0a0e1d", 0.5)}"/>
-      </linearGradient></defs>
-      <rect width="${W}" height="${H}" fill="url(#ig${world.subject})"/>
-      <path d="${coast}" fill="none" stroke="${light}" stroke-width="30" opacity=".14"/>
-      <path d="${coast}" fill="none" stroke="${light}" stroke-width="13" opacity=".42"/>
-      <path d="${coast}" fill="${land}"/>
-      ${this.islandThemeShapes(world, W, H, land, light)}
-    </svg>`;
-  },
-
-  islandThemeShapes(world, W, H, land, light) {
-    if (world.subject === "math") { // half-buried coins on the sand
-      return [0.3, 0.55, 0.78].map((t, i) =>
-        `<circle cx="${W * (i % 2 ? 0.7 : 0.3)}" cy="${H * t}" r="9" fill="${this.mix(land, '#ffd34d', .5)}" opacity=".5"/>`).join("");
-    }
-    if (world.subject === "code") { // faint right-angle PCB traces
-      return [0.25, 0.5, 0.75].map(t =>
-        `<polyline points="${W * 0.15},${H * t} ${W * 0.15},${H * (t + .04)} ${W * 0.4},${H * (t + .04)}"
-          fill="none" stroke="${light}" stroke-width="2" opacity=".22"/>`).join("");
-    }
-    // cs: catwalk grating slats
-    return [0.3, 0.5, 0.7, 0.85].map(t =>
-      `<rect x="0" y="${H * t}" width="${W}" height="3" fill="${light}" opacity=".12"/>`).join("");
-  },
-
-  renderIsland(w) {
-    if (w == null) w = this._islandW;
-    if (w == null || !WORLDS[w]) { this.show("map"); return; }
-    this._islandW = w;
-    const world = WORLDS[w];
-    const route = this.$("island-route");
-    const vp = this.$("island-viewport");
-    const lore = this.ISLAND_LORE[world.subject] || this.ISLAND_LORE.math;
-    const tutor = world.tutor || { name: "Tutor", e: "🎓" };
-    const levels = world.levels.length;
-    const stops = levels + 2; // tutor pier + levels + boss
-    const W = Math.max(320, Math.min(540, vp.clientWidth || 540));
-    const H = 200 + (stops - 1) * 132;
-    const pts = this.islandPts(stops, W, H); // [0]=pier, [1..levels]=levels, [last]=boss
-    const maxStars = (levels + 1) * 3;
-    const stars = SAVE.worldStars(w);
-    const beaten = SAVE.stageStars(w, levels) > 0; // boss cleared
-
-    route.style.setProperty("--isle-accent", world.accent);
-    route.dataset.subject = world.subject;
-    route.style.width = W + "px";
-    route.style.height = H + "px";
-
-    // the frontier = first unlocked, un-cleared stop (where "you are")
-    let frontierStop = -1;
-    for (let s = 0; s <= levels; s++) {
-      if (SAVE.stageUnlocked(w, s) && SAVE.stageStars(w, s) === 0) { frontierStop = s + 1; break; }
-    }
-    if (frontierStop === -1) frontierStop = stops - 1; // all done -> at the boss
-
-    // ---- the HUD bar (name, mastery, coins) — does not scroll ----
-    const dexGot = CREATURES[w].filter((c, i) => SAVE.state.dex[`${w}-${i}`]).length;
-    const coinGate = (EVOLUTIONS.find(f => f.coins && f.base.startsWith(w + "-")) || {}).coins;
-    this.$("island-hud").innerHTML = `
-      <div class="hud-title"><b>${world.emoji} ${this.esc(world.name)}</b>
-        <span>${this.esc(world.tagline)}</span></div>
-      <div class="hud-stats">
-        <span class="hud-pill">★ ${stars}/${maxStars}</span>
-        <span class="hud-pill">📕 ${dexGot}/${CREATURES[w].length}</span>
-        ${world.subject === "math" ? `<span class="hud-pill coin ${coinGate && (SAVE.state.coins || 0) >= coinGate ? "ready" : ""}">🪙 ${SAVE.state.coins || 0}${coinGate ? `/${coinGate}` : ""}</span>` : ""}
-      </div>`;
-
-    // ---- the scrolling trail canvas ----
-    let html = this.islandBgSvg(world, W, H);
-    // trail: full dotted path, plus a glowing "climbed" overlay up to the frontier
-    const full = this.islandTrailPath(pts);
-    const donePts = pts.slice(0, Math.max(2, frontierStop + 1));
-    html += `<svg class="isle-trail-svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true">
-      <path class="isle-trail-base" d="${full}"/>
-      <path class="isle-trail-dots" d="${full}"/>
-      <path class="isle-trail-done" d="${this.islandTrailPath(donePts)}"/>
-    </svg>`;
-
-    // drifting clouds + themed scene props in the side gutters (never over nodes)
-    html += [0, 1, 2].map(i =>
-      `<span class="isle-cloud" style="top:${160 + i * (H / 3)}px;left:${i % 2 ? W - 70 : 30}px;animation-delay:-${i * 5}s">☁️</span>`).join("");
-    html += world.sceneEmojis.map((e, i) =>
-      `<span class="isle-prop" style="left:${i % 2 ? W - 26 : 18}px;top:${240 + i * (H / 5)}px;animation-delay:-${i * 1.3}s">${e}</span>`).join("");
-
-    // ---- the tutor's school on the pier (bottom) ----
-    const pier = pts[0];
-    html += `<button class="isle-tutor" data-lesson="intro" style="left:${pier.x}px;top:${pier.y}px"
-      title="${this.esc(tutor.name)}'s lesson">
-      <span class="tutor-bldg">🏫<span class="tutor-poke">${this.pokeHtml(tutor.id, tutor.e, { cls: "poke-img tutor-img" })}</span></span>
-      <b>${this.esc(tutor.name)}'s School</b></button>`;
-    // the tutor's framing speech, shown until the island is cleared
-    if (!beaten) {
-      html += `<div class="isle-framing" style="left:${pier.x}px;top:${pier.y - 96}px">${this.esc(lore.framing)}</div>`;
-    }
-
-    // ---- level stops along the trail ----
-    for (let s = 0; s < levels; s++) {
-      const p = pts[s + 1];
-      const open = SAVE.stageUnlocked(w, s);
-      const st = SAVE.stageStars(w, s);
-      const next = open && st === 0;
-      const starHtml = `${"★".repeat(st)}<span class="off">${"★".repeat(3 - st)}</span>`;
-      html += `<button class="isle-node ${open ? "" : "locked"} ${next ? "next" : ""} ${st > 0 ? "done" : ""}"
-        data-w="${w}" data-s="${s}" style="left:${p.x}px;top:${p.y}px"
-        title="${this.esc(open ? world.levels[s].name : "Locked — " + lore.lockTease)}">
-        <span class="node-disc"><span class="node-num">${open ? s + 1 : "🔒"}</span></span>
-        <span class="node-stars">${starHtml}</span>
-        <span class="node-label">${this.esc(world.levels[s].name)}</span></button>`;
-    }
-
-    // ---- the boss looming at the summit ----
-    const bp = pts[stops - 1];
-    const bossStars = SAVE.stageStars(w, levels);
-    const bossOpen = SAVE.stageUnlocked(w, levels);
-    const charge = Math.round(100 * stars / maxStars);
-    html += `<button class="isle-node boss ${bossOpen ? "" : "locked"} ${bossStars > 0 ? "done" : ""}"
-      data-w="${w}" data-s="${levels}" style="left:${bp.x}px;top:${bp.y}px"
-      title="BOSS: ${this.esc(world.boss.name)}">
-      <span class="boss-aura" style="opacity:${0.25 + 0.6 * charge / 100}"></span>
-      <span class="boss-poke">${this.pokeHtml(world.boss.id, world.boss.emoji, { cls: "poke-img" })}</span>
-      <span class="boss-name">${bossStars > 0 ? "🏆 " : ""}${world.boss.emoji} ${this.esc(world.boss.name)}</span></button>`;
-
-    // ---- "you are here": avatar + lead partner stand on the frontier stop ----
-    if (!beaten && frontierStop >= 0) {
-      const fp = pts[frontierStop];
-      const lead = SAVE.leadCreature();
-      html += `<div class="isle-marker" style="left:${fp.x}px;top:${fp.y - 30}px">
-        <span class="mk-bob">${this.avatarHtml(SAVE.state.profile)}${lead ? `<span class="mk-partner">${this.pokeHtml(lead.id, lead.e, { shiny: lead.shiny, cls: "poke-img" })}</span>` : ""}</span><i>▼</i></div>`;
-    }
-    // restored banner once the island is fully cleared
-    if (beaten) {
-      html += `<div class="isle-restored" style="left:${bp.x}px;top:${bp.y + 70}px">${lore.restored}</div>`;
-    }
-
-    route.innerHTML = html;
-    vp.scrollTop = vp.scrollHeight; // open at the pier (bottom); boss is up the climb
-  },
-
-  // ---------- concept lessons (assume the trainer is new to the subject) ----------
-  // play a level's lesson first if it hasn't been seen, then start the level
-  startLevelWithLesson(w, s, opts) {
-    const world = WORLDS[w];
-    const isBoss = s === world.levels.length;
-    const lid = !isBoss && world.levels[s].lesson;
-    const seen = SAVE.state.flags.lessons || {};
-    if (lid && LESSONS[lid] && !seen[lid] && !(opts && opts.skipLesson)) {
-      this.startLesson(lid, world, () => Engine.startStage(w, s, opts));
-      return;
-    }
-    Engine.startStage(w, s, opts);
-  },
-
-  startLesson(id, world, onDone) {
-    const def = LESSONS[id];
-    if (!def) { onDone && onDone(); return; }
-    this.lesson = { id, def, step: 0, world, onDone, guideOk: false };
-    this.$("lesson-tutor").innerHTML = world && world.tutor
-      ? this.pokeHtml(world.tutor.id, world.tutor.e, { cls: "poke-img" }) : def.e;
-    this.$("lesson-overlay").classList.remove("hidden");
-    this.lessonShow();
-  },
-
-  lessonShow() {
-    const L = this.lesson;
-    const st = L.def.steps[L.step];
-    this.$("lesson-bubble").innerHTML = st.say || "";
-    this.$("lesson-board").innerHTML = st.board ? this.lessonBoard(st.board, st.arg) : "";
-    this.$("lesson-board").classList.toggle("hidden", !st.board);
-    const tryBox = this.$("lesson-try");
-    const next = this.$("lesson-next");
-    L.guideOk = false;
-    L.typed = "";
-    if (st.guide || st.try || st.typeWord) {
-      // a guided keypress, a whole guided word, or an untimed practice prompt
-      const target = st.try ? promptAnswer(st.try) : (st.typeWord || st.guide);
-      L.target = target;
-      L.tryQuestion = st.try ? promptDisplay(st.try) : null;
-      tryBox.classList.remove("hidden");
-      tryBox.innerHTML = `${L.tryQuestion ? `<div class="lt-q">${this.esc(L.tryQuestion)}</div>` : ""}
-        <div class="lt-slots ${target.length > 6 ? "mono" : ""}">${[...target].map((c, i) =>
-          `<span class="lt-ch ${i === 0 ? "cur" : ""}">${c === " " ? "·" : this.esc(c)}</span>`).join("")}</div>
-        <div class="lt-hint">⌨️ type it to continue</div>`;
-      next.classList.add("hidden");
-      this.highlightKey(target[0]);
-    } else {
-      tryBox.classList.add("hidden");
-      tryBox.innerHTML = "";
-      next.classList.remove("hidden");
-      this.highlightKey(null);
-    }
-    next.textContent = L.step < L.def.steps.length - 1 ? "Next ▶" : "Start the level! ▶";
-  },
-
-  // keystrokes during a guide/try lesson step
-  lessonKey(e) {
-    const L = this.lesson;
-    if (!L || !L.target) return;
-    if (e.key && e.key.length === 1) {
-      e.preventDefault();
-      const key = normalizeKey(e.key);
-      const pos = L.typed.length;
-      if (key === L.target[pos]) {
-        L.typed += key;
-        const slots = this.$("lesson-try").querySelectorAll(".lt-ch");
-        if (slots[pos]) { slots[pos].classList.remove("cur"); slots[pos].classList.add("done"); }
-        if (slots[pos + 1]) slots[pos + 1].classList.add("cur");
-        SFX.click(pos + 1);
-        if (L.typed.length >= L.target.length) {
-          this.highlightKey(null);
-          SFX.word();
-          setTimeout(() => this.lessonNext(), 350);
-        } else {
-          this.highlightKey(L.target[L.typed.length]);
-        }
-      } else {
-        SFX.error();
-        const slots = this.$("lesson-try").querySelectorAll(".lt-ch");
-        if (slots[pos]) { slots[pos].classList.add("err"); setTimeout(() => slots[pos].classList.remove("err"), 250); }
-      }
-    }
-  },
-
-  lessonNext() {
-    const L = this.lesson;
-    if (!L) return;
-    if (L.step < L.def.steps.length - 1) {
-      L.step++;
-      this.lessonShow();
-      SFX.click();
-    } else {
-      this.lessonFinish(false);
-    }
-  },
-
-  lessonFinish(skipped) {
-    const L = this.lesson;
-    if (!L) return;
-    this.$("lesson-overlay").classList.add("hidden");
-    this.highlightKey(null);
-    SAVE.state.flags.lessons = SAVE.state.flags.lessons || {};
-    if (!SAVE.state.flags.lessons[L.id]) {
-      SAVE.state.flags.lessons[L.id] = true;
-      if (!skipped) SAVE.state.xp += 5; // a small thank-you for learning
-      SAVE.save();
-    }
-    this.lesson = null;
-    if (L.onDone) L.onDone();
-  },
-
-  // visual boards: concrete -> pictorial -> abstract
-  lessonBoard(type, arg) {
-    if (type === "numrow") {
-      const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="];
-      return `<div class="lb-numrow">${keys.map(k =>
-        `<span class="lb-key ${k === arg ? "hot" : ""}">${k}</span>`).join("")}</div>`;
-    }
-    if (type === "place") {
-      const s = String(arg).split("");
-      const places = ["", "", "ones", "tens", "hundreds", "thousands"];
-      return `<div class="lb-place">${s.map((d, i) => {
-        const mag = Math.pow(10, s.length - 1 - i);
-        return `<div class="lb-digit"><b>${+d * mag}</b><i>${places[s.length - i] || ""}</i></div>`;
-      }).join("<span class='lb-plus'>+</span>")}</div>`;
-    }
-    if (type === "groups") {
-      const [g, m] = arg;
-      return `<div class="lb-groups">${Array.from({ length: g }, () =>
-        `<div class="lb-group">${"🍓".repeat(m)}</div>`).join("")}</div>`;
-    }
-    if (type === "skip") {
-      const [by, times] = arg;
-      return `<div class="lb-skip">${Array.from({ length: times }, (_, i) =>
-        `<span class="lb-step">${by * (i + 1)}</span>`).join("<i>→</i>")}</div>`;
-    }
-    if (type === "triangle") {
-      const [top, a, b] = arg;
-      return `<div class="lb-tri"><span class="tri-top">${top}</span><div class="tri-bot"><span>${a}</span><span>${b}</span></div></div>`;
-    }
-    if (type === "pie") {
-      const [, parts] = arg;
-      return `<div class="lb-pie">${Array.from({ length: parts }, (_, i) =>
-        `<span class="pie-slice s${parts}" style="--i:${i}">🥧</span>`).join("")}<i>${parts} equal parts</i></div>`;
-    }
-    if (type === "pair") {
-      const [open, close] = arg;
-      return `<div class="lb-pair"><span class="pair-k">${this.esc(open)}</span><i>everything goes inside</i><span class="pair-k">${this.esc(close)}</span></div>`;
-    }
-    if (type === "camel") {
-      const word = arg;
-      return `<div class="lb-camel">${[...word].map(c =>
-        `<span class="${/[A-Z]/.test(c) ? "cap" : ""}">${c}</span>`).join("")}</div>`;
-    }
-    if (type === "crate") {
-      const [name, val] = arg;
-      return `<div class="lb-crate"><span class="crate-name">${this.esc(name)}</span><span class="crate-box">${this.esc(String(val))}</span></div>`;
-    }
-    if (type === "hexswatch") {
-      const hex = arg;
-      return `<div class="lb-hex"><span class="hex-swatch big" style="background:${this.esc(hex)}"></span><span class="hex-code">${this.esc(hex)}</span></div>`;
-    }
-    if (type === "lamps") {
-      const bits = arg;
-      const vals = [8, 4, 2, 1].slice(-bits.length);
-      const sum = [...bits].reduce((a, b, i) => a + (b === "1" ? vals[i] : 0), 0);
-      return `<div class="lb-lamps">${[...bits].map((b, i) =>
-        `<span class="lamp ${b === "1" ? "on" : ""}"><b>${b}</b><i>${vals[i]}</i></span>`).join("")}<span class="lamp-sum">= ${sum}</span></div>`;
-    }
-    if (type === "gate") {
-      return `<div class="lb-gate"><span class="sw on">ON</span><span class="gate-op">${this.esc(arg)}</span><span class="sw on">ON</span><i>→</i><span class="bulb on">💡</span></div>`;
-    }
-    if (type === "cipher") {
-      const word = arg;
-      return `<div class="lb-cipher">${[...word].map(c => {
-        const prev = String.fromCharCode(c.charCodeAt(0) - 1);
-        return `<span class="cip"><b>${c}</b><i>↓</i><u>${prev}</u></span>`;
-      }).join("")}</div>`;
-    }
-    return "";
   },
 
   // ---------- Professor's Letters: features introduce themselves ----------
@@ -2280,7 +1851,6 @@ const UI = {
     this._practiceNext = null;
     this._paragraphNext = null;
     this._practiceMode = false;
-    this._islandReturn = !!(WORLDS[res.w] && WORLDS[res.w].island);
     this._resultsAt = performance.now();
     this.$("btn-replay").textContent = "↻ Replay";
     this.$("btn-replay").classList.remove("hidden");
@@ -2469,7 +2039,6 @@ const UI = {
     this._practiceNext = null;
     this._paragraphNext = null;
     this._practiceMode = false;
-    this._islandReturn = !!(WORLDS[S.w] && WORLDS[S.w].island);
     this._resultsAt = performance.now();
     this.$("results-egg").className = "hidden";          // no stale egg note
     this.$("results-medal").className = "hidden";        // no stale medal beat
@@ -2778,7 +2347,6 @@ const UI = {
     this._practiceMode = true; // btn-replay returns to the Trainer School
     this._nextTarget = null;
     this._lastStage = null;
-    this._islandReturn = false;
     this._resultsAt = performance.now();
     const card = this.$("results-card");
     card.classList.remove("defeat");
@@ -3601,19 +3169,17 @@ const UI = {
       else if (this._practiceNext) Engine.startPractice(this._practiceNext);
       else if (this._nextTarget) {
         const [w, s] = this._nextTarget;
-        if (WORLDS[w] && WORLDS[w].island) this.startLevelWithLesson(w, s, {});
-        else Engine.startStage(w, s);
-      } else this.show(this._islandReturn ? "island" : "map");
+        Engine.startStage(w, s);
+      } else this.show("map");
     });
     this.$("btn-replay").addEventListener("click", () => {
       if (this._practiceMode) this.show("practice");
       else if (this._lastStage) {
         const [w, s] = this._lastStage;
-        if (WORLDS[w] && WORLDS[w].island) Engine.startStage(w, s, {});
-        else Engine.startStage(w, s);
+        Engine.startStage(w, s);
       }
     });
-    this.$("btn-tomap").addEventListener("click", () => this.show(this._islandReturn ? "island" : "map"));
+    this.$("btn-tomap").addEventListener("click", () => this.show("map"));
 
     // evolution: EVOLVE! buttons in the dex + the chooser modal
     this.$("dex-list").addEventListener("click", e => {
@@ -3710,37 +3276,6 @@ const UI = {
     });
     this.$("day-chip").addEventListener("click", () => { SFX.click(); this.maybeDayCard(true); });
     this.$("school-chip").addEventListener("click", () => { SFX.click(); this.show("practice"); });
-    this.$("chart-chip").addEventListener("click", () => { SFX.click(); this.openSeaChart(); });
-    this.$("island-back").addEventListener("click", () => { SFX.click(); this.openSeaChart(); });
-    this.$("sea-chart").addEventListener("click", e => {
-      if (e.target.closest("#chart-close") || e.target.id === "sea-chart") { SFX.click(); this.closeSeaChart(); return; }
-      const isl = e.target.closest(".chart-isle");
-      if (isl && isl.dataset.isle) { SFX.click(); this.sailTo(isl.dataset.isle); }
-    });
-    this.$("island-route").addEventListener("click", e => {
-      const tut = e.target.closest(".isle-tutor");
-      if (tut) {
-        SFX.click();
-        const world = WORLDS[this._islandW];
-        // replay the first concept lesson on this island
-        const firstLid = (world.levels.find(l => l.lesson) || {}).lesson;
-        if (firstLid) this.startLesson(firstLid, world, null);
-        return;
-      }
-      const node = e.target.closest(".isle-node");
-      if (!node) return;
-      SFX.init();
-      if (node.classList.contains("locked")) {
-        SFX.error();
-        node.classList.remove("denied"); void node.offsetWidth; node.classList.add("denied");
-        this.toast("🔒 Finish the level before this one first!");
-        return;
-      }
-      // tap = play (plays the concept lesson first if it's a new idea)
-      this.startLevelWithLesson(+node.dataset.w, +node.dataset.s, {});
-    });
-    this.$("lesson-next").addEventListener("click", () => this.lessonNext());
-    this.$("lesson-skip").addEventListener("click", () => { SFX.click(); this.lessonFinish(true); });
     this.$("day-card").addEventListener("click", e => {
       if (e.target.closest("#dc-done")) {
         SFX.click();

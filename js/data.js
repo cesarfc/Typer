@@ -132,99 +132,6 @@ const CHAR_EQUIV = {
 };
 function normalizeKey(ch) { return CHAR_EQUIV[ch] || ch; }
 
-// ---- Concept lessons: each new-idea level opens with a short, interactive
-// lesson that assumes the trainer is brand-new to the subject. Steps:
-//   { say }            tutor speech only
-//   { say, board,arg } show a visual board (see UI.lessonBoard)
-//   { say, guide }     wait for ONE specific keypress (full hint stack)
-//   { say, try }       one untimed real prompt {d, a}
-// concrete -> pictorial -> abstract throughout. ----
-const LESSONS = {
-  numrow: { e: "🥄", title: "The Number Row", steps: [
-    { say: "Welcome to Gimmighoul Coast! Here we count treasure with NUMBERS." },
-    { say: "Number keys sit in a row ABOVE the letters. The rule: reach up, then come back home!", board: "numrow", arg: null },
-    { say: "Find the 4 — your left index finger reaches up.", board: "numrow", arg: "4", guide: "4" },
-    { say: "Now the 7 — right index finger reaches up.", board: "numrow", arg: "7", guide: "7" },
-    { say: "On this island the clock only runs while you TYPE. Take all the time you need to think!" },
-  ]},
-  place: { e: "🥄", title: "Big Numbers", steps: [
-    { say: "Big numbers are made of parts. 347 = 300 + 40 + 7." },
-    { say: "Three hundreds, four tens, seven ones — type the digits in order: 3, 4, 7.", board: "place", arg: 347 },
-    { say: "Try it: what is 300 + 40 + 7?", try: { d: "300 + 40 + 7 = ?", a: "347" } },
-  ]},
-  times: { e: "🥄", title: "Times Tables", steps: [
-    { say: "Multiplication is fast adding! '3 × 4' means 3 GROUPS of 4." },
-    { say: "Three groups, four berries each. Count them all up!", board: "groups", arg: [3, 4] },
-    { say: "A trick: skip-count by 4s — 4, 8, 12!", board: "skip", arg: [4, 3] },
-    { say: "Your turn — how many berries? Type the total.", try: { d: "3 × 4 = ?", a: "12" } },
-    { say: "One more: 2 groups of 5.", try: { d: "2 × 5 = ?", a: "10" } },
-  ]},
-  divide: { e: "🥄", title: "Division", steps: [
-    { say: "Division shares things into equal groups. '12 ÷ 3' asks: share 12 into 3 bowls — how many each?" },
-    { say: "12 berries, 3 bowls... 4 in each bowl!", board: "groups", arg: [3, 4] },
-    { say: "Multiplication and division are best friends: 3 × 4 = 12, so 12 ÷ 3 = 4.", board: "triangle", arg: [12, 3, 4] },
-    { say: "Try it: share 12 into 3 groups.", try: { d: "12 ÷ 3 = ?", a: "4" } },
-  ]},
-  equation: { e: "🥄", title: "Equations", steps: [
-    { say: "An equation balances both sides of an = sign. 6 + 7 = 13." },
-    { say: "The + key and the = key are on the right edge of the number row — right pinky reaches!", board: "numrow", arg: "=" },
-    { say: "Type the whole equation: 6+7=13", guide: "6", typeWord: "6+7=13" },
-  ]},
-  fractions: { e: "🥄", title: "Fractions", steps: [
-    { say: "A fraction is part of a whole. '1/2' means one of two equal parts — a half!" },
-    { say: "1/2 of 8 means split 8 into 2 halves: 4 and 4. Each half is 4.", board: "pie", arg: [1, 2] },
-    { say: "Try it: what is 1/2 of 8?", try: { d: "1/2 of 8 = ?", a: "4" } },
-  ]},
-
-  // ---- Circuit Town (coding) ----
-  parens: { e: "🖥️", title: "Parentheses", steps: [
-    { say: "Welcome to Circuit Town! Here we type real CODE. Code makes things happen." },
-    { say: "Code uses ( ) — parentheses. The ( is Shift + 9, the ) is Shift + 0. Hold Shift with your pinky!", board: "pair", arg: ["(", ")"] },
-    { say: "When you finish a line of code, it RUNS — watch the screen! Type: run()", guide: "r", typeWord: "run()" },
-  ]},
-  camel: { e: "🖥️", title: "camelCase", steps: [
-    { say: "Programmers join words with NO spaces, and a Capital starts each new word. It's called camelCase! 🐫" },
-    { say: "'move up' becomes 'moveUp' — lowercase m, then capital U. Use Shift for the capital.", board: "camel", arg: "moveUp" },
-    { say: "Try it: type jumpHigh (capital H!)", guide: "j", typeWord: "jumpHigh" },
-  ]},
-  strings: { e: "🖥️", title: "Strings", steps: [
-    { say: "Words that the computer SAYS go inside \" \" — double quotes. The \" is Shift + the ' key." },
-    { say: "say(\"hi\") tells the computer to say hi. The quotes wrap the message.", board: "pair", arg: ["\"", "\""] },
-    { say: "Type it and watch it run: say(\"hi\")", guide: "s", typeWord: "say(\"hi\")" },
-  ]},
-  variables: { e: "🖥️", title: "Variables", steps: [
-    { say: "A variable is a labeled box that remembers a number. 'let hp = 10;' puts 10 in a box called hp." },
-    { say: "The name remembers the number. A line of code ends with a ; — semicolon (it's on home row!).", board: "crate", arg: ["hp", 10] },
-    { say: "Type it: let hp = 10;", guide: "l", typeWord: "let hp = 10;" },
-  ]},
-  predict: { e: "🖥️", title: "Predict the Output", steps: [
-    { say: "Real coders PREDICT what their code does before running it." },
-    { say: "If x = 3, then 'x = x + 2' makes x bigger by 2. So x becomes 5!", board: "crate", arg: ["x", 5] },
-    { say: "Your turn — think it through, then type the answer.", try: { d: "x = 3, then x = x + 2. What is x?", a: "5" } },
-  ]},
-
-  // ---- Old Power Plant (computer science) ----
-  hex: { e: "🔌", title: "Hex Colors", steps: [
-    { say: "Welcome to the Power Plant! Computers make colors with HEX codes — a # and six digits." },
-    { say: "#ff0000 is bright red: ff red, 00 green, 00 blue. The # is Shift + 3.", board: "hexswatch", arg: "#ff0000" },
-    { say: "Type a color and watch the swatch! #ffd34d (TypeQuest gold!)", guide: "#", typeWord: "#ffd34d" },
-  ]},
-  binary: { e: "🔌", title: "Binary", steps: [
-    { say: "Computers count with just 0 and 1 — that's BINARY! Each spot is worth double the one to its right." },
-    { say: "Four lamps: 8, 4, 2, 1. A 1 means ON. So 0101 = 4 + 1 = 5!", board: "lamps", arg: "0101" },
-    { say: "Try one: what is 0110? (the 4 and the 2 are ON)", try: { d: "🔢 0110 = ?", a: "6" } },
-  ]},
-  logic: { e: "🔌", title: "Logic Gates", steps: [
-    { say: "Computers think with LOGIC. AND needs BOTH things true. OR needs just ONE." },
-    { say: "Two switches and a light: AND only lights up when both are ON.", board: "gate", arg: "AND" },
-    { say: "Try it: is 'true AND false' true or false?", try: { d: "true AND false = ?", a: "false" } },
-  ]},
-  cipher: { e: "🔌", title: "Secret Codes", steps: [
-    { say: "Spies hide messages with CIPHERS. 'Shift back 1' moves each letter back one: b→a, c→b!" },
-    { say: "So 'dbu' shifts back to 'cat': d→c, b→a, u→t.", board: "cipher", arg: "dbu" },
-    { say: "Your turn — shift 'eph' back one letter each.", try: { d: "🔐 shift back 1: eph", a: "dog" } },
-  ]},
-};
 
 const WORLDS = [
   {
@@ -468,179 +375,6 @@ const WORLDS = [
                "No. Not my glitches.", "You type like a true master.", "The Pokedex is saved.",
                "Long live the Pokemon Master."],
   },
-
-  // ============================================================
-  // SCHOLAR ARCHIPELAGO — island 1. Reached by ferry from the dock.
-  // These worlds teach school subjects: math, coding, computer science,
-  // while also opening new keyboard territory. Prompts may be
-  // { d: question, a: answer } objects (display != typed).
-  // ============================================================
-  {
-    name: "Gimmighoul Coast",
-    tagline: "Treasure math! The number row, +, -, and times tables.",
-    emoji: "🪙",
-    island: 1, kb: "full", statsLane: "facts", subject: "math",
-    tutor: { name: "Alakazam", id: 65, e: "🥄" },
-    gradient: ["#3a2c10", "#a9852f"],
-    accent: "#ffd34d",
-    targets: ["🪙", "💰", "💎", "🗝️"],
-    projectile: "🪙",
-    hitText: ["Cha-ching!", "Treasure!", "Counted!", "Solved!"],
-    sceneEmojis: ["🪙", "💰", "🏝️", "⛵"],
-    boss: { name: "Gholdengo", emoji: "🪙", id: 1000, hp: 11, time: 7, taunt: "You'll never count past my coins!" },
-    levels: [
-      { name: "4 and 7", keys: "47", time: 7, lesson: "numrow",
-        pool: ["4", "7", "44", "77", "47", "74", "474", "747", "447", "774", "7447", "4774"], count: 10 },
-      { name: "3 and 8", keys: "38", time: 7,
-        pool: ["3", "8", "38", "83", "338", "883", "3838", "8383",
-               { d: "🍓🍓🍓 berries — how many?", a: "3", think: 3 },
-               { d: "🍓🍓🍓🍓🍓🍓🍓🍓 berries — how many?", a: "8", think: 3 }], count: 10 },
-      { name: "2 and 9", keys: "29", time: 7,
-        pool: ["2", "9", "29", "92", "229", "992", "2929",
-               { d: "type the number: two hundred ninety-two", a: "292", think: 4 },
-               { d: "type the number: nine hundred twenty-nine", a: "929", think: 4 }], count: 10 },
-      { name: "Full Number Row", keys: "1056", time: 7, lesson: "place",
-        pool: ["1", "0", "5", "6", "105", "560", "1056", "90210", "5060",
-               { d: "300 + 40 + 7 = ?", a: "347", think: 5 },
-               { d: "500 + 60 + 1 = ?", a: "561", think: 5 }], count: 11 },
-      { name: "Times Tables I", keys: "", time: 6, lesson: "times",
-        pool: [{ d: "2 × 5 = ?", a: "10", think: 5 }, { d: "3 × 4 = ?", a: "12", think: 5 },
-               { d: "5 × 5 = ?", a: "25", think: 5 }, { d: "7 × 3 = ?", a: "21", think: 6 },
-               { d: "4 × 4 = ?", a: "16", think: 5 }, { d: "10 × 6 = ?", a: "60", think: 5 },
-               { d: "2 × 9 = ?", a: "18", think: 5 }, { d: "5 × 8 = ?", a: "40", think: 6 },
-               { d: "3 × 6 = ?", a: "18", think: 6 }, { d: "4 × 7 = ?", a: "28", think: 6 }], count: 8 },
-      { name: "Times & Divide", keys: "", time: 6, lesson: "divide",
-        pool: [{ d: "12 ÷ 3 = ?", a: "4", think: 5 }, { d: "42 ÷ 6 = ?", a: "7", think: 6 },
-               { d: "6 × 7 = ?", a: "42", think: 6 }, { d: "8 × 8 = ?", a: "64", think: 6 },
-               { d: "63 ÷ 9 = ?", a: "7", think: 6 }, { d: "9 × 7 = ?", a: "63", think: 6 },
-               { d: "56 ÷ 8 = ?", a: "7", think: 6 }, { d: "48 ÷ 6 = ?", a: "8", think: 6 },
-               { d: "7 × 8 = ?", a: "56", think: 6 }, { d: "72 ÷ 9 = ?", a: "8", think: 6 }], count: 8 },
-      { name: "Equation Builder", keys: "+-=", time: 7, lesson: "equation",
-        pool: ["6+7=13", "9+8=17", "13-7=6", "15-8=7", "4+9=13", "12-5=7",
-               { d: "356 + 248 = ?", a: "604", think: 7 }, { d: "473 + 159 = ?", a: "632", think: 7 },
-               { d: "602 - 247 = ?", a: "355", think: 7 }], count: 9 },
-      { name: "Treasure Math", keys: "/", time: 7, lesson: "fractions",
-        pool: [{ d: "🥧 1/2 of 8 = ?", a: "4", think: 6 }, { d: "🥧 1/4 of 12 = ?", a: "3", think: 6 },
-               { d: "🥧 1/2 of 14 = ?", a: "7", think: 6 }, { d: "2 + 3 × 4 = ?", a: "14", think: 7 },
-               { d: "10 - 2 × 3 = ?", a: "4", think: 7 }, { d: "🥧 1/3 of 9 = ?", a: "3", think: 6 },
-               { d: "5 × 2 + 6 = ?", a: "16", think: 7 }, { d: "🥧 1/4 of 20 = ?", a: "5", think: 6 }], count: 8 },
-    ],
-    bossPool: [{ d: "8 × 7 = ?", a: "56", think: 6 }, { d: "54 ÷ 6 = ?", a: "9", think: 6 },
-               { d: "9 × 9 = ?", a: "81", think: 6 }, { d: "7 × 6 = ?", a: "42", think: 6 },
-               { d: "🥧 1/2 of 18 = ?", a: "9", think: 6 }, { d: "248 + 367 = ?", a: "615", think: 7 },
-               { d: "3 × 4 + 8 = ?", a: "20", think: 7 }, { d: "63 ÷ 7 = ?", a: "9", think: 6 },
-               { d: "6 × 8 = ?", a: "48", think: 6 }, { d: "100 - 45 = ?", a: "55", think: 7 },
-               { d: "9 × 8 = ?", a: "72", think: 6 }],
-  },
-  {
-    name: "Circuit Town",
-    tagline: "Type real code! Symbols, camelCase, and lines that RUN.",
-    emoji: "💾",
-    island: 1, kb: "full", statsLane: "facts", subject: "code",
-    tutor: { name: "Porygon", id: 137, e: "🖥️" },
-    gradient: ["#0a1c2e", "#1d6b7a"],
-    accent: "#2eea9c",
-    targets: ["💾", "🖲️", "🔌", "💡"],
-    projectile: "⚡",
-    hitText: ["Compiled!", "It runs!", "Clean code!", "No bugs!"],
-    sceneEmojis: ["💾", "🖥️", "🔌", "💡"],
-    boss: { name: "Porygon-Z", emoji: "🤖", id: 474, hp: 11, time: 8, taunt: "I live in the code now. Debug THIS!" },
-    levels: [
-      { name: "Open & Close", keys: "()", time: 8, lesson: "parens",
-        pool: [{ a: "()", code: true }, { a: "(4)", code: true }, { a: "run()", code: true, out: "run!" },
-               { a: "go()", code: true, out: "go!" }, { a: "(7)", code: true }, { a: "win()", code: true, out: "you win!" },
-               { a: "jump()", code: true, out: "boing!" }, { a: "(9)", code: true }], count: 8 },
-      { name: "camelCase", keys: "", time: 8, lesson: "camel",
-        pool: [{ a: "moveUp", code: true }, { a: "jumpHigh", code: true }, { a: "goLeft", code: true },
-               { a: "wildPokemon", code: true }, { a: "useItem", code: true }, { a: "runFast", code: true },
-               { a: "catchEm", code: true }, { a: "levelUp", code: true }], count: 8 },
-      { name: "Commands", keys: "", time: 8,
-        pool: [{ a: "jump()", code: true, out: "boing!" }, { a: "heal()", code: true, out: "+20 HP" },
-               { a: "pikachu.run()", code: true, out: "zoom!" }, { a: "usePotion()", code: true, out: "healed!" },
-               { a: "attack()", code: true, out: "POW!" }, { a: "eevee.jump()", code: true, out: "hop!" }], count: 7 },
-      { name: "Strings", keys: "\"", time: 9, lesson: "strings",
-        pool: [{ a: "say(\"hi\")", code: true, out: "hi" }, { a: "say(\"go\")", code: true, out: "go" },
-               { a: "print(\"pika\")", code: true, out: "pika" }, { a: "say(\"win\")", code: true, out: "win" },
-               { a: "print(\"yes\")", code: true, out: "yes" }, { a: "say(\"hello\")", code: true, out: "hello" }], count: 7 },
-      { name: "Variables", keys: ";", time: 9, lesson: "variables",
-        pool: [{ a: "let hp = 10;", code: true, out: "hp is 10" }, { a: "let lvl = 5;", code: true, out: "lvl is 5" },
-               { a: "let name = \"Ash\";", code: true, out: "name is Ash" }, { a: "let coins = 30;", code: true, out: "coins is 30" },
-               { a: "let win = 1;", code: true, out: "win is 1" }], count: 6 },
-      { name: "If & Else", keys: "<>", time: 10,
-        pool: [{ a: "if (hp < 5) heal();", code: true, out: "healed!" }, { a: "if (lvl > 9) evolve();", code: true, out: "evolving!" },
-               { a: "if (wild) run();", code: true, out: "ran away!" }, { a: "if (hp > 0) fight();", code: true, out: "fighting!" },
-               { a: "if (coins > 9) buy();", code: true, out: "bought!" }], count: 6 },
-      { name: "Loops", keys: "{}", time: 10,
-        pool: [{ a: "repeat(3) { step(); }", code: true, out: "step step step" }, { a: "repeat(2) { jump(); }", code: true, out: "jump jump" },
-               { a: "while (wild) { run(); }", code: true, out: "running..." }, { a: "repeat(4) { spin(); }", code: true, out: "spin x4" }], count: 5 },
-      { name: "Predict & Fix", keys: "", time: 9, lesson: "predict",
-        pool: [{ d: "x = 3, then x = x + 2. What is x?", a: "5", think: 7 },
-               { d: "let n = 10; n = n - 4. What is n?", a: "6", think: 7 },
-               { d: "type the fixed line: say(\"hi)  →", a: "say(\"hi\")", code: true, think: 6 },
-               { d: "x = 2, then x = x × 3. What is x?", a: "6", think: 7 },
-               { d: "type the fixed line: run(  →", a: "run()", code: true, think: 5 }], count: 6 },
-    ],
-    bossPool: [{ a: "print(\"win\")", code: true, out: "win" }, { d: "x = 5, x = x + 5. What is x?", a: "10", think: 7 },
-               { a: "if (hp < 1) heal();", code: true, out: "saved!" }, { a: "repeat(3) { go(); }", code: true, out: "go go go" },
-               { d: "type the fixed line: say(\"ok)  →", a: "say(\"ok\")", code: true, think: 6 },
-               { a: "let bug = 0;", code: true, out: "fixed!" }, { d: "n = 8, n = n - 3. What is n?", a: "5", think: 7 },
-               { a: "pikachu.win()", code: true, out: "CHAMPION!" }, { a: "evolve()", code: true, out: "✨" },
-               { a: "debug()", code: true, out: "all clear!" }, { a: "reboot()", code: true, out: "online!" }],
-  },
-  {
-    name: "Old Power Plant",
-    tagline: "Computer science! Hex colors, binary, logic, and secret codes.",
-    emoji: "⚡",
-    island: 1, kb: "full", statsLane: "facts", subject: "cs",
-    tutor: { name: "Rotom", id: 479, e: "🔌" },
-    gradient: ["#1a1208", "#5a4a1a"],
-    accent: "#ffe066",
-    targets: ["⚡", "🔋", "💡", "🔧"],
-    projectile: "⚡",
-    hitText: ["Powered!", "Online!", "Charged!", "Decoded!"],
-    sceneEmojis: ["⚡", "🔋", "💡", "🔌"],
-    boss: { name: "Zapdos", emoji: "⚡", id: 145, hp: 11, time: 8, taunt: "BZZZT! Reboot me if you can, human!" },
-    levels: [
-      { name: "Machine Words", keys: "", time: 7,
-        pool: ["cpu", "ram", "chip", "wire", "volt", "watt", "byte", "pixel", "robot", "sensor", "circuit", "battery"], count: 10 },
-      { name: "Paint with Hex", keys: "#", time: 9, lesson: "hex",
-        pool: [{ a: "#ff0000", code: true, swatch: "#ff0000" }, { a: "#00ff00", code: true, swatch: "#00ff00" },
-               { a: "#0000ff", code: true, swatch: "#0000ff" }, { a: "#ffd34d", code: true, swatch: "#ffd34d" },
-               { a: "#00ff99", code: true, swatch: "#00ff99" }, { a: "#ff00ff", code: true, swatch: "#ff00ff" }], count: 6 },
-      { name: "Robot Language", keys: "", time: 8, lesson: "binary",
-        pool: ["0101", "1010", "1100", "0011",
-               { d: "🔢 0001 = ?", a: "1", think: 6 }, { d: "🔢 0010 = ?", a: "2", think: 6 },
-               { d: "🔢 0100 = ?", a: "4", think: 6 }, { d: "🔢 0101 = ?", a: "5", think: 7 },
-               { d: "🔢 0110 = ?", a: "6", think: 7 }, { d: "🔢 1000 = ?", a: "8", think: 7 }], count: 9 },
-      { name: "Logic Gates", keys: "", time: 7, lesson: "logic",
-        pool: [{ d: "true AND true = ?", a: "true", think: 6 }, { d: "true AND false = ?", a: "false", think: 7 },
-               { d: "false OR true = ?", a: "true", think: 7 }, { d: "false OR false = ?", a: "false", think: 7 },
-               { d: "NOT true = ?", a: "false", think: 6 }, { d: "NOT false = ?", a: "true", think: 6 },
-               { d: "true AND false = ?", a: "false", think: 7 }], count: 7 },
-      { name: "Secret Wires", keys: "_/", time: 9,
-        pool: [{ a: "img/zapdos.png", code: true }, { a: "save/slot_1.json", code: true },
-               { a: "plant/gen_2/coil", code: true }, { a: "data/power_on.txt", code: true },
-               { a: "img/pikachu.png", code: true }, { a: "code/main_loop.js", code: true }], count: 6 },
-      { name: "Addresses", keys: "@", time: 9,
-        pool: [{ a: "dex.poke.com", code: true }, { a: "ash@pallet.town", code: true },
-               { a: "oak@lab.kanto", code: true }, { a: "wiki.poke.com", code: true },
-               { a: "misty@gym.cerulean", code: true }, { a: "shop.poke.com", code: true }], count: 6 },
-      { name: "Cipher Lab", keys: "", time: 9, lesson: "cipher",
-        pool: [{ d: "🔐 shift back 1: dbu", a: "cat", think: 8 }, { d: "🔐 shift back 1: eph", a: "dog", think: 8 },
-               { d: "🔐 shift back 1: tvo", a: "sun", think: 8 }, { d: "🔐 shift back 1: cju", a: "bit", think: 8 },
-               { d: "🔐 shift back 1: dpef", a: "code", think: 9 }], count: 5 },
-      { name: "Boot Sequence", keys: ":[]", time: 9,
-        pool: [{ a: "boot: ok", code: true, out: "booting..." }, { a: "load [ok]", code: true, out: "loaded!" },
-               { a: "power: on", code: true, out: "⚡ ONLINE" }, { a: "fans [3/3]", code: true, out: "cooling" },
-               { a: "check: pass", code: true, out: "all good" }, { a: "start [go]", code: true, out: "running!" }], count: 6 },
-    ],
-    bossPool: [{ d: "🔢 0111 = ?", a: "7", think: 7 }, { d: "true AND true = ?", a: "true", think: 6 },
-               { d: "🔢 1001 = ?", a: "9", think: 7 }, { d: "🔐 shift back 1: abqept", a: "zapdos", think: 9 },
-               { d: "NOT false = ?", a: "true", think: 6 }, { a: "power: on", code: true, out: "⚡" },
-               { d: "🔢 1010 = ?", a: "10", think: 7 }, { d: "false OR true = ?", a: "true", think: 7 },
-               { a: "reboot [go]", code: true, out: "ONLINE!" }, { d: "🔢 0011 = ?", a: "3", think: 7 },
-               { a: "zapdos: free", code: true, out: "⚡⚡⚡" }],
-  },
 ];
 
 // 16 Pokemon per world. The first 8 of each world are the original
@@ -703,33 +437,6 @@ const CREATURES = [
     { n: "Victini", e: "🔥", id: 494, r: 3 }, { n: "Zamazenta", e: "🛡️", id: 889, r: 3 },
     { n: "Miraidon", e: "🐉", id: 1008, r: 3 }, { n: "Eternatus", e: "🌌", id: 890, r: 3 },
   ],
-  [ // 6 — Gimmighoul Coast (math)
-    { n: "Meowth", e: "🐱", id: 52, r: 1 }, { n: "Skwovet", e: "🐿️", id: 819, r: 1 }, { n: "Numel", e: "🐫", id: 322, r: 1 },
-    { n: "Chingling", e: "🔔", id: 433, r: 1 }, { n: "Sableye", e: "💎", id: 302, r: 2 }, { n: "Carbink", e: "💍", id: 703, r: 2 },
-    { n: "Gimmighoul", e: "🪙", id: 999, r: 3 }, { n: "Mawile", e: "🪤", id: 303, r: 2 },
-    { n: "Persian", e: "🐈", id: 53, r: 2, evoOnly: true }, { n: "Greedent", e: "🐿️", id: 820, r: 2, evoOnly: true },
-    { n: "Camerupt", e: "🌋", id: 323, r: 2, evoOnly: true }, { n: "Chimecho", e: "🎐", id: 358, r: 2, evoOnly: true },
-    { n: "Gholdengo", e: "🪙", id: 1000, r: 4, evoOnly: true }, { n: "Luvdisc", e: "💗", id: 370, r: 1 },
-    { n: "Smeargle", e: "🎨", id: 235, r: 2 }, { n: "Chatot", e: "🎵", id: 441, r: 1 },
-  ],
-  [ // 7 — Circuit Town (coding)
-    { n: "Porygon", e: "🖥️", id: 137, r: 2 }, { n: "Rotom", e: "🔌", id: 479, r: 2 }, { n: "Joltik", e: "🕷️", id: 595, r: 1 },
-    { n: "Grubbin", e: "🐛", id: 736, r: 1 }, { n: "Beldum", e: "🔩", id: 374, r: 2 }, { n: "Blipbug", e: "🐞", id: 824, r: 1 },
-    { n: "Trubbish", e: "🗑️", id: 568, r: 1 }, { n: "Varoom", e: "🛵", id: 965, r: 2 },
-    { n: "Porygon2", e: "🖲️", id: 233, r: 2, evoOnly: true }, { n: "PorygonZ", e: "🤖", id: 474, r: 3, evoOnly: true },
-    { n: "Galvantula", e: "🕸️", id: 596, r: 2, evoOnly: true }, { n: "Charjabug", e: "🔋", id: 737, r: 2, evoOnly: true },
-    { n: "Vikavolt", e: "🪲", id: 738, r: 3, evoOnly: true }, { n: "Metang", e: "🛠️", id: 375, r: 2, evoOnly: true },
-    { n: "Genesect", e: "🤖", id: 649, r: 3 }, { n: "Magearna", e: "⚙️", id: 801, r: 3 },
-  ],
-  [ // 8 — Old Power Plant (computer science)
-    { n: "Magnemite", e: "🧲", id: 81, r: 1 }, { n: "Voltorb", e: "🔴", id: 100, r: 1 }, { n: "Klink", e: "⚙️", id: 599, r: 1 },
-    { n: "Elekid", e: "🔌", id: 239, r: 1 }, { n: "Bronzor", e: "🪞", id: 436, r: 2 }, { n: "Togedemaru", e: "⚡", id: 777, r: 2 },
-    { n: "Helioptile", e: "🦎", id: 694, r: 1 }, { n: "Plusle", e: "➕", id: 311, r: 2 },
-    { n: "Magneton", e: "🧲", id: 82, r: 2, evoOnly: true }, { n: "Magnezone", e: "🛸", id: 462, r: 3, evoOnly: true },
-    { n: "Electrode", e: "🔴", id: 101, r: 2, evoOnly: true }, { n: "Klang", e: "⚙️", id: 600, r: 2, evoOnly: true },
-    { n: "Klinklang", e: "⚙️", id: 601, r: 3, evoOnly: true }, { n: "Electivire", e: "⚡", id: 466, r: 3, evoOnly: true },
-    { n: "Bronzong", e: "🔔", id: 437, r: 2, evoOnly: true }, { n: "Zapdos", e: "⚡", id: 145, r: 4 },
-  ],
 ];
 
 // Evolution families. Duplicate catches of a base earn its candy;
@@ -763,20 +470,6 @@ const EVOLUTIONS = [
   { base: "4-2", chain: ["4-11", "4-12"] },                 // Squirtle → Wartortle → Blastoise
   { base: "4-3", chain: ["4-13"] },                         // Vulpix → Ninetales
   { base: "4-14", chain: ["4-15"] },                        // Shroomish → Breloom
-  { base: "6-0", chain: ["6-8"] },                          // Meowth → Persian
-  { base: "6-1", chain: ["6-9"] },                          // Skwovet → Greedent
-  { base: "6-2", chain: ["6-10"] },                         // Numel → Camerupt
-  { base: "6-3", chain: ["6-11"] },                         // Chingling → Chimecho
-  { base: "6-6", chain: ["6-12"], coins: 30 },              // Gimmighoul → Gholdengo (30 coins!)
-  { base: "7-0", chain: ["7-8", "7-9"] },                   // Porygon → Porygon2 → PorygonZ
-  { base: "7-2", chain: ["7-10"] },                         // Joltik → Galvantula
-  { base: "7-3", chain: ["7-11", "7-12"] },                 // Grubbin → Charjabug → Vikavolt
-  { base: "7-4", chain: ["7-13"] },                         // Beldum → Metang
-  { base: "8-0", chain: ["8-8", "8-9"] },                   // Magnemite → Magneton → Magnezone
-  { base: "8-1", chain: ["8-10"] },                         // Voltorb → Electrode
-  { base: "8-2", chain: ["8-11", "8-12"] },                 // Klink → Klang → Klinklang
-  { base: "8-3", chain: ["8-13"] },                         // Elekid → Electivire
-  { base: "8-4", chain: ["8-14"] },                         // Bronzor → Bronzong
 ];
 
 // Local sprite files (downloaded once by tools/get-sprites.mjs, see README).
@@ -953,7 +646,7 @@ const ELITE = [
 ];
 
 // dex keys of water Pokemon that can be hooked at fishing spots
-const WATER_POKEMON = ["0-0", "0-5", "3-0", "3-1", "3-2", "3-3", "4-2", "5-0", "6-13"];
+const WATER_POKEMON = ["0-0", "0-5", "3-0", "3-1", "3-2", "3-3", "4-2", "5-0"];
 
 // what an evolution-only Pokemon evolves FROM (chains may cross worlds,
 // e.g. Growlithe in the Stadium evolves into Arcanine on Mt. Moon)

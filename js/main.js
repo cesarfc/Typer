@@ -16,11 +16,6 @@ window.addEventListener("DOMContentLoaded", () => {
       UI.spotlightKey(e);
       return;
     }
-    // a concept lesson with a guided keypress owns the keyboard while open
-    if (!document.getElementById("lesson-overlay").classList.contains("hidden")) {
-      UI.lessonKey(e);
-      return;
-    }
     if (UI.current === "game") {
       Engine.handleKey(e);
     } else if (UI.current === "tutorial") {
