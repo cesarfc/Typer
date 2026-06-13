@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192.png">
-<link rel="stylesheet" href="css/style.css?v=20">
+<link rel="stylesheet" href="css/style.css?v=21">
 </head>
 <body>
 <div id="app">
@@ -31,11 +31,13 @@
       <button class="navbtn active" data-nav="map">🗺️ Map</button>
       <button class="navbtn" data-nav="dex">📕 Dex</button>
       <button class="navbtn" data-nav="trophies">🏛️ Museum</button>
+      <button class="navbtn" data-nav="journal">📔 Journal</button>
       <button class="navbtn" data-nav="stats">📊 Stats</button>
     </nav>
     <div id="top-right">
       <span id="streak-chip" title="Daily play streak">🔥 1</span>
       <button id="tutorial-btn" title="Replay the typing lesson" aria-label="Replay the typing lesson">🎓</button>
+      <button id="band-btn" title="Skill band — click to change">⚡</button>
       <button id="diff-btn" title="Difficulty — click to change">🙂</button>
       <button id="sound-btn" title="Sound on/off" aria-label="Toggle sound">🔊</button>
     </div>
@@ -83,6 +85,7 @@
           <span class="map-hint">🖐️ drag to explore · ⌨️ arrows + Enter</span>
           <button id="wild-chip" class="map-hint" title="Wild encounters left today — click to learn more" aria-label="Wild encounters left today">🌿 · 🎣</button>
           <button id="egg-chip" class="map-hint hidden">🥚</button>
+          <button id="day-chip" class="map-hint" title="Today's Adventure">📜 0/3</button>
           <button id="btn-findme">📍 Find me</button>
         </div>
         <div id="party-bar"></div>
@@ -180,6 +183,7 @@
         <h2 id="results-title">Level Complete!</h2>
         <div id="results-stars"><span class="star">★</span><span class="star">★</span><span class="star">★</span></div>
         <div id="results-medal" class="hidden"></div>
+        <div id="results-offer" class="hidden"></div>
         <div id="results-grid"></div>
         <div id="results-xp">
           <div class="xp-label"><span id="xp-gained"></span><span id="xp-level"></span></div>
@@ -213,6 +217,16 @@
       <div id="trophy-grid"></div>
       <div id="medal-wing" class="hidden"></div>
       <div id="gallery-wing" class="hidden"></div>
+    </section>
+
+    <!-- ============ JOURNAL (daily · research · elite) ============ -->
+    <section id="screen-journal" class="screen hidden">
+      <h2 class="screen-title">📔 Journal</h2>
+      <div id="journal-wrap">
+        <div class="journal-panel" id="jr-daily"></div>
+        <div class="journal-panel" id="jr-research"></div>
+        <div class="journal-panel" id="jr-elite"></div>
+      </div>
     </section>
 
     <!-- ============ STATS ============ -->
@@ -255,6 +269,10 @@
   <input id="kb-catcher" type="text" autocomplete="off" autocapitalize="none"
          autocorrect="off" spellcheck="false" aria-hidden="true" tabindex="-1">
 
+  <div id="level-card" class="hidden"></div>
+  <div id="day-card" class="hidden"></div>
+  <div id="ceremony" class="hidden"></div>
+
   <div id="letter-overlay" class="hidden">
     <div class="letter-card">
       <div class="letter-head"><span id="letter-icon">📬</span><b id="letter-title"></b></div>
@@ -286,13 +304,13 @@
   <div id="area-panel" class="hidden"></div>
 
 </div>
-<script src="js/data.js?v=20"></script>
-<script src="js/audio.js?v=20"></script>
-<script src="js/save.js?v=20"></script>
-<script src="js/engine.js?v=20"></script>
-<script src="js/sprites.js?v=20"></script>
-<script src="js/ui.js?v=20"></script>
-<script src="js/tutorial.js?v=20"></script>
-<script src="js/main.js?v=20"></script>
+<script src="js/data.js?v=21"></script>
+<script src="js/audio.js?v=21"></script>
+<script src="js/save.js?v=21"></script>
+<script src="js/engine.js?v=21"></script>
+<script src="js/sprites.js?v=21"></script>
+<script src="js/ui.js?v=21"></script>
+<script src="js/tutorial.js?v=21"></script>
+<script src="js/main.js?v=21"></script>
 </body>
 </html>

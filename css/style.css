@@ -1200,6 +1200,7 @@ button:active { transform: translateY(1px) scale(.98); }
 .map-roamer:hover, .map-roamer:active,
 .region-label:hover, .region-label:active,
 .map-parcel:hover, .map-parcel:active,
+.map-podium:hover, .map-podium:active,
 .map-poke:hover, .map-poke:active {
   transform: translate(-50%, -100%) rotateX(calc(-1 * var(--tilt)));
   filter: none; /* never toggle filters on 3D-positioned pins */
@@ -1611,3 +1612,253 @@ button, .screen, #topbar { touch-action: manipulation; }
   z-index: 142;
 }
 #spot-caption small { color: var(--dim); font-weight: 600; }
+
+/* ============ Phase 2-3: bands, Journal, Daily Drill, Elite, ceremony ============ */
+/* Daily Drill podium on the map (transform lives in the billboard block) */
+.map-podium {
+  position: absolute;
+  background: none;
+  border: none;
+  text-align: center;
+  z-index: 5;
+  padding: 8px;
+  cursor: pointer;
+}
+.map-podium span { font-size: 40px; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)); }
+.map-podium .podium-glow { animation: pulseGlow 1.4s ease-in-out infinite; }
+.map-podium b { font-size: 12px; background: rgba(10,13,30,.78); padding: 3px 9px; border-radius: 999px; border: 1px solid var(--gold); white-space: nowrap; color: var(--gold); }
+.map-podium.done b { border-color: var(--good); color: var(--good); }
+
+#day-chip.ready { border-color: var(--good); color: var(--good); animation: pulseGlow 1.6s ease-in-out infinite; }
+
+/* topbar band button */
+#band-btn { font-size: 17px; }
+
+/* ---- results: band step-up / assist offer ---- */
+#results-offer.band-offer { margin: 8px 0 2px; }
+#results-offer button {
+  background: var(--card2);
+  border: 2px solid var(--gold);
+  color: var(--text);
+  border-radius: 14px;
+  padding: 9px 16px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+#results-offer button:hover { background: rgba(255, 211, 77, .14); }
+#results-offer b { color: var(--gold); }
+
+/* ---- Journal ---- */
+#journal-wrap {
+  max-width: 620px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 40px;
+}
+.journal-panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px 20px;
+}
+.journal-panel h3 { font-size: 18px; font-weight: 900; margin: 0 0 8px; }
+.jr-sub { font-size: 12px; color: var(--dim); font-weight: 600; }
+.jr-note { font-size: 13.5px; color: var(--dim); margin: 6px 0; line-height: 1.5; }
+.jr-note b { color: var(--text); }
+.jr-muts { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.journal-panel .mid-btn { margin-top: 6px; }
+.task-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+.task-row:first-of-type { border-top: none; }
+.task-e { font-size: 26px; width: 34px; text-align: center; flex: none; }
+.task-info { flex: 1; min-width: 0; }
+.task-info b { font-size: 14px; }
+.task-meter { height: 7px; background: rgba(255,255,255,.07); border-radius: 4px; margin-top: 5px; overflow: hidden; }
+.task-meter i { display: block; height: 100%; background: linear-gradient(90deg, var(--info), var(--good)); border-radius: 4px; transition: width .4s; }
+.task-count { font-size: 13px; color: var(--dim); font-weight: 700; flex: none; }
+.task-done { font-size: 18px; color: var(--good); flex: none; }
+.task-claim {
+  background: var(--gold);
+  color: #1a1d2e;
+  border: none;
+  border-radius: 999px;
+  font-weight: 900;
+  font-size: 12px;
+  padding: 5px 14px;
+  cursor: pointer;
+  flex: none;
+  animation: pulseGlow 1.4s ease-in-out infinite;
+}
+.task-row.claimed { opacity: .6; }
+.task-row.ready .task-info b { color: var(--gold); }
+
+/* candy voucher button in the dex */
+.btn-voucher {
+  background: var(--gold);
+  color: #1a1d2e;
+  border: none;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 1px 7px;
+  cursor: pointer;
+  margin-left: 4px;
+}
+
+/* locked wardrobe swatch */
+.swatch.locked-sw { position: relative; opacity: .5; font-size: 11px; display: flex; align-items: center; justify-content: center; cursor: not-allowed; }
+
+/* ---- level card (per-level band choice) ---- */
+#level-card, #day-card {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 10, 24, .82);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 110;
+}
+.lc-card, .dc-card {
+  position: relative;
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: 20px;
+  padding: 22px 26px;
+  width: min(440px, 92vw);
+  text-align: center;
+  animation: zoomIn .3s cubic-bezier(.2, 1.4, .4, 1);
+}
+.lc-card h3 { font-size: 20px; font-weight: 900; margin: 0 26px 4px 0; }
+.lc-stats { font-size: 13px; color: var(--dim); margin: 0 0 16px; }
+.lc-stars { color: var(--gold); font-size: 16px; }
+.lc-stars .off { color: var(--line); }
+#lc-close {
+  position: absolute; top: 12px; right: 12px;
+  background: var(--card2); border: 1px solid var(--line); border-radius: 10px;
+  color: var(--text); font-size: 15px; padding: 4px 10px; cursor: pointer;
+}
+.lc-bands { display: flex; gap: 10px; justify-content: center; margin-bottom: 18px; }
+.lc-band {
+  flex: 1;
+  background: var(--card2);
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 4px;
+  font-size: 26px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.lc-band small { font-size: 11px; font-weight: 800; color: var(--dim); }
+.lc-band.sel { border-color: var(--gold); background: rgba(255, 211, 77, .12); }
+.lc-band.sel small { color: var(--gold); }
+
+/* ---- Today's Adventure card ---- */
+.dc-card { background: linear-gradient(180deg, #2d2545, #8a6d1d); }
+.dc-partner { position: relative; display: inline-block; margin-bottom: 4px; }
+.dc-img { height: 84px; }
+.dc-zzz { position: absolute; top: -6px; right: -10px; font-size: 22px; animation: parcelBob 1.6s ease-in-out infinite; }
+.dc-card h3 { font-size: 20px; font-weight: 900; margin: 4px 0 14px; }
+.dc-stamps { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; text-align: left; }
+.dc-stamp {
+  background: rgba(0,0,0,.25);
+  border-radius: 12px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.dc-stamp.on { background: rgba(67, 233, 123, .18); }
+.dc-hook { font-size: 14px; line-height: 1.55; margin: 0 0 16px; }
+.dc-buttons { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.dc-buttons .big-btn { width: auto; padding: 12px 30px; }
+
+/* ---- Hall of Fame ceremony ---- */
+#ceremony {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 40%, #2a1d4a, #07091a 75%);
+  z-index: 145;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cer-room { text-align: center; position: relative; }
+.cer-title {
+  font-size: 34px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: var(--gold);
+  text-shadow: 0 0 24px rgba(255, 211, 77, .6);
+  margin-bottom: 24px;
+  animation: zoomIn .6s cubic-bezier(.2, 1.4, .4, 1);
+}
+.cer-pedestals { display: flex; gap: 14px; justify-content: center; margin-bottom: 18px; }
+.cer-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 30px;
+  opacity: 0;
+  animation: cerRise .5s ease-out forwards;
+}
+.cer-slot i {
+  display: block;
+  width: 56px; height: 12px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(255,211,77,.45), transparent 70%);
+}
+.cer-img { height: 56px; }
+@keyframes cerRise { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+.cer-trainer { font-size: 56px; margin-bottom: 14px; }
+.cer-trainer .trainer-svg { width: 80px; height: 80px; }
+.cer-photo {
+  background: #fdf6e3;
+  color: #2c2a24;
+  border: 8px solid #d9c081;
+  border-radius: 6px;
+  padding: 14px 22px;
+  display: inline-block;
+  transform: rotate(-2deg);
+  box-shadow: 0 14px 40px rgba(0,0,0,.6);
+  margin-bottom: 22px;
+}
+.cer-photo b { display: block; font-size: 18px; font-weight: 900; }
+.cer-photo span { font-size: 13px; }
+.cer-photo i { font-style: normal; font-size: 11px; color: #8a6d1d; font-weight: 800; }
+.cer-room .big-btn { display: block; margin: 0 auto; width: auto; padding: 12px 38px; }
+.cer-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; animation: cerFlash 2.4s ease-out 1.4s; }
+@keyframes cerFlash { 0% { opacity: 0; } 6% { opacity: .85; } 30% { opacity: 0; } 100% { opacity: 0; } }
+
+/* the Champion = your own mirrored rival */
+.boss-size .rival { display: inline-block; filter: drop-shadow(0 0 18px rgba(199, 123, 255, .7)); }
+.boss-size .rival .trainer-svg { width: 120px; height: 120px; }
+
+/* Hall of Fame photos in the gallery */
+.hof-photo {
+  background: #fdf6e3;
+  border: 6px solid #d9c081;
+  border-radius: 5px;
+  padding: 8px 10px;
+  margin: 6px 0;
+  display: inline-block;
+}
+.hof-party { display: flex; gap: 4px; justify-content: center; }
+.hof-img { height: 34px; }
+.hof-plate { font-size: 11px; color: #2c2a24; font-weight: 800; margin-top: 4px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cer-flash, .cer-slot, .cer-title, .podium-glow, .task-claim { animation: none !important; }
+  .cer-slot { opacity: 1; }
+}

@@ -128,10 +128,12 @@ const UI = {
     if (name === "map") this.renderMap();
     if (name === "dex") this.renderDex();
     if (name === "trophies") this.renderTrophies();
+    if (name === "journal") this.renderJournal();
     if (name === "stats") this.renderStats();
     if (name === "practice") this.renderPractice();
     if (name !== "title" && name !== "game") this.renderTopbar();
     this.touchKeyboard(name);
+    if (name === "map") this.maybeDayCard();
   },
 
   // on touch devices the on-screen keyboard only appears while an input is
@@ -214,6 +216,11 @@ const UI = {
     this.$("trainer-opts").addEventListener("click", e => {
       const b = e.target.closest(".swatch");
       if (!b) return;
+      if (b.dataset.lk) {
+        SFX.error();
+        this.toast(`🔒 ${b.dataset.lk}`);
+        return;
+      }
       this.builder[b.dataset.k] = +b.dataset.i;
       SFX.click();
       this.renderBuilder();
@@ -221,6 +228,9 @@ const UI = {
     this.$("btn-random-trainer").addEventListener("click", e => {
       e.preventDefault();
       this.builder = randomTrainer();
+      for (const part of ["hairColor", "hatColor", "shirt"]) {
+        if (!SAVE.wardrobeOk(part, this.builder[part]).ok) this.builder[part] = 0;
+      }
       SFX.combo();
       this.renderBuilder();
     });
@@ -247,8 +257,12 @@ const UI = {
     this.$("trainer-preview").innerHTML = this.trainerSvg(t, "trainer-svg preview");
     const row = (label, inner) =>
       `<div class="opt-row"><span>${label}</span><div class="opt-swatches">${inner}</div></div>`;
-    const colorSw = (key, colors) => colors.map((c, i) =>
-      `<button class="swatch ${t[key] === i ? "sel" : ""}" data-k="${key}" data-i="${i}" style="background:${c}"></button>`).join("");
+    const colorSw = (key, colors) => colors.map((c, i) => {
+      const lk = SAVE.wardrobeOk(key, i);
+      return lk.ok
+        ? `<button class="swatch ${t[key] === i ? "sel" : ""}" data-k="${key}" data-i="${i}" style="background:${c}"></button>`
+        : `<button class="swatch locked-sw" data-lk="${this.esc(lk.label)}" title="🔒 ${this.esc(lk.label)}" style="background:${c}">🔒</button>`;
+    }).join("");
     let html = row("Skin", colorSw("skin", TRAINER_OPTS.skin));
     html += row("Hair", TRAINER_OPTS.hair.map((h, i) =>
       `<button class="swatch hair-sw ${t.hair === i ? "sel" : ""}" data-k="hair" data-i="${i}">${this.trainerSvg({ ...t, hair: i, hat: 0 }, "trainer-svg mini")}</button>`).join(""));
@@ -282,6 +296,11 @@ const UI = {
     this.kbHidden = !SAVE.state.settings.hints;
     this.applyKbVisibility();
     const streak = SAVE.touchStreak();
+    if (streak && streak.rested) {
+      this.toast(`🛏 Your streak rested at the Pokemon Center while you were away! 🔥 ${streak.count}`, "gold");
+    } else if (streak && streak.sprouted) {
+      this.toast(`🌱 A fresh streak sprouts today!${streak.best > 1 ? ` Old best: <b>${streak.best} days</b> — beat it!` : ""}`);
+    }
     if (!SAVE.state.tutorialDone) { Tutorial.start(); return; }
     this.show("map");
     if (streak && streak.count > 1) {
@@ -299,13 +318,22 @@ const UI = {
     this.$("chip-name").textContent = p.name;
     this.$("chip-title").textContent = `${titleForLevel(lv.level)} · Lv ${lv.level}`;
     this.$("chip-xpfill").style.width = `${Math.round(100 * lv.into / lv.need)}%`;
-    this.$("streak-chip").textContent = `🔥 ${SAVE.state.streak.count || 0}`;
+    const tokens = SAVE.state.streak.tokens || 0;
+    this.$("streak-chip").textContent = `🔥 ${SAVE.state.streak.count || 0}${"🛏".repeat(tokens)}`;
+    this.$("streak-chip").title = tokens
+      ? `Daily play streak — ${tokens} rest token${tokens > 1 ? "s" : ""} banked (a rest covers a missed day)`
+      : "Daily play streak";
     this.$("sound-btn").textContent = SAVE.state.settings.sound ? "🔊" : "🔇";
     const d = DIFFICULTY[SAVE.state.settings.difficulty] || DIFFICULTY.normal;
     const db = this.$("diff-btn");
     db.textContent = `${d.e} ${d.label}`;
     db.title = `Difficulty: ${d.label} — click to change`;
     db.setAttribute("aria-label", `Difficulty ${d.label}, click to change`);
+    const band = BANDS[SAVE.state.band] || BANDS.trainer;
+    const bb = this.$("band-btn");
+    bb.textContent = band.e;
+    bb.title = `Skill band: ${band.label} — ${band.desc} (click to change)`;
+    bb.setAttribute("aria-label", `Skill band ${band.label}, click to change`);
   },
 
   // ---------- region map (pannable, DS-style tilted view) ----------
@@ -564,6 +592,12 @@ const UI = {
     html += `<button class="map-school" style="left:430px;top:1330px" title="Trainer School — no countdown, race your records!">
       <span>${mapSprite("school", 68)}</span><b>Trainer School</b></button>`;
 
+    // Professor's Daily Drill podium beside the school
+    const daily = SAVE.dailyInfo();
+    html += `<button class="map-podium ${daily.done ? "done" : ""}"
+      style="left:585px;top:1372px" title="${daily.done ? "Daily Drill done — back tomorrow!" : "Professor's Daily Drill — one special run a day!"}">
+      <span class="${daily.done ? "" : "podium-glow"}">${daily.done ? "✅" : "📋"}</span><b>Daily Drill</b></button>`;
+
     WORLDS.forEach((w, wi) => {
       const ns = nodes[wi];
       const unlocked = SAVE.worldUnlocked(wi);
@@ -622,6 +656,12 @@ const UI = {
         style="left:${fp.x + 84}px;top:${fp.y + 30}px"><span class="parcel-bob">📬</span></button>`;
       this._hintedThisRender = true; // the letter is today's one teaching moment
     }
+
+    const dayChip = this.$("day-chip");
+    const stamps = SAVE.dayStamps();
+    const dayDone = stamps.filter(x => x.done).length;
+    dayChip.textContent = `📜 ${dayDone}/3`;
+    dayChip.classList.toggle("ready", dayDone === 3);
 
     const eggChip = this.$("egg-chip");
     eggChip.classList.toggle("hidden", !egg);
@@ -809,6 +849,19 @@ const UI = {
       if (e.key === "Escape") { e.preventDefault(); this.closeAreaPanel(); }
       return;
     }
+    // the level card owns Enter (start) and Escape (close)
+    if (!this.$("level-card").classList.contains("hidden")) {
+      if (e.key === "Escape") { e.preventDefault(); this.closeLevelCard(); }
+      else if (e.key === "Enter") { e.preventDefault(); this.startFromLevelCard(); }
+      return;
+    }
+    if (!this.$("day-card").classList.contains("hidden")) {
+      if (e.key === "Escape" || e.key === "Enter") {
+        e.preventDefault();
+        this.$("day-card").classList.add("hidden");
+      }
+      return;
+    }
     const keys = ["ArrowRight", "ArrowLeft", "ArrowUp", "ArrowDown", "Enter"];
     if (!keys.includes(e.key)) return;
     e.preventDefault();
@@ -888,13 +941,20 @@ const UI = {
       e.preventDefault();
       this.setMapPos(this.mapX - e.deltaX, this.mapY - e.deltaY / Math.cos(this.TILT));
     }, { passive: false });
+    vp.addEventListener("dblclick", e => {
+      // double-click skips the level card and dives straight in
+      const b = e.target.closest(".mnode");
+      if (!b || b.classList.contains("locked")) return;
+      this.closeLevelCard();
+      Engine.startStage(+b.dataset.w, +b.dataset.s);
+    });
     vp.addEventListener("click", e => {
       if (this._mapDragged) return;
       const b = e.target.closest(".mnode");
       if (b) {
         SFX.init();
         if (!b.classList.contains("locked")) {
-          Engine.startStage(+b.dataset.w, +b.dataset.s);
+          this.openLevelCard(+b.dataset.w, +b.dataset.s);
         } else {
           // locked: never answer a click with silence
           SFX.error();
@@ -934,6 +994,13 @@ const UI = {
       if (sc) {
         SFX.init();
         this.show("practice");
+        return;
+      }
+      const pd = e.target.closest(".map-podium");
+      if (pd) {
+        SFX.init();
+        if (SAVE.dailyInfo().done) this.toast("✅ Today's drill is done — the Professor preps a new one overnight!");
+        else Engine.startDaily();
         return;
       }
       // wild Pokemon living on the map: say hi (caught) or open the
@@ -1176,7 +1243,12 @@ const UI = {
     const target = this.$("target");
     const wrap = this.$("target-wrap");
     if (S.isBoss) {
-      target.innerHTML = this.pokeHtml(S.world.boss.id, S.world.boss.emoji);
+      if (S.elite && S.elite.def.champion) {
+        // the Champion is the player's own rival — their trainer, mirrored
+        target.innerHTML = `<span class="rival">${this.avatarHtml(SAVE.state.profile)}</span>`;
+      } else {
+        target.innerHTML = this.pokeHtml(S.world.boss.id, S.world.boss.emoji);
+      }
       target.className = "boss-size";
     } else if (S.wild) {
       // the wild Pokemon stays on screen for the whole battle
@@ -1607,6 +1679,19 @@ const UI = {
     (res.trophies || []).forEach((t, i) =>
       setTimeout(() => this.trophyToast(t), trophyAt + i * 900));
 
+    // band coaching: offer a step up after flawless mastery — never automatic
+    delete this._failCount[`${res.w}-${res.s}`];
+    const offer = this.$("results-offer");
+    offer.className = "hidden";
+    offer.innerHTML = "";
+    const bi = BAND_ORDER.indexOf(res.band);
+    if (res.stars === 3 && res.acc >= 0.98 && bi >= 0 && bi < BAND_ORDER.length - 1) {
+      const up = BANDS[BAND_ORDER[bi + 1]];
+      offer.className = "band-offer";
+      offer.innerHTML = `<button id="btn-bandup" data-band="${BAND_ORDER[bi + 1]}">
+        ${up.e} That looked easy... try <b>${up.label}</b> band? ${up.desc}</button>`;
+    }
+
     // buttons
     const next = this.$("btn-next");
     const lastWorld = HALL_W;
@@ -1630,6 +1715,17 @@ const UI = {
     this.$("results-egg").className = "hidden";          // no stale egg note
     this.$("results-medal").className = "hidden";        // no stale medal beat
     this.$("btn-replay").classList.add("hidden");        // same as Try Again
+    // a second stumble earns a gentle one-run time assist — offered, never forced
+    const fk = `${S.w}-${S.s}`;
+    this._failCount[fk] = (this._failCount[fk] || 0) + 1;
+    const offer = this.$("results-offer");
+    offer.className = "hidden";
+    offer.innerHTML = "";
+    if (this._failCount[fk] >= 2 && S.s >= 0) {
+      offer.className = "band-offer";
+      offer.innerHTML = `<button id="btn-assist" data-w="${S.w}" data-s="${S.s}">
+        🐢 Tough one! Want <b>extra time</b>, just for this try?</button>`;
+    }
     this.$("btn-replay").textContent = "↻ Replay";
     const card = this.$("results-card");
     card.classList.add("defeat");
@@ -1668,7 +1764,9 @@ const UI = {
         const candy = SAVE.state.candy[key] || 0;
         const fam = SAVE.familyFor(key);
         const targets = SAVE.evoTargetsFor(key);
-        const candyHtml = fam ? `<div class="dex-candy">🍬 ${candy}/${CANDY_COST}</div>` : "";
+        const candyHtml = fam ? `<div class="dex-candy">🍬 ${candy}/${CANDY_COST}${
+          SAVE.state.vouchers > 0 ? ` <button class="btn-voucher" data-vbase="${key}" title="Spend a candy voucher here">🎟+1</button>` : ""
+        }</div>` : "";
         const evoBtn = targets.length
           ? `<button class="btn-evolve" data-base="${key}">EVOLVE!</button>` : "";
         const inParty = SAVE.state.party.includes(key);
@@ -1871,6 +1969,7 @@ const UI = {
     catchBox.innerHTML = `<div class="record-note ${record ? "gold" : ""}">${lines.join("<br>")}</div>`;
     this.$("results-egg").className = "hidden";
     this.$("results-medal").className = "hidden";
+    this.$("results-offer").className = "hidden";
 
     this.$("xp-gained").textContent = `+${res.xp} XP`;
     const lv = levelFromXp(SAVE.state.xp);
@@ -2095,6 +2194,7 @@ const UI = {
 
   // ---------- trophies ----------
   _museumTab: "trophies",
+  _failCount: {},
 
   renderTrophies() {
     const got = SAVE.state.trophies;
@@ -2173,8 +2273,17 @@ const UI = {
       </div>`;
     }).join("");
 
-    // ---- gallery wing: shiny showcase, empty pedestals included ----
-    this.$("gallery-wing").innerHTML = WORLDS.map((w, wi) => {
+    // ---- gallery wing: Hall of Fame photos, then the shiny showcase ----
+    const hof = (SAVE.state.hof || []).map(h => `
+      <div class="hof-photo">
+        <div class="hof-party">${(h.party || []).slice(0, 6).map(k => {
+          const c = SAVE.creatureByKey(k);
+          return c ? `<span>${this.pokeHtml(c.id, c.e, { shiny: c.shiny, cls: "poke-img hof-img" })}</span>` : "";
+        }).join("")}</div>
+        <div class="hof-plate">🏆 Hall of Fame — ${this.esc(SAVE.state.profile.name)}, ${h.date} · ${h.wpm} wpm</div>
+      </div>`).join("");
+    const hofShelf = hof ? `<div class="shelf"><div class="shelf-title">🏛️ Hall of Fame</div>${hof}</div>` : "";
+    this.$("gallery-wing").innerHTML = hofShelf + WORLDS.map((w, wi) => {
       const shelf = CREATURES[wi].map((c, ci) => {
         const d = SAVE.state.dex[`${wi}-${ci}`];
         return `<span class="pedestal ${d && d.shiny ? "lit" : ""}" title="${d && d.shiny ? `✨ ${this.esc(c.n)}` : "Still to shine..."}">
@@ -2246,6 +2355,185 @@ const UI = {
           `<span class="key-pill bad">${this.esc(e.k)} ${Math.round(e.acc * 100)}%</span>`).join("")
           : `<span class="dim">No tricky keys — amazing! 🌟</span>`}</div>`
       : `<p class="dim">Type more to discover your power keys! 🔑</p>`;
+  },
+
+
+  // ---------- special scene (Daily Drill & friends: countdown, no boss) ----------
+  specialScene(S, label) {
+    this.show("game");
+    const w = S.world;
+    document.body.classList.remove("super-mode");
+    this.$("capslock-warn").classList.add("hidden");
+    this.applyKbVisibility();
+    this.practiceTimerUI(false);
+    this.$("hud-stage").textContent = label;
+    this.$("hud-progress").classList.remove("hidden");
+    this.$("hud-progress-fill").style.width = "0%";
+    this.$("hud-hearts").classList.add("hidden");
+    this.$("boss-bar").classList.add("hidden");
+    this.$("target-label").classList.add("hidden");
+    this.$("player-avatar").innerHTML = this.avatarHtml(SAVE.state.profile);
+    this.showPartner(S);
+    this.partnerMeter(S);
+    const arena = this.$("arena");
+    arena.style.background = `linear-gradient(160deg, ${w.gradient[0]}, ${w.gradient[1]})`;
+    arena.style.setProperty("--wa", w.accent);
+    const scene = this.$("scene-emojis");
+    scene.innerHTML = "";
+    for (let i = 0; i < 7; i++) {
+      const e = document.createElement("span");
+      e.textContent = w.sceneEmojis[i % w.sceneEmojis.length];
+      e.style.left = `${5 + Math.random() * 90}%`;
+      e.style.top = `${5 + Math.random() * 80}%`;
+      e.style.fontSize = `${14 + Math.random() * 22}px`;
+      e.style.animationDelay = `${Math.random() * 3}s`;
+      scene.appendChild(e);
+    }
+    this.announce(label, 2200);
+    this.updateHud(S);
+  },
+
+  // ---------- Journal: daily drill, research board, Elite Four ----------
+  renderJournal() {
+    const d = SAVE.dailyInfo();
+    const muts = d.mutators.map(id => DAILY_MUTATORS.find(m => m.id === id)).filter(Boolean);
+    const wk = SAVE.state.dailyWeek && SAVE.state.dailyWeek.week === SAVE.weekKey()
+      ? SAVE.state.dailyWeek.count : 0;
+    this.$("jr-daily").innerHTML = `
+      <h3>📋 Daily Drill</h3>
+      <div class="jr-muts">${muts.map(m =>
+        `<span class="src-chip" title="${this.esc(m.desc)}">${m.e} ${m.name}</span>`).join("")}</div>
+      <p class="jr-note">${d.done
+        ? "✅ Done today! The Professor preps a fresh drill overnight."
+        : "One special run — 12 words under today's rules."}</p>
+      <p class="jr-note">This week: <b>${Math.min(5, wk)}/5</b> drills ${wk >= 5
+        ? "— bonus egg sent! 🥚" : "<span class=\"dim\">(5 earns a special Mystery Egg)</span>"}</p>
+      ${d.done ? "" : `<button id="btn-daily" class="mid-btn">▶ Start today's drill</button>`}
+      <p class="jr-note">🎟 Candy vouchers: <b>${SAVE.state.vouchers}</b> — spend them in the Pokedex.</p>`;
+
+    const r = SAVE.researchNow();
+    this.$("jr-research").innerHTML = `
+      <h3>🔬 Research Tasks <span class="jr-sub">fresh every week</span></h3>
+      ${r.tasks.map(t => {
+        const p = SAVE.taskProgress(t);
+        return `<div class="task-row ${t.claimed ? "claimed" : p.done ? "ready" : ""}">
+          <span class="task-e">${p.def.e}</span>
+          <div class="task-info"><b>${this.esc(p.def.text)}</b>
+            <div class="task-meter"><i style="width:${Math.round(100 * p.now / p.def.need)}%"></i></div></div>
+          ${t.claimed ? `<span class="task-done">✔</span>`
+            : p.done ? `<button class="task-claim" data-claim="${t.id}">CLAIM</button>`
+            : `<span class="task-count">${p.now}/${p.def.need}</span>`}
+        </div>`;
+      }).join("")}
+      <p class="jr-note">📮 Stamps: <b>${SAVE.state.unlocks.stamps}</b> — they unlock trainer outfits in the builder!</p>`;
+
+    const el = SAVE.state.elite || { bestRound: 0, clears: 0 };
+    const pts = SAVE.medalPoints();
+    const open = Engine.eliteUnlocked();
+    const hof = SAVE.state.hof || [];
+    this.$("jr-elite").innerHTML = `
+      <h3>⚔️ The Elite Four</h3>
+      ${open
+        ? `<p class="jr-note">${el.clears > 0
+            ? `🏆 Champion ×${el.clears}! Your photos hang in the Museum Gallery.`
+            : el.bestRound > 0
+              ? `Best run so far: <b>Round ${el.bestRound} of ${ELITE.length}</b>. They remember you...`
+              : "Four masters back to back — your hearts carry between rounds. Then... someone is waiting."}</p>
+           <button id="btn-elite" class="mid-btn">⚔️ ${el.clears ? "Challenge again" : "Begin the challenge"}</button>`
+        : `<p class="jr-note">🔒 Opens when the story is complete and you hold
+            <b>${ELITE_NEED_MEDALS} medal points</b> (you have <b>${pts}</b> — grow them in the Museum's Medal Case).</p>`}
+      ${hof.length ? `<p class="jr-note">📸 Hall of Fame entries: <b>${hof.length}</b></p>` : ""}`;
+  },
+
+  // ---------- level card: per-level skill band choice ----------
+  openLevelCard(w, s) {
+    const world = WORLDS[w];
+    const isBoss = s === world.levels.length;
+    this._lc = { w, s, band: SAVE.state.band };
+    const stars = SAVE.stageStars(w, s);
+    const b = SAVE.state.stageBest[`${w}-${s}`] || {};
+    this.$("level-card").innerHTML = `<div class="lc-card">
+      <button id="lc-close" aria-label="Close">✕</button>
+      <h3>${world.emoji} ${this.esc(isBoss ? `BOSS: ${world.boss.name}` : world.levels[s].name)}</h3>
+      <p class="lc-stats">${stars
+        ? `<span class="lc-stars">${"★".repeat(stars)}<span class="off">${"★".repeat(3 - stars)}</span></span>`
+        : "not cleared yet"}${b.wpm ? ` · best ${b.wpm} wpm · ${Math.round((b.acc || 0) * 100)}%` : ""}${b.ninja ? " · 🥷" : ""}</p>
+      <div class="lc-bands">${BAND_ORDER.map(id => {
+        const bd = BANDS[id];
+        return `<button class="lc-band ${id === this._lc.band ? "sel" : ""}" data-band="${id}"
+          title="${this.esc(bd.desc)}">${bd.e}<small>${bd.label}</small></button>`;
+      }).join("")}</div>
+      <button id="lc-start" class="big-btn">▶ Start <small class="key-hint">Enter</small></button>
+    </div>`;
+    this.$("level-card").classList.remove("hidden");
+  },
+
+  closeLevelCard() {
+    this.$("level-card").classList.add("hidden");
+  },
+
+  startFromLevelCard() {
+    if (!this._lc) return;
+    const { w, s, band } = this._lc;
+    this.closeLevelCard();
+    Engine.startStage(w, s, { band });
+  },
+
+  // ---------- Today's Adventure: three stamps and a soft landing ----------
+  maybeDayCard(force) {
+    if (!SAVE.state) return;
+    const d = SAVE.dayInfo();
+    const stamps = SAVE.dayStamps();
+    const all = stamps.every(x => x.done);
+    if (!force && (!all || d.shown)) return;
+    if (!force && all) { d.shown = true; SAVE.save(); }
+    const egg = SAVE.state.egg;
+    let hook;
+    if (egg && egg.progress >= 3) hook = "your Mystery Egg is ready to hatch!";
+    else if (egg) hook = `${3 - egg.progress} more level${3 - egg.progress > 1 ? "s" : ""} will hatch your Mystery Egg!`;
+    else hook = "fresh tall grass will rustle somewhere new!";
+    const lead = SAVE.leadCreature();
+    this.$("day-card").innerHTML = `<div class="dc-card">
+      <div class="dc-partner">${lead
+        ? this.pokeHtml(lead.id, lead.e, { shiny: lead.shiny, cls: "poke-img dc-img" })
+        : "🎒"}<span class="dc-zzz">💤</span></div>
+      <h3>${all ? "Today's Adventure — complete! 🌟" : "Today's Adventure"}</h3>
+      <div class="dc-stamps">${stamps.map(x =>
+        `<div class="dc-stamp ${x.done ? "on" : ""}">${x.done ? "✅" : "⬜"} ${x.e} ${this.esc(x.text)}${
+          x.need ? ` <b>${x.now}/${x.need}</b>` : ""}</div>`).join("")}</div>
+      <p class="dc-hook">🌅 Tomorrow: ${this.esc(hook)} The streak grows to 🔥 ${(SAVE.state.streak.count || 0) + 1}.</p>
+      <div class="dc-buttons">
+        <button id="dc-done" class="big-btn">🌙 Done for today</button>
+        <button id="dc-more" class="link-btn">keep exploring</button>
+      </div>
+    </div>`;
+    this.$("day-card").classList.remove("hidden");
+  },
+
+  // ---------- Hall of Fame induction (the once-per-save ceremony) ----------
+  hofCeremony(entry, trophies) {
+    const party = (entry.party || []).slice(0, 6);
+    this.$("ceremony").innerHTML = `<div class="cer-room">
+      <h2 class="cer-title">🏛️ HALL OF FAME</h2>
+      <div class="cer-pedestals">${party.length ? party.map((k, i) => {
+        const c = SAVE.creatureByKey(k);
+        return `<div class="cer-slot" style="animation-delay:${i * 0.35}s">
+          ${c ? this.pokeHtml(c.id, c.e, { shiny: c.shiny, cls: "poke-img cer-img" }) : "⭐"}<i></i></div>`;
+      }).join("") : `<div class="cer-slot">🎒<i></i></div>`}</div>
+      <div class="cer-trainer">${this.avatarHtml(SAVE.state.profile)}</div>
+      <div class="cer-flash"></div>
+      <div class="cer-photo">
+        <b>${this.esc(SAVE.state.profile.name)} — CHAMPION</b>
+        <span>${entry.date} · ${entry.wpm} wpm · ${entry.acc}% accuracy</span>
+        <i>✨ Framed forever in the Museum Gallery</i>
+      </div>
+      <button id="cer-continue" class="big-btn">✔ Continue</button>
+    </div>`;
+    this.$("ceremony").classList.remove("hidden");
+    SFX.fanfare();
+    setTimeout(() => SFX.medal(), 900);
+    this.confetti();
+    this._cerTrophies = trophies || [];
   },
 
   // ---------- toasts (queued: kids read slowly — max 2 at once, ~5s) ----------
@@ -2494,6 +2782,16 @@ const UI = {
 
     // evolution: EVOLVE! buttons in the dex + the chooser modal
     this.$("dex-list").addEventListener("click", e => {
+      const vb = e.target.closest(".btn-voucher");
+      if (vb) {
+        const r = SAVE.useVoucher(vb.dataset.vbase);
+        if (r) {
+          SFX.catchJingle();
+          this.toast(`🎟 Voucher spent! 🍬 ${r.count}/${CANDY_COST} candy`, "gold");
+          this.renderDex();
+        }
+        return;
+      }
       const pb = e.target.closest(".btn-party");
       if (pb) {
         SFX.click();
@@ -2559,6 +2857,88 @@ const UI = {
       const fn = this._spotNext;
       this._spotNext = null;
       fn();
+    });
+
+    this.$("band-btn").addEventListener("click", () => {
+      const next = BAND_ORDER[(BAND_ORDER.indexOf(SAVE.state.band) + 1) % BAND_ORDER.length];
+      SAVE.state.band = next;
+      SAVE.save();
+      SFX.click();
+      this.renderTopbar();
+      const bd = BANDS[next];
+      this.toast(`${bd.e} Skill band: <b>${bd.label}</b> — ${bd.desc}`);
+    });
+    this.$("day-chip").addEventListener("click", () => { SFX.click(); this.maybeDayCard(true); });
+    this.$("level-card").addEventListener("click", e => {
+      if (e.target.id === "level-card" || e.target.closest("#lc-close")) {
+        SFX.click();
+        this.closeLevelCard();
+        return;
+      }
+      const bp = e.target.closest(".lc-band");
+      if (bp) {
+        SFX.click();
+        this._lc.band = bp.dataset.band;
+        this.$("level-card").querySelectorAll(".lc-band").forEach(x =>
+          x.classList.toggle("sel", x.dataset.band === this._lc.band));
+        return;
+      }
+      if (e.target.closest("#lc-start")) { SFX.click(); this.startFromLevelCard(); }
+    });
+    this.$("day-card").addEventListener("click", e => {
+      if (e.target.closest("#dc-done")) {
+        SFX.click();
+        this.$("day-card").classList.add("hidden");
+        this.toast("🌙 Wonderful adventuring today. See you tomorrow, Trainer!", "gold");
+        return;
+      }
+      if (e.target.closest("#dc-more") || e.target.id === "day-card") {
+        SFX.click();
+        this.$("day-card").classList.add("hidden");
+      }
+    });
+    this.$("journal-wrap").addEventListener("click", e => {
+      const cl = e.target.closest(".task-claim");
+      if (cl) {
+        const r = SAVE.claimTask(cl.dataset.claim);
+        if (r) {
+          SFX.fanfare();
+          this.toast(`🔬 Research complete! +${r.xp} XP · +1 📮 stamp${r.allDone ? " · ALL THREE: +1 🎟 voucher!" : ""}`, "gold");
+          this.renderJournal();
+          this.renderTopbar();
+        }
+        return;
+      }
+      if (e.target.closest("#btn-daily")) { SFX.click(); Engine.startDaily(); return; }
+      if (e.target.closest("#btn-elite")) { SFX.click(); Engine.startElite(); }
+    });
+    this.$("results-offer").addEventListener("click", e => {
+      const up = e.target.closest("#btn-bandup");
+      if (up) {
+        SAVE.state.band = up.dataset.band;
+        SAVE.save();
+        SFX.fanfare();
+        const bd = BANDS[SAVE.state.band];
+        this.$("results-offer").className = "hidden";
+        this.toast(`${bd.e} <b>${bd.label}</b> band ON! ${bd.desc}`, "gold");
+        this.renderTopbar();
+        return;
+      }
+      const as = e.target.closest("#btn-assist");
+      if (as) {
+        SFX.click();
+        this.$("results-offer").className = "hidden";
+        Engine.startStage(+as.dataset.w, +as.dataset.s, { assist: true });
+      }
+    });
+    this.$("ceremony").addEventListener("click", e => {
+      if (!e.target.closest("#cer-continue")) return;
+      SFX.click();
+      this.$("ceremony").classList.add("hidden");
+      this.show("map");
+      this.renderTopbar();
+      this.toast("🏆 YOU ARE THE CHAMPION! Your photo hangs in the Museum Gallery.", "gold");
+      (this._cerTrophies || []).forEach((t, i) => setTimeout(() => this.trophyToast(t), 600 + i * 900));
     });
 
     this.$("results-catch").addEventListener("click", e => {

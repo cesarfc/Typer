@@ -21,12 +21,15 @@ const Engine = {
     if (c) setTimeout(() => UI.toast(`🎽 ${c.n} joined your party — it will fight beside you!`, "gold"), 600);
   },
 
-  startStage(w, s) {
+  startStage(w, s, opts = {}) {
     const world = WORLDS[w];
     const isBoss = s === world.levels.length;
     const lvl = isBoss ? null : world.levels[s];
-    const pool = isBoss ? world.bossPool : lvl.pool;
-    const count = isBoss ? world.boss.hp : lvl.count;
+    // skill band: Explorer faces shorter words and softer bosses, Ace the
+    // opposite — orthogonal to the time-based difficulty setting
+    const band = BANDS[opts.band || SAVE.state.band] ? (opts.band || SAVE.state.band) : "trainer";
+    const pool = isBoss ? world.bossPool : bandPool(lvl.pool, band, lvl.count);
+    const count = isBoss ? Math.max(6, world.boss.hp + BANDS[band].bossHp) : lvl.count;
 
     let prompts = [];
     while (prompts.length < count) prompts = prompts.concat(shuffle(pool.slice()));
@@ -41,7 +44,9 @@ const Engine = {
       hits: 0, errors: 0, errorsThisPrompt: 0, timeouts: 0,
       hearts: 3,
       typingMs: 0, promptStart: 0, timerMs: 0, timerRemaining: 0,
-      baseTime: isBoss ? world.boss.time : lvl.time,
+      baseTime: (isBoss ? world.boss.time : lvl.time) * BANDS[band].time,
+      band,
+      timeScale: opts.assist ? 1.45 : 1, // one-run "more time" rescue
       state: "play",
       ninjaEligible: UI.kbHidden,
       pendingRes: null,
@@ -68,7 +73,7 @@ const Engine = {
     S.text = S.prompts[S.idx];
     UI.showPrompt(S);
     // practice runs have no countdown — the "timer" is a count-up stopwatch
-    let ms = S.practice ? Infinity : (S.baseTime + S.text.length * 0.6) * this.difficulty().time * 1000;
+    let ms = S.practice ? Infinity : (S.baseTime + S.text.length * 0.6) * this.difficulty().time * 1000 * (S.timeScale || 1);
     // the first prompt shares the screen with the level announcement:
     // grant reading time so the lesson never costs the clock
     if (S.idx === 0 && isFinite(ms)) ms += 700;
@@ -192,6 +197,11 @@ const Engine = {
 
     S.state = "between";
     const perfect = S.errorsThisPrompt === 0;
+    // Flawless daily mutator: a missed word returns for another go
+    if (S.requeueMissed && !perfect && (S.requeued || 0) < 4) {
+      S.prompts.push(S.text);
+      S.requeued = (S.requeued || 0) + 1;
+    }
     S.score += perfect ? 5 : 2;
     if (perfect) this.addCharge(S, 5); // flawless words charge the partner extra
     UI.updateHud(S);
@@ -262,6 +272,8 @@ const Engine = {
       });
       return;
     }
+    if (S.daily) { this.finishDaily(); return; }
+    if (S.elite) { this.finishEliteRound(); return; }
     if (S.wild) { S.state = "between"; this.startWildCatch(); return; }
     S.state = "done";
 
@@ -281,11 +293,13 @@ const Engine = {
     xp += Math.min(20, wpm);
     if (ninja) xp = Math.round(xp * 1.5);
     if (diff.xp > 1) xp = Math.round(xp * diff.xp);
+    xp = Math.round(xp * (BANDS[S.band] ? BANDS[S.band].xp : 1));
 
     const res = {
       w: S.w, s: S.s, isBoss: S.isBoss, stars, acc, wpm, xp,
       score: S.score, bestCombo: S.bestCombo, errors: S.errors, timeouts: S.timeouts,
       ninja, turbo: diff.xp > 1, xpBefore: SAVE.state.xp,
+      band: S.band || "trainer",
       firstClear: SAVE.stageStars(S.w, S.s) === 0,
     };
     const applied = SAVE.applyResult(res);
@@ -676,6 +690,7 @@ const Engine = {
 
   defeat() {
     const S = this.session;
+    if (S && S.elite) { this.eliteDefeat(); return; }
     this.stopTimer();
     S.state = "done";
     SAVE.state.xp += 8; // consolation "training XP"
@@ -728,6 +743,7 @@ const Engine = {
   },
 
   quitToMap() {
+    this.cleanupSpecial();
     this.stopTimer();
     this.paused = false;
     this.pendingNext = false;
@@ -736,5 +752,235 @@ const Engine = {
     UI.pauseOverlay(false);
     UI.superMode(false);
     UI.show("map");
+  },
+
+  // restore anything a special session changed (forced ninja, gauntlet state)
+  cleanupSpecial() {
+    const S = this.session;
+    if (S && S.forceNinja) {
+      UI.kbHidden = !!this._kbBefore;
+      UI.applyKbVisibility();
+    }
+    this._elite = null;
+  },
+
+  // ============ Professor's Daily Drill (one seeded run a day) ============
+  startDaily() {
+    const d = SAVE.dailyInfo();
+    if (d.done) return;
+    const muts = d.mutators.map(id => DAILY_MUTATORS.find(m => m.id === id)).filter(Boolean);
+
+    // words from every world the player has opened up
+    let pool = [];
+    WORLDS.forEach((w, wi) => {
+      if (!SAVE.worldUnlocked(wi)) return;
+      w.levels.forEach(l => l.pool.forEach(p => { if (p.length >= 3) pool.push(p); }));
+    });
+    pool = [...new Set(pool)];
+
+    let timeScale = 1, xpScale = 1, forceNinja = false, requeue = false;
+    for (const m of muts) {
+      if (m.id === "weakkey") {
+        const worst = Object.entries(SAVE.state.stats.perKey)
+          .map(([k, v]) => ({ k, total: v.ok + v.miss, acc: v.ok / (v.ok + v.miss) }))
+          .filter(e => e.total >= 8)
+          .sort((a, b) => a.acc - b.acc)
+          .slice(0, 3).map(e => e.k);
+        if (worst.length) {
+          const f = pool.filter(wd => [...wd.toLowerCase()].some(ch => worst.includes(ch)));
+          if (f.length >= 12) pool = f;
+        }
+      }
+      if (m.id === "long") {
+        const f = pool.filter(x => x.length >= 6);
+        pool = f.length >= 12 ? f : pool.slice().sort((a, b) => b.length - a.length).slice(0, 20);
+      }
+      if (m.id === "caps") pool = pool.map(x => x[0].toUpperCase() + x.slice(1));
+      if (m.id === "turbo") timeScale = m.time;
+      if (m.id === "lights") { forceNinja = true; xpScale = m.xp; }
+      if (m.id === "flawless") requeue = true;
+    }
+
+    let prompts = [];
+    while (prompts.length < 12) prompts = prompts.concat(shuffle(pool.slice()));
+    prompts = prompts.slice(0, 12);
+
+    this.paused = false;
+    this.pendingNext = false;
+    this.session = {
+      w: 0, s: -6, isBoss: false,
+      world: {
+        name: "Daily Drill", emoji: "📋",
+        gradient: ["#1b2142", "#3b2d6b"], accent: "#9b59d6",
+        targets: ["🎯", "⭐", "🎈", "🪙"], projectile: "⚡",
+        hitText: ["Nice!", "Sharp!", "Clean!", "Quick!"],
+        sceneEmojis: ["📋", "⭐", "⚡", "🎯"], levels: [],
+      },
+      daily: { muts, xpScale },
+      prompts, idx: -1, text: "", pos: 0,
+      score: 0, combo: 0, bestCombo: 0,
+      hits: 0, errors: 0, errorsThisPrompt: 0, timeouts: 0, hearts: 3,
+      typingMs: 0, promptStart: 0, timerMs: 0, timerRemaining: 0,
+      baseTime: 4.6, timeScale, requeueMissed: requeue, forceNinja,
+      state: "play",
+      partner: SAVE.leadCreature(), charge: 0, partnerReady: false, meterOn: false,
+      ninjaEligible: UI.kbHidden || forceNinja, pendingRes: null, catchCreature: null,
+    };
+    if (forceNinja) {
+      this._kbBefore = UI.kbHidden;
+      UI.kbHidden = true;
+    }
+    UI.specialScene(this.session, `📋 Daily Drill · ${muts.map(m => m.e + " " + m.name).join(" + ")}`);
+    this.nextPrompt();
+  },
+
+  finishDaily() {
+    const S = this.session;
+    this.stopTimer();
+    S.state = "done";
+    const total = S.hits + S.errors;
+    const acc = total ? S.hits / total : 1;
+    const minutes = Math.max(S.typingMs, 1000) / 60000;
+    const wpm = Math.round((S.hits / 5) / minutes);
+    const xp = Math.round((40 + Math.min(20, wpm)) * S.daily.xpScale);
+    this.cleanupSpecial();
+    const r = SAVE.completeDaily(xp);
+    this.session = null;
+    UI.superMode(false);
+    UI.show("map");
+    UI.renderTopbar();
+    UI.toast(`📋 Daily Drill done! <b>+${xp} XP</b> · +1 🎟 candy voucher (${Math.round(acc * 100)}% at ${wpm} wpm)`, "gold");
+    if (r && r.eggBonus) {
+      setTimeout(() => UI.toast("🥚 FIVE drills this week — the Professor sent a special Mystery Egg!", "gold"), 1200);
+    }
+  },
+
+  // ============ The Elite Four & the Champion ============
+  eliteUnlocked() {
+    return SAVE.stageStars(HALL_W, WORLDS[HALL_W].levels.length) > 0
+      && SAVE.medalPoints() >= ELITE_NEED_MEDALS;
+  },
+
+  startElite() {
+    if (!this.eliteUnlocked()) return;
+    this._elite = { round: 0, hearts: 3, wpmSum: 0, accSum: 0, rounds: 0 };
+    this.startEliteRound();
+  },
+
+  startEliteRound() {
+    const E = this._elite;
+    const r = ELITE[E.round];
+
+    let pool = [];
+    r.worlds.forEach(wi => WORLDS[wi].levels.forEach(l =>
+      l.pool.forEach(p => { if (p.length >= 3) pool.push(p); })));
+    pool = [...new Set(pool)];
+    let prompts = [];
+    while (prompts.length < r.hp) prompts = prompts.concat(shuffle(pool.slice()));
+    prompts = prompts.slice(0, r.hp);
+
+    // the Champion is YOU — paced from your own recent speed, always
+    // stretchy but beatable on any difficulty
+    let baseTime = r.time;
+    if (r.champion) {
+      const hist = SAVE.state.stats.history.slice(-7);
+      const avg = hist.length ? hist.reduce((a, h) => a + h.wpm, 0) / hist.length : 12;
+      baseTime = Math.max(2.4, Math.min(5.5, 50 / Math.max(8, avg)));
+    }
+
+    this.paused = false;
+    this.pendingNext = false;
+    this.session = {
+      w: HALL_W, s: -5, isBoss: true,
+      world: {
+        name: `Elite ${E.round + 1} of ${ELITE.length}`, emoji: r.e,
+        gradient: ["#171130", "#3d1d52"], accent: "#c77bff",
+        targets: ["⚔️"], projectile: "⚡",
+        hitText: ["Hit!", "Sharp!", "Fierce!", "Champion-like!"],
+        sceneEmojis: [r.e, "⚔️", "✨", "🏟️"], levels: [],
+        boss: { name: r.name, emoji: r.e, id: r.aceId || null, hp: r.hp, time: baseTime, taunt: r.taunt },
+      },
+      elite: { round: E.round, def: r },
+      prompts, idx: -1, text: "", pos: 0,
+      score: 0, combo: 0, bestCombo: 0,
+      hits: 0, errors: 0, errorsThisPrompt: 0, timeouts: 0,
+      hearts: E.hearts,
+      typingMs: 0, promptStart: 0, timerMs: 0, timerRemaining: 0,
+      baseTime, state: "play",
+      partner: SAVE.leadCreature(), charge: 0, partnerReady: false,
+      ninjaEligible: UI.kbHidden, pendingRes: null, catchCreature: null,
+    };
+    this.session.meterOn = !!this.session.partner;
+    UI.gameStart(this.session);
+    this.nextPrompt();
+  },
+
+  finishEliteRound() {
+    const S = this.session;
+    this.stopTimer();
+    S.state = "done";
+    const E = this._elite;
+    const total = S.hits + S.errors;
+    const minutes = Math.max(S.typingMs, 1000) / 60000;
+    E.wpmSum += Math.round((S.hits / 5) / minutes);
+    E.accSum += total ? S.hits / total : 1;
+    E.rounds++;
+    E.round++;
+    E.hearts = Math.min(3, S.hearts + 1); // a breather between rounds
+
+    const el = SAVE.state.elite || (SAVE.state.elite = { bestRound: 0, clears: 0 });
+    el.bestRound = Math.max(el.bestRound, E.round);
+    SAVE.save();
+
+    if (E.round >= ELITE.length) { this.eliteVictory(); return; }
+    const nxt = ELITE[E.round];
+    UI.announce(`${nxt.e} Round ${E.round + 1}: ${nxt.name}!`, 1600);
+    SFX.fanfare();
+    setTimeout(() => {
+      if (this._elite === E) this.startEliteRound();
+    }, 1700);
+  },
+
+  eliteDefeat() {
+    const S = this.session;
+    this.stopTimer();
+    S.state = "done";
+    const E = this._elite;
+    const reached = E ? E.round + 1 : 1;
+    const xp = 15 * reached;
+    SAVE.state.xp += xp;
+    const el = SAVE.state.elite || (SAVE.state.elite = { bestRound: 0, clears: 0 });
+    el.bestRound = Math.max(el.bestRound, E ? E.round : 0);
+    SAVE.save();
+    this.cleanupSpecial();
+    this.session = null;
+    SFX.defeat();
+    UI.superMode(false);
+    UI.show("map");
+    UI.renderTopbar();
+    UI.toast(`⚔️ The Elite Four won this time — you fought to <b>Round ${reached}</b>! +${xp} XP. Train and return!`);
+  },
+
+  eliteVictory() {
+    const E = this._elite;
+    const entry = {
+      date: new Date().toISOString().slice(0, 10),
+      party: SAVE.state.party.slice(),
+      wpm: Math.round(E.wpmSum / Math.max(1, E.rounds)),
+      acc: Math.round(100 * E.accSum / Math.max(1, E.rounds)),
+    };
+    const el = SAVE.state.elite || (SAVE.state.elite = { bestRound: 0, clears: 0 });
+    el.bestRound = ELITE.length;
+    el.clears = (el.clears || 0) + 1;
+    SAVE.state.hof.push(entry);
+    SAVE.state.xp += 150;
+    const newTrophies = [];
+    SAVE.award("champion", newTrophies);
+    SAVE.collectTrophies(newTrophies);
+    SAVE.save();
+    this.cleanupSpecial();
+    this.session = null;
+    UI.superMode(false);
+    UI.hofCeremony(entry, newTrophies);
   },
 };

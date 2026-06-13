@@ -13,10 +13,18 @@ const AVATARS = ["🧢", "🦊", "🐱", "🐉", "🥷", "⚡", "🎒", "🦖", 
 const TRAINER_OPTS = {
   skin: ["#ffd5b3", "#f0b186", "#c98a5c", "#9c6238", "#6e4427"],
   hair: ["spiky", "bowl", "long", "curls"],
-  hairColor: ["#2d2a33", "#6b4226", "#d8a13c", "#b8453a", "#4a7fd6", "#9b59d6"],
+  hairColor: ["#2d2a33", "#6b4226", "#d8a13c", "#b8453a", "#4a7fd6", "#9b59d6", "#2eea9c"],
   hat: ["none", "cap", "beanie"],
-  hatColor: ["#e3350d", "#2a6df0", "#2eaf5b", "#f5c518", "#8e44ad"],
-  shirt: ["#e3350d", "#2a6df0", "#2eaf5b", "#f5c518", "#8e44ad", "#16a2b8"],
+  hatColor: ["#e3350d", "#2a6df0", "#2eaf5b", "#f5c518", "#8e44ad", "#ffd34d"],
+  shirt: ["#e3350d", "#2a6df0", "#2eaf5b", "#f5c518", "#8e44ad", "#16a2b8", "#ffd34d", "#1a1d2e"],
+};
+
+// wardrobe pieces earned through play ("part:index" -> requirement)
+const TRAINER_LOCKS = {
+  "hairColor:6": { need: "stamps", n: 6, label: "Earn 6 research stamps" },
+  "hatColor:5": { need: "champion", label: "Become the Champion" },
+  "shirt:6": { need: "champion", label: "Become the Champion" },
+  "shirt:7": { need: "stamps", n: 3, label: "Earn 3 research stamps" },
 };
 
 function defaultTrainer() {
@@ -464,6 +472,49 @@ const FEATURE_INTROS = [
     ],
   },
   {
+    id: "journal",
+    icon: "📔",
+    title: "The Professor's Journal",
+    when: S => (S.state.counters.levelsFinished || 0) >= 1,
+    pages: [
+      "I've started a <b>Journal</b> for you, Trainer! It tracks two new things.",
+      "The 📋 <b>Daily Drill</b>: one special run a day at the podium near the Trainer School, with surprise rules — finish it for XP and a 🎟 <b>candy voucher</b> (spend vouchers on any family in the Pokedex!).",
+      "And 🔬 <b>Research Tasks</b>: three missions each week that fill up as you play. Each one earns a <b>stamp</b> — collect stamps to unlock new trainer outfits!",
+    ],
+    spotlight: [
+      { nav: "journal", sel: "#jr-daily", text: "The Daily Drill: today's special rules live here." },
+      { sel: "#jr-research", text: "This week's research — claim rewards when a mission fills up!" },
+    ],
+  },
+  {
+    id: "bands",
+    icon: "🎚",
+    title: "Pick your challenge level",
+    when: S => (S.state.counters.levelsFinished || 0) >= 3,
+    pages: [
+      "Every trainer is different — so every level now has <b>skill bands</b>!",
+      "🌱 <b>Explorer</b> faces shorter words with extra time. ⚡ <b>Trainer</b> is the classic. 👑 <b>Ace</b> gets longer words, tougher bosses and <b>+15% XP</b>.",
+      "Switch any time with the band button up top, or pick a band for one level from its level card. Stars count at every band!",
+    ],
+    spotlight: [
+      { nav: "map", sel: "#band-btn", text: "Your band button — click it any time to change challenge." },
+    ],
+  },
+  {
+    id: "elite",
+    icon: "⚔️",
+    title: "A challenge from the Elite Four",
+    when: S => S.stageStars(HALL_W, WORLDS[HALL_W].levels.length) > 0 && S.medalPoints() >= ELITE_NEED_MEDALS,
+    pages: [
+      "Word travels fast, Champion-in-waiting. The <b>Elite Four</b> have seen your medals... and they're waiting.",
+      "Four masters, back to back, sharing ONE pool of hearts — and then a final opponent I won't spoil. 😏",
+      "When you're ready, the challenge waits in your 📔 Journal. Make the whole island proud!",
+    ],
+    spotlight: [
+      { nav: "journal", sel: "#jr-elite", text: "The Elite Four await — challenge them from here!" },
+    ],
+  },
+  {
     id: "shiny",
     icon: "✨",
     title: "Professor Oak's shiny research",
@@ -477,6 +528,69 @@ const FEATURE_INTROS = [
       { nav: "trophies", tab: "gallery", sel: "#gallery-wing", text: "The Gallery: every shiny you find takes a pedestal. Fill the shelves!" },
     ],
   },
+];
+
+// ---- Skill bands: content difficulty, orthogonal to the time-based
+// difficulty. Band = what you face; Difficulty = how fast you must be. ----
+const BANDS = {
+  explorer: { label: "Explorer", e: "🌱", time: 1.2, bossHp: -2, xp: 1,
+              desc: "Shorter words, calmer pace" },
+  trainer:  { label: "Trainer", e: "⚡", time: 1, bossHp: 0, xp: 1,
+              desc: "The classic adventure" },
+  ace:      { label: "Ace", e: "👑", time: 1, bossHp: 2, xp: 1.15,
+              desc: "Longer words, tougher bosses, +15% XP" },
+};
+const BAND_ORDER = ["explorer", "trainer", "ace"];
+
+// filter a story pool for a band; never returns fewer than `count` prompts
+function bandPool(pool, band, count) {
+  let p;
+  if (band === "explorer") p = pool.filter(x => x.length <= 4);
+  else if (band === "ace") p = pool.filter(x => x.length >= 5);
+  else return pool;
+  if (p.length >= Math.min(count, 4)) return p;
+  // not enough words in range: take the closest-length ones instead
+  const sorted = pool.slice().sort((a, b) =>
+    band === "explorer" ? a.length - b.length : b.length - a.length);
+  return sorted.slice(0, Math.max(4, Math.ceil(pool.length / 2)));
+}
+
+// ---- Professor's Daily Drill: one seeded run a day, two mutators ----
+const DAILY_MUTATORS = [
+  { id: "lights", e: "🥷", name: "Lights Out", desc: "Keyboard guide hidden — type by feel! +50% XP", xp: 1.5 },
+  { id: "weakkey", e: "🎯", name: "Weak Key Day", desc: "Words full of YOUR trickiest keys" },
+  { id: "long", e: "🐍", name: "Long Words", desc: "Only the big ones today" },
+  { id: "caps", e: "🔠", name: "Capital Day", desc: "Every word starts with a capital", needHall: true },
+  { id: "flawless", e: "💎", name: "Flawless", desc: "Missed words come back for another go" },
+  { id: "turbo", e: "🌀", name: "Turbo Taste", desc: "A little less time on the clock", time: 0.85 },
+];
+
+// ---- Professor's Research: three tasks a week, progress from normal play ----
+const RESEARCH_TASKS = [
+  { id: "levels5", counter: "levelsFinished", need: 5, e: "🗺️", text: "Finish 5 levels" },
+  { id: "perfect1", counter: "perfectLevels", need: 1, e: "💯", text: "Win a level with 100% accuracy" },
+  { id: "ninja1", counter: "ninjaClears", need: 1, e: "🥷", text: "Clear a level in Ninja Mode" },
+  { id: "wild2", counter: "wildCatches", need: 2, e: "🌿", text: "Catch 2 Pokemon in the wild" },
+  { id: "fish1", counter: "fishCatches", need: 1, e: "🎣", text: "Catch a Pokemon by fishing" },
+  { id: "hatch1", counter: "hatches", need: 1, e: "🥚", text: "Hatch a Mystery Egg" },
+  { id: "evolve1", counter: "evolutions", need: 1, e: "🧬", text: "Evolve a Pokemon" },
+  { id: "record1", counter: "records", need: 1, e: "⏱", text: "Set a new Trainer School record" },
+  { id: "daily2", counter: "dailies", need: 2, e: "📋", text: "Finish 2 Daily Drills" },
+];
+
+// ---- The Elite Four & the Champion (entry: story done + 9 medal points) ----
+const ELITE_NEED_MEDALS = 9;
+const ELITE = [
+  { name: "Home-Row Hana", e: "🌸", aceId: 702, aceE: "🐹", worlds: [0, 1], hp: 10, time: 4.6,
+    taunt: "Welcome, challenger! My Dedenne and I never leave home row... or lose!" },
+  { name: "Cave Sage", e: "⛰️", aceId: 95, aceE: "🪨", worlds: [1, 2], hp: 10, time: 4.3,
+    taunt: "I trained in the deepest caves. Show me your foundation!" },
+  { name: "Dragon Duchess", e: "🐉", aceId: 149, aceE: "🐲", worlds: [3, 4], hp: 11, time: 4.1,
+    taunt: "My dragons devour slow fingers. Type like a storm!" },
+  { name: "The Glitch Heir", e: "👾", aceId: 474, aceE: "🤖", worlds: [5], hp: 11, time: 3.9,
+    taunt: "MissingNo taught me everything. I live between the pixels!" },
+  { name: "The Champion", e: "🏆", champion: true, worlds: [0, 1, 2, 3, 4, 5], hp: 12,
+    taunt: "I've watched every battle you ever typed. I AM you... but faster!" },
 ];
 
 // dex keys of water Pokemon that can be hooked at fishing spots
@@ -567,6 +681,7 @@ const TROPHIES = [
   { id: "shiny", e: "✨", name: "Shiny Hunter", desc: "Catch a shiny Pokemon" },
   { id: "evolve-1", e: "🧬", name: "Evolver", desc: "Evolve a Pokemon for the first time" },
   { id: "evolve-5", e: "🔮", name: "Evolution Expert", desc: "Evolve 5 Pokemon" },
+  { id: "champion", e: "🏆", name: "CHAMPION", desc: "Defeat the Elite Four and the Champion" },
   { id: "medal-silver-1", e: "🥈", name: "Silver Standard", desc: "Earn a Silver region medal" },
   { id: "medal-gold-1", e: "🥇", name: "Golden Touch", desc: "Earn a Gold region medal" },
   { id: "crown-1", e: "👑", name: "Crowned", desc: "Earn a Crown: master a region in Ninja Mode" },
