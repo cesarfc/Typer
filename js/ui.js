@@ -1770,6 +1770,9 @@ const UI = {
     this.$("kb-flex").classList.remove("ninja");
     const wrap = this.$("target-wrap");
     const target = this.$("target");
+    // a wild knows its shininess from the field; a post-level catch decided it
+    // in startCatch — show the shiny sprite the instant the ball bursts open
+    const isShiny = S.wild ? !!S.wild.shiny : !!S.catchShiny;
     this.$("hud-progress-fill").style.width = "100%";
     this.$("target-label").classList.add("hidden");
     // one mystery "?" per letter of the hidden name
@@ -1803,14 +1806,13 @@ const UI = {
       flash.className = "poke-flash";
       wrap.appendChild(flash);
       setTimeout(() => flash.remove(), 550);
-      const shiny = !!(S.wild && S.wild.shiny);
-      target.className = "catch-size" + (shiny ? " shiny-poke" : "");
-      target.innerHTML = `<span class="poke-pop">${this.pokeHtml(creature.id, creature.e, { shiny })}</span>`;
-      if (shiny) this.shinyReveal(S);
+      target.className = "catch-size" + (isShiny ? " shiny-poke" : "");
+      target.innerHTML = `<span class="poke-pop">${this.pokeHtml(creature.id, creature.e, { shiny: isShiny })}</span>`;
+      if (isShiny) this.shinyReveal(S);
     }, 1780);
     setTimeout(() => {
       if (!alive()) return;
-      this.announce(S.wild && S.wild.shiny ? `✨ A SHINY ${creature.n}! ✨` : `A wild ${creature.n} appeared!`, 1600);
+      this.announce(isShiny ? `✨ A SHINY ${creature.n}! ✨` : `A wild ${creature.n} appeared!`, 1600);
       SFX.combo();
       done();
     }, 2380);

@@ -443,6 +443,9 @@ const Engine = {
     S.state = "reveal";
     S.pendingRes = res;
     S.catchCreature = creature;
+    // decide shininess up front so the ball-reveal can pop out the shiny
+    // sprite (and twinkle) live, instead of springing it on the results card
+    S.catchShiny = !creature.duplicate && res.stars === 3 && Math.random() < SAVE.shinyOdds().catch3;
     S.text = worldProperNames(S.w) ? creature.n : creature.n.toLowerCase();
     this.plainPrompt(S); // a catch is always "type the name", never a math/code answer
     S.pos = 0;
@@ -504,10 +507,9 @@ const Engine = {
       }
       more = SAVE.bumpCombo(S.bestCombo);
     } else {
-      const odds = SAVE.shinyOdds();
-      // a wild Pokemon already revealed its shininess on the field — keep it;
-      // the post-level catch still rolls at the moment of catching
-      const shiny = (res.wild ? !!S.wild.shiny : res.stars === 3 && Math.random() < odds.catch3);
+      // a wild already revealed its shininess on the field; a post-level catch
+      // decided it at the ball-reveal (S.catchShiny) — either way it's locked in
+      const shiny = res.wild ? !!S.wild.shiny : !!S.catchShiny;
       res.caught = { ...c, shiny };
       more = SAVE.addCreature(c.w, c.i, shiny).concat(SAVE.bumpCombo(S.bestCombo));
       if (S.wild && S.wild.source === "legendary") SAVE.award("legend-1", more);
