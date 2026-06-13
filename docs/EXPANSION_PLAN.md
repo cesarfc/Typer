@@ -7,12 +7,19 @@ Both worked from the live codebase; every proposal below is grounded in what
 `engine.js` / `save.js` / `ui.js` / `data.js` actually do today.
 
 **The player:** a 9-year-old who has nearly cleared all 6 worlds and caught
-most of the 96 Pokemon. He can type. Two goals:
+most of the 96 Pokemon. He can type. The goals:
 1. Make finishing the game the *beginning* — endgame systems that reward
-   mastery, collection, and showing up (healthily).
-2. New islands that teach **math, coding, and computer-science basics**
+   mastery, collection, and showing up (healthily). (Part 1)
+2. Every new feature introduces itself when it unlocks — onboarding is part
+   of the feature, not an afterthought. (Part 2)
+3. One game for every age and skill level: per-level **skill bands** so
+   siblings of different ages play the same worlds at the right challenge.
+   (Part 3)
+4. New islands that teach **math, coding, and computer-science basics**
    through the same typing-battle core, each also expanding keyboard
-   territory (number row, symbols) like the worlds taught letters.
+   territory (number row, symbols) like the worlds taught letters — with
+   **concept lessons that assume the trainer is brand-new to the subject**.
+   (Part 4)
 
 ---
 
@@ -128,7 +135,92 @@ dead flame; old best kept as a record to beat.
 
 ---
 
-## Part 2 — The Scholar Archipelago (math · coding · CS)
+## Part 2 — Feature onboarding: every unlock teaches itself
+
+New systems are worthless if a 9-year-old never notices them. Every feature
+in this plan ships with a **discovery moment**, built on one reusable
+framework instead of ad-hoc toasts.
+
+**The Professor's Letter system.** A `FEATURE_INTROS` registry in data.js:
+`{ id, trigger(saveState), tier, letter, spotlight }`.
+- **Trigger:** a predicate checked at map render (the `mapHints` slot —
+  feature intros take priority over generic hints). Examples: medals intro
+  when `stageBest` first has 3 worthy entries; daily-drill intro the first
+  morning the podium spawns; Elite intro at 9 medals; ferry intro when the
+  archipelago unlocks.
+- **The letter:** a 📬 parcel pin drops near the player's map marker
+  (billboard-safe, inner-span bob). Clicking opens a calm 2–3 panel
+  overlay — Professor Oak's letter, one idea per panel, big type, a single
+  Continue. Letters are warm fiction, not tooltips: "My research shows your
+  Pallet Meadow runs are nearly perfect. I've sent you a Medal Case…"
+- **Guided first use:** after the letter, a **spotlight step** (max 2-3):
+  a fixed dim layer with the target element lifted above it (z-index +
+  box-shadow cutout — pure DOM), a short caption, advance on tap. E.g.
+  medals: spotlight the Museum tab → the medal wall → the Bronze row
+  already partly earned. Daily drill: spotlight the podium node, then
+  start the first run with its explainer card.
+- **Rules:** one intro per session, ever (queued otherwise); skippable at
+  every step; replayable from the Journal ("how does this work?" link on
+  each panel); never two new systems in the same session; stored in
+  `flags.intros`. The existing tutorial (Klefki) and island tutors handle
+  *skills*; letters handle *systems*.
+
+---
+
+## Part 3 — Skill bands: one game, every age
+
+Players are different ages with different skills. Today's difficulty
+(🐢 Chill / 🙂 Normal / 🔥 Turbo) only scales **time**. Bands scale
+**content**. The two axes stay orthogonal and combine freely:
+
+> **Band = what you face. Difficulty = how fast you must be.**
+
+**Three bands, named for pride, not age** (age guidance appears only in the
+parent-facing creation hint): 🌱 **Explorer** (~5-7, early readers),
+⚡ **Trainer** (~8-10, today's game), 👑 **Ace** (~11+, or a confident
+younger kid).
+
+**What a band changes, per area:**
+| Area | 🌱 Explorer | ⚡ Trainer | 👑 Ace |
+|---|---|---|---|
+| Story words | ≤4-letter words from the same taught keys, +20% base time | current pools | longer words + phrases earlier, capitals from world 4 |
+| Boss HP | 8 | 10 | 12 |
+| Math | counts & +/− within 20; ×2/×5/×10 only; answers ≤2 digits | the Part 4 ramp as written | full fact mix, missing-factor forms, 3-digit carrying earlier |
+| Coding | copy-only, ≤10-char lines, no shift symbols until C3 | as written | fill-the-blank earlier, 2-line blocks sooner |
+| CS | ≤3-bit binary, AND only, ±1 ciphers | as written | 6-bit binary, NAND teasers, ±3 ciphers |
+
+Bands are mostly **filters and parameter ranges** over the same pools
+(word-length filters; number ranges; line caps) plus authored variants
+where it matters (math levels carry per-band generators). Creature/dex
+content is identical across bands — collection is never gated by age.
+
+**How it's chosen:**
+- **Player default** set at creation (alongside difficulty) and changeable
+  any time from the same topbar cluster — a band chip next to the
+  difficulty chip.
+- **Per-level override:** clicking a map node opens a slim **level card**
+  (name, your stars, medal, three band pips with the default pre-selected,
+  Start). Enter / double-click skips straight in at the default — zero
+  added friction for normal play. The card is also where replays choose a
+  band deliberately.
+- **The game coaches the band, gently:** two flawless 3-star runs at a band
+  → results card offers "Ready for 👑 Ace? It's tougher — and pays more!"
+  Two failures of the same level → the existing warm-failure pattern offers
+  "Want more time this once?" (one-run Chill assist, no penalty, no nag).
+  Offers, never automatic switches — the kid stays in charge.
+
+**Progress & fairness rules:** stars are earned at whatever band you play —
+a 6-year-old's 3 stars are as real as anyone's. `stageBest` records the
+band; **Silver/Gold medals require Trainer band or above** (Bronze and
+Crown are band-agnostic — Crown's ninja constraint is hard at any band);
+Ace runs pay +15% XP. Nothing ever has to be replayed after a band change
+(the `V3_STAGE_MAP` mercy philosophy).
+
+**Save:** `profileBand`, `stageBest[key].band` — additive, no migration.
+
+---
+
+## Part 4 — The Scholar Archipelago (math · coding · CS)
 
 **Fiction:** the Ferry Dock finally sells tickets. Professor Oak's fleet
 found a new island chain — but MissingNo (the world-6 villain) escaped into
@@ -253,6 +345,42 @@ typist never grinds "press 4") → first three levels: short answers, combo
 mercy, plain T2 celebration (no condescending fanfare for easy content).
 First clears pay trophies "First Numbers" and **"Hello, World!"**.
 
+### Concept lessons — assume the trainer is NEW to the subject
+The island tutor teaches the *mechanics* (think/type, helper cards). But a
+kid meeting multiplication or variables for the first time needs the
+**concept taught from zero** — so every level that introduces a new idea
+opens with an interactive mini-lesson, built by generalizing tutorial.js
+into a data-driven `LESSONS` registry.
+
+**Lesson anatomy (4-8 steps, 60-90 seconds, Klefki pacing):** steps are
+typed `{say}` (tutor bubble), `{show}` (a visual board), `{guide}` (one
+expected keypress/answer with the full hint stack), `{try}` (an untimed
+real prompt). Pedagogy is strict **concrete → pictorial → abstract**:
+- *Times Tables:* "3 × 4 means 3 GROUPS of 4" → three berry clusters pop
+  in → "count them… type the total!" → the skip-count strip appears
+  (4·8·12) → two untimed practice facts → level starts.
+- *Division:* 12 berries shared into 3 bowls, one by one → the fact-family
+  triangle → "÷ just asks: how many in each group?"
+- *Variables:* a labeled box visual — `hp` written on a crate, a `10`
+  dropped in → "the name remembers the number" → type `let hp = 10;` and
+  the crate fills.
+- *Loops:* Porygon walks 4 steps as `repeat(4)` highlights each pass.
+- *Binary:* a row of four lamps labeled 8-4-2-1; the kid toggles them by
+  typing `1`/`0` and watches the total change — then reads `0101` cold.
+- *Logic gates:* two switches and a door — AND needs both, OR needs one.
+
+**Entry rules:** a lesson auto-plays the first time its level is entered
+(one tap on "🎓 Teach me!" vs "I know this — skip"); Explorer band defaults
+into the lesson, Ace gets the skip pre-selected; passing the Captain's Quiz
+marks early lessons seen. Every lesson is replayable forever: from the
+level card, and from the 🎓 button which becomes the island-aware
+**Professor's Notebook** — the full lesson list with ✓ marks. The in-play
+helper card's third step ("ghost-type the answer") gains a "want the
+lesson again?" link, closing the loop: struggle → offer the teaching, not
+just the answer. Seen-markers in `flags.lessons`; lesson completion pays a
+small one-time XP nibble (learning is rewarded, skipping is never
+punished).
+
 ### Parent analytics (Grown-ups corner)
 Per-key accuracy heatmap rendered on the actual keyboard layout; a 12×12
 times-table heatmap once math lands (`recordFact(op,a,b,ok)`); 14-day
@@ -261,12 +389,12 @@ parent-only — kids never see a clock); weekly digest line.
 
 ---
 
-## Part 3 — Engine & save changes (ordered by what unblocks what)
+## Part 5 — Engine & save changes (ordered by what unblocks what)
 
 1. **Prompt-object layer** — `promptAnswer(p)`/`promptLen(p)` helpers;
    `nextPrompt` sets `S.text = answer`, `S.display = question`, adds
    `think` seconds inside the timer parenthesis; guide suppression +
-   2-error rescue; `CHAR_EQUIV` input normalization. Unblocks all of Part 2.
+   2-error rescue; `CHAR_EQUIV` input normalization. Unblocks all of Part 4.
 2. **`HALL_W` constant + per-world flags** (`unlockAfter`, `properNames`,
    `kb`, `statsLane`). Unblocks appending worlds at all.
 3. **`stageBest` + `stats.counters` recording** — ship FIRST chronologically;
@@ -279,27 +407,42 @@ parent-only — kids never see a clock); weekly digest line.
 6. **Island/map registry** — wrap current map constants into `ISLANDS[0]`;
    `renderMap(island)`; ferry + Sea Chart. Largest pure refactor; schedule
    with the first region, not before.
-7. **New save fields** (all additive via `defaults()`, no version bump):
-   `stageBest`, `stats.counters`, `daily`, `dailyWeek`, `vouchers`, `elite`,
-   `hof`, `research`, `rematch`, `raid`, `unlocks`, `coins`, `island`,
-   `scholar`, `streak.tokens`, `stats.days`. Plus appended TROPHIES/WORLDS/
-   CREATURES/EVOLUTIONS/WATER_POKEMON rows. Only bespoke logic: Gholdengo's
-   coin evolution.
-8. **Journal/Museum surfaces** — UI-only, can trail each feature.
+7. **Skill-band plumbing** — `profileBand` on the player; `bandParams(area,
+   band)` in data.js (word-length filters, number ranges, line caps, boss
+   HP); per-band generators on math levels; the level card UI (band pips,
+   Enter quick-start); step-up/assist offers on results/defeat;
+   `stageBest[key].band`; medal gates check band. Unblocks Part 3
+   everywhere; the math generators land with Part 4's island.
+8. **Onboarding framework** — `FEATURE_INTROS` registry + parcel map pin +
+   letter overlay + spotlight component (`flags.intros`); intros claim the
+   mapHints priority slot. Ships with the first feature that needs it
+   (medals) and every later feature registers an entry.
+9. **LESSONS framework** — generalize tutorial.js into data-driven steps
+   (`say/show/guide/try`) with visual boards (berry groups, number line,
+   crate-variable, binary lamps, logic door); lesson ids on levels;
+   `flags.lessons`; Professor's Notebook list view on the 🎓 button.
+10. **New save fields** (all additive via `defaults()`, no version bump):
+   `stageBest` (incl. `band`), `stats.counters`, `daily`, `dailyWeek`,
+   `vouchers`, `elite`, `hof`, `research`, `rematch`, `raid`, `unlocks`,
+   `coins`, `island`, `scholar`, `streak.tokens`, `stats.days`,
+   `profileBand`, `flags.intros`, `flags.lessons`. Plus appended TROPHIES/
+   WORLDS/CREATURES/EVOLUTIONS/WATER_POKEMON rows. Only bespoke logic:
+   Gholdengo's coin evolution.
+11. **Journal/Museum surfaces** — UI-only, can trail each feature.
 
 ---
 
-## Part 4 — Phased roadmap
+## Part 6 — Phased roadmap
 
 | Phase | Scope | Why this order |
 |---|---|---|
 | **0** (half-day) | C2 + C3 (constants, flags, stageBest/counters recording) + postgame "Professor's letter" map beat | Zero-risk groundwork; bests start accruing now; the endgame gets a door |
-| **1** (2-4 days) | Mastery Medals + Shiny Charm + Museum v1 (medal moment, meters, countdown framing) | Answers "what now" within a week using content he already owns; instant Bronzes on day one |
-| **2** (3-5 days) | Daily Drill + Research board + wardrobe layer + Today's-Adventure card + streak rest tokens | Establishes the healthy daily/weekly rhythm and the reward sink; session options double as the scholar-timing dress rehearsal |
+| **1** (3-5 days) | Mastery Medals + Shiny Charm + Museum v1 + **onboarding framework with the medals letter as its first entry** | Answers "what now" within a week using content he already owns; instant Bronzes on day one; every later feature reuses the letter/spotlight system |
+| **2** (4-6 days) | Daily Drill + Research board + wardrobe layer + Today's-Adventure card + streak rest tokens + **skill bands v1** (band chip, level card, story-world filters, step-up/assist offers) | Establishes the healthy daily/weekly rhythm and the reward sink; bands open the game to siblings before the islands arrive; session options double as the scholar-timing dress rehearsal |
 | **3** (~1 week) | Elite Four & Champion (+ rematch tiers) + Hall of Fame T6 ceremony | The emotional summit, fed by Phase-1 medals |
-| **4** (1-2 weeks) | C1+C5+C6 dark, then **Gimmighoul Coast** (math) + Sea Chart + think/type + helper cards + Captain's Quiz | Math first: smallest keyboard delta, proves the answer engine on one-line content, highest home value; the ferry IS the marketing beat |
-| **5** (~1 week) | **Circuit Town** (coding) + run-effect console + SHIFT_MAP keycaps | ~80% verbatim typing — cheapest island; reuses hardened answer machinery; verify quote normalization on iPad here |
-| **6** (1-2 weeks) | **Old Power Plant** (CS) + Zapdos roamer + bench items (Raid, Practice Ghost) as appetite allows | Most novel content lands when answer-mode experience is deepest |
+| **4** (1.5-2.5 weeks) | C1+C5+C6 dark, then **Gimmighoul Coast** (math) + Sea Chart + think/type + helper cards + Captain's Quiz + **LESSONS framework with the math concept lessons** + per-band math generators | Math first: smallest keyboard delta, proves the answer engine on one-line content, highest home value; the ferry IS the marketing beat; lessons ship with the first subject that needs them |
+| **5** (~1 week) | **Circuit Town** (coding) + run-effect console + SHIFT_MAP keycaps + coding concept lessons | ~80% verbatim typing — cheapest island; reuses hardened answer machinery and the lesson framework; verify quote normalization on iPad here |
+| **6** (1-2 weeks) | **Old Power Plant** (CS) + CS concept lessons (binary lamps, logic door) + Zapdos roamer + bench items (Raid, Practice Ghost) as appetite allows | Most novel content lands when answer-mode experience is deepest |
 
 Cross-cutting: append-only data; every new field through `defaults()`; one
 parent-corner line per system; **each phase ends with the kid playing for a
