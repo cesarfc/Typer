@@ -28,11 +28,11 @@ const Engine = {
     // skill band: Explorer faces shorter words and softer bosses, Ace the
     // opposite — orthogonal to the time-based difficulty setting
     const band = BANDS[opts.band || SAVE.state.band] ? (opts.band || SAVE.state.band) : "trainer";
-    // band word-length filtering only applies to plain-word (string) pools;
-    // Scholar islands keep their authored math/code ramp for every band
+    // boss runs have no level object, so the count comes from the boss HP +
+    // band before we filter the pool (bosses get band-length filtering too)
     const rawPool = isBoss ? world.bossPool : lvl.pool;
-    const pool = world.island ? rawPool : bandPool(rawPool, band, lvl.count);
     const count = isBoss ? Math.max(6, world.boss.hp + BANDS[band].bossHp) : lvl.count;
+    const pool = bandPool(rawPool, band, count);
 
     let prompts = [];
     while (prompts.length < count) prompts = prompts.concat(shuffle(pool.slice()));
