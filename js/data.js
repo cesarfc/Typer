@@ -120,6 +120,8 @@ function promptAnswer(p) { return typeof p === "string" ? p : p.a; }
 function promptDisplay(p) { return typeof p === "string" ? null : (p.d || null); }
 function promptThink(p) { return typeof p === "string" ? 0 : (p.think || 0); }
 function promptLen(p) { return promptAnswer(p).length; }
+function promptOut(p) { return typeof p === "string" ? null : (p.out || null); }  // code run result
+function promptCode(p) { return typeof p === "object" && !!p.code; }              // monospace prompt
 
 // iOS "smart punctuation" can deliver curly quotes / long dashes through
 // the on-screen keyboard — fold them to the plain ASCII we validate against.
@@ -171,6 +173,33 @@ const LESSONS = {
     { say: "A fraction is part of a whole. '1/2' means one of two equal parts — a half!" },
     { say: "1/2 of 8 means split 8 into 2 halves: 4 and 4. Each half is 4.", board: "pie", arg: [1, 2] },
     { say: "Try it: what is 1/2 of 8?", try: { d: "1/2 of 8 = ?", a: "4" } },
+  ]},
+
+  // ---- Circuit Town (coding) ----
+  parens: { e: "🖥️", title: "Parentheses", steps: [
+    { say: "Welcome to Circuit Town! Here we type real CODE. Code makes things happen." },
+    { say: "Code uses ( ) — parentheses. The ( is Shift + 9, the ) is Shift + 0. Hold Shift with your pinky!", board: "pair", arg: ["(", ")"] },
+    { say: "When you finish a line of code, it RUNS — watch the screen! Type: run()", guide: "r", typeWord: "run()" },
+  ]},
+  camel: { e: "🖥️", title: "camelCase", steps: [
+    { say: "Programmers join words with NO spaces, and a Capital starts each new word. It's called camelCase! 🐫" },
+    { say: "'move up' becomes 'moveUp' — lowercase m, then capital U. Use Shift for the capital.", board: "camel", arg: "moveUp" },
+    { say: "Try it: type jumpHigh (capital H!)", guide: "j", typeWord: "jumpHigh" },
+  ]},
+  strings: { e: "🖥️", title: "Strings", steps: [
+    { say: "Words that the computer SAYS go inside \" \" — double quotes. The \" is Shift + the ' key." },
+    { say: "say(\"hi\") tells the computer to say hi. The quotes wrap the message.", board: "pair", arg: ["\"", "\""] },
+    { say: "Type it and watch it run: say(\"hi\")", guide: "s", typeWord: "say(\"hi\")" },
+  ]},
+  variables: { e: "🖥️", title: "Variables", steps: [
+    { say: "A variable is a labeled box that remembers a number. 'let hp = 10;' puts 10 in a box called hp." },
+    { say: "The name remembers the number. A line of code ends with a ; — semicolon (it's on home row!).", board: "crate", arg: ["hp", 10] },
+    { say: "Type it: let hp = 10;", guide: "l", typeWord: "let hp = 10;" },
+  ]},
+  predict: { e: "🖥️", title: "Predict the Output", steps: [
+    { say: "Real coders PREDICT what their code does before running it." },
+    { say: "If x = 3, then 'x = x + 2' makes x bigger by 2. So x becomes 5!", board: "crate", arg: ["x", 5] },
+    { say: "Your turn — think it through, then type the answer.", try: { d: "x = 3, then x = x + 2. What is x?", a: "5" } },
   ]},
 };
 
@@ -480,6 +509,61 @@ const WORLDS = [
                { d: "6 × 8 = ?", a: "48", think: 6 }, { d: "100 - 45 = ?", a: "55", think: 7 },
                { d: "9 × 8 = ?", a: "72", think: 6 }],
   },
+  {
+    name: "Circuit Town",
+    tagline: "Type real code! Symbols, camelCase, and lines that RUN.",
+    emoji: "💾",
+    island: 1, kb: "full", statsLane: "facts", subject: "code",
+    tutor: { name: "Porygon", id: 137, e: "🖥️" },
+    gradient: ["#0a1c2e", "#1d6b7a"],
+    accent: "#2eea9c",
+    targets: ["💾", "🖲️", "🔌", "💡"],
+    projectile: "⚡",
+    hitText: ["Compiled!", "It runs!", "Clean code!", "No bugs!"],
+    sceneEmojis: ["💾", "🖥️", "🔌", "💡"],
+    boss: { name: "Porygon-Z", emoji: "🤖", id: 474, hp: 11, time: 8, taunt: "I live in the code now. Debug THIS!" },
+    levels: [
+      { name: "Open & Close", keys: "()", time: 8, lesson: "parens",
+        pool: [{ a: "()", code: true }, { a: "(4)", code: true }, { a: "run()", code: true, out: "run!" },
+               { a: "go()", code: true, out: "go!" }, { a: "(7)", code: true }, { a: "win()", code: true, out: "you win!" },
+               { a: "jump()", code: true, out: "boing!" }, { a: "(9)", code: true }], count: 8 },
+      { name: "camelCase", keys: "", time: 8, lesson: "camel",
+        pool: [{ a: "moveUp", code: true }, { a: "jumpHigh", code: true }, { a: "goLeft", code: true },
+               { a: "wildPokemon", code: true }, { a: "useItem", code: true }, { a: "runFast", code: true },
+               { a: "catchEm", code: true }, { a: "levelUp", code: true }], count: 8 },
+      { name: "Commands", keys: "", time: 8,
+        pool: [{ a: "jump()", code: true, out: "boing!" }, { a: "heal()", code: true, out: "+20 HP" },
+               { a: "pikachu.run()", code: true, out: "zoom!" }, { a: "usePotion()", code: true, out: "healed!" },
+               { a: "attack()", code: true, out: "POW!" }, { a: "eevee.jump()", code: true, out: "hop!" }], count: 7 },
+      { name: "Strings", keys: "\"", time: 9, lesson: "strings",
+        pool: [{ a: "say(\"hi\")", code: true, out: "hi" }, { a: "say(\"go\")", code: true, out: "go" },
+               { a: "print(\"pika\")", code: true, out: "pika" }, { a: "say(\"win\")", code: true, out: "win" },
+               { a: "print(\"yes\")", code: true, out: "yes" }, { a: "say(\"hello\")", code: true, out: "hello" }], count: 7 },
+      { name: "Variables", keys: ";", time: 9, lesson: "variables",
+        pool: [{ a: "let hp = 10;", code: true, out: "hp is 10" }, { a: "let lvl = 5;", code: true, out: "lvl is 5" },
+               { a: "let name = \"Ash\";", code: true, out: "name is Ash" }, { a: "let coins = 30;", code: true, out: "coins is 30" },
+               { a: "let win = 1;", code: true, out: "win is 1" }], count: 6 },
+      { name: "If & Else", keys: "<>", time: 10,
+        pool: [{ a: "if (hp < 5) heal();", code: true, out: "healed!" }, { a: "if (lvl > 9) evolve();", code: true, out: "evolving!" },
+               { a: "if (wild) run();", code: true, out: "ran away!" }, { a: "if (hp > 0) fight();", code: true, out: "fighting!" },
+               { a: "if (coins > 9) buy();", code: true, out: "bought!" }], count: 6 },
+      { name: "Loops", keys: "{}", time: 10,
+        pool: [{ a: "repeat(3) { step(); }", code: true, out: "step step step" }, { a: "repeat(2) { jump(); }", code: true, out: "jump jump" },
+               { a: "while (wild) { run(); }", code: true, out: "running..." }, { a: "repeat(4) { spin(); }", code: true, out: "spin x4" }], count: 5 },
+      { name: "Predict & Fix", keys: "", time: 9, lesson: "predict",
+        pool: [{ d: "x = 3, then x = x + 2. What is x?", a: "5", think: 7 },
+               { d: "let n = 10; n = n - 4. What is n?", a: "6", think: 7 },
+               { d: "type the fixed line: say(\"hi)  →", a: "say(\"hi\")", code: true, think: 6 },
+               { d: "x = 2, then x = x × 3. What is x?", a: "6", think: 7 },
+               { d: "type the fixed line: run(  →", a: "run()", code: true, think: 5 }], count: 6 },
+    ],
+    bossPool: [{ a: "print(\"win\")", code: true, out: "win" }, { d: "x = 5, x = x + 5. What is x?", a: "10", think: 7 },
+               { a: "if (hp < 1) heal();", code: true, out: "saved!" }, { a: "repeat(3) { go(); }", code: true, out: "go go go" },
+               { d: "type the fixed line: say(\"ok)  →", a: "say(\"ok\")", code: true, think: 6 },
+               { a: "let bug = 0;", code: true, out: "fixed!" }, { d: "n = 8, n = n - 3. What is n?", a: "5", think: 7 },
+               { a: "pikachu.win()", code: true, out: "CHAMPION!" }, { a: "evolve()", code: true, out: "✨" },
+               { a: "debug()", code: true, out: "all clear!" }, { a: "reboot()", code: true, out: "online!" }],
+  },
 ];
 
 // 16 Pokemon per world. The first 8 of each world are the original
@@ -551,6 +635,15 @@ const CREATURES = [
     { n: "Gholdengo", e: "🪙", id: 1000, r: 4, evoOnly: true }, { n: "Luvdisc", e: "💗", id: 370, r: 1 },
     { n: "Smeargle", e: "🎨", id: 235, r: 2 }, { n: "Chatot", e: "🎵", id: 441, r: 1 },
   ],
+  [ // 7 — Circuit Town (coding)
+    { n: "Porygon", e: "🖥️", id: 137, r: 2 }, { n: "Rotom", e: "🔌", id: 479, r: 2 }, { n: "Joltik", e: "🕷️", id: 595, r: 1 },
+    { n: "Grubbin", e: "🐛", id: 736, r: 1 }, { n: "Beldum", e: "🔩", id: 374, r: 2 }, { n: "Blipbug", e: "🐞", id: 824, r: 1 },
+    { n: "Trubbish", e: "🗑️", id: 568, r: 1 }, { n: "Varoom", e: "🛵", id: 965, r: 2 },
+    { n: "Porygon2", e: "🖲️", id: 233, r: 2, evoOnly: true }, { n: "PorygonZ", e: "🤖", id: 474, r: 3, evoOnly: true },
+    { n: "Galvantula", e: "🕸️", id: 596, r: 2, evoOnly: true }, { n: "Charjabug", e: "🔋", id: 737, r: 2, evoOnly: true },
+    { n: "Vikavolt", e: "🪲", id: 738, r: 3, evoOnly: true }, { n: "Metang", e: "🛠️", id: 375, r: 2, evoOnly: true },
+    { n: "Genesect", e: "🤖", id: 649, r: 3 }, { n: "Magearna", e: "⚙️", id: 801, r: 3 },
+  ],
 ];
 
 // Evolution families. Duplicate catches of a base earn its candy;
@@ -589,6 +682,10 @@ const EVOLUTIONS = [
   { base: "6-2", chain: ["6-10"] },                         // Numel → Camerupt
   { base: "6-3", chain: ["6-11"] },                         // Chingling → Chimecho
   { base: "6-6", chain: ["6-12"], coins: 30 },              // Gimmighoul → Gholdengo (30 coins!)
+  { base: "7-0", chain: ["7-8", "7-9"] },                   // Porygon → Porygon2 → PorygonZ
+  { base: "7-2", chain: ["7-10"] },                         // Joltik → Galvantula
+  { base: "7-3", chain: ["7-11", "7-12"] },                 // Grubbin → Charjabug → Vikavolt
+  { base: "7-4", chain: ["7-13"] },                         // Beldum → Metang
 ];
 
 // Local sprite files (downloaded once by tools/get-sprites.mjs, see README).

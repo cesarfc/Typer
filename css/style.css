@@ -2141,3 +2141,20 @@ button, .screen, #topbar { touch-action: manipulation; }
 @media (prefers-reduced-motion: reduce) {
   #helper-card, .float-text, #timer-bar.thinking, .isle-cloud { animation: none !important; }
 }
+
+/* ============ Phase 5: Circuit Town (coding) ============ */
+.co-prompt { color: var(--dim); }
+.co-cursor { animation: blink 0.7s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.lt-slots.mono .lt-ch { font-family: var(--mono); font-size: 18px; width: 26px; }
+
+.lb-pair { display: flex; align-items: center; gap: 10px; }
+.pair-k { font-family: var(--mono); font-size: 32px; font-weight: 900; color: var(--gold); background: var(--card2); border-radius: 8px; padding: 4px 14px; }
+.lb-pair i { font-style: normal; font-size: 12px; color: var(--dim); }
+.lb-camel { font-family: var(--mono); font-size: 30px; font-weight: 800; }
+.lb-camel .cap { color: var(--gold); text-shadow: 0 0 12px rgba(255,211,77,.6); }
+.lb-crate { display: flex; align-items: center; gap: 8px; font-family: var(--mono); }
+.crate-name { font-size: 18px; color: var(--info); }
+.crate-box { font-size: 22px; font-weight: 900; color: var(--gold); background: var(--card2); border: 2px solid var(--gold); border-radius: 8px; padding: 4px 14px; }
+
+@media (prefers-reduced-motion: reduce) { .co-cursor { animation: none; } }

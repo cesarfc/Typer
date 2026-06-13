@@ -900,15 +900,15 @@ const UI = {
     const next = this.$("lesson-next");
     L.guideOk = false;
     L.typed = "";
-    if (st.guide || st.try) {
-      // a guided keypress or a full untimed practice prompt
-      const target = st.try ? promptAnswer(st.try) : st.guide;
+    if (st.guide || st.try || st.typeWord) {
+      // a guided keypress, a whole guided word, or an untimed practice prompt
+      const target = st.try ? promptAnswer(st.try) : (st.typeWord || st.guide);
       L.target = target;
       L.tryQuestion = st.try ? promptDisplay(st.try) : null;
       tryBox.classList.remove("hidden");
       tryBox.innerHTML = `${L.tryQuestion ? `<div class="lt-q">${this.esc(L.tryQuestion)}</div>` : ""}
-        <div class="lt-slots">${[...target].map((c, i) =>
-          `<span class="lt-ch ${i === 0 ? "cur" : ""}">${this.esc(c)}</span>`).join("")}</div>
+        <div class="lt-slots ${target.length > 6 ? "mono" : ""}">${[...target].map((c, i) =>
+          `<span class="lt-ch ${i === 0 ? "cur" : ""}">${c === " " ? "·" : this.esc(c)}</span>`).join("")}</div>
         <div class="lt-hint">⌨️ type it to continue</div>`;
       next.classList.add("hidden");
       this.highlightKey(target[0]);
@@ -1010,6 +1010,19 @@ const UI = {
       const [, parts] = arg;
       return `<div class="lb-pie">${Array.from({ length: parts }, (_, i) =>
         `<span class="pie-slice s${parts}" style="--i:${i}">🥧</span>`).join("")}<i>${parts} equal parts</i></div>`;
+    }
+    if (type === "pair") {
+      const [open, close] = arg;
+      return `<div class="lb-pair"><span class="pair-k">${this.esc(open)}</span><i>everything goes inside</i><span class="pair-k">${this.esc(close)}</span></div>`;
+    }
+    if (type === "camel") {
+      const word = arg;
+      return `<div class="lb-camel">${[...word].map(c =>
+        `<span class="${/[A-Z]/.test(c) ? "cap" : ""}">${c}</span>`).join("")}</div>`;
+    }
+    if (type === "crate") {
+      const [name, val] = arg;
+      return `<div class="lb-crate"><span class="crate-name">${this.esc(name)}</span><span class="crate-box">${this.esc(String(val))}</span></div>`;
     }
     return "";
   },
@@ -1677,6 +1690,22 @@ const UI = {
     el.textContent = text;
     a.appendChild(el);
     setTimeout(() => el.remove(), 1400);
+  },
+
+  // the payoff on the coding island: a completed line of code runs and
+  // typewriters its output into a little console
+  runCode(out) {
+    const box = this.$("code-output");
+    box.classList.remove("hidden");
+    box.innerHTML = `<span class="co-prompt">&gt; </span><span class="co-text"></span><span class="co-cursor">▋</span>`;
+    const txt = box.querySelector(".co-text");
+    let i = 0;
+    const step = () => {
+      if (i >= out.length) { SFX.word(); return; }
+      txt.textContent += out[i++];
+      setTimeout(step, 38);
+    };
+    step();
   },
 
   charError(S) {

@@ -80,6 +80,8 @@ const Engine = {
     S.display = promptDisplay(p);        // the question (null for copy prompts)
     S.think = promptThink(p);            // seconds of free thinking time
     S.answerMode = !!S.display;          // display != typed -> hide the answer guide
+    S.codeMode = promptCode(p);          // monospace code prompt
+    S.out = promptOut(p);                // run result to print on completion
     UI.showPrompt(S);
 
     if (S.practice) { this.startTimer(Infinity); return; }
@@ -88,9 +90,10 @@ const Engine = {
     let ms = (S.baseTime + S.text.length * 0.6 + S.think) * this.difficulty().time * 1000 * (S.timeScale || 1);
     if (S.idx === 0 && isFinite(ms)) ms += 700; // reading time for the announce
 
-    // Scholar islands: "the clock only runs while you type" — pause until
-    // the first keystroke, so working out an answer never costs the clock
-    if (S.scholar) {
+    // Answer prompts (math problems, predict-the-output): "the clock only
+    // runs while you type" — pause until the first keystroke so working out
+    // the answer never costs the clock. Copy prompts just type normally.
+    if (S.scholar && S.answerMode) {
       S.awaitingKey = true;
       UI.thinkPhase(S, true);
       S.pendingMs = ms;
@@ -264,6 +267,9 @@ const Engine = {
     S.score += perfect ? 5 : 2;
     if (perfect) this.addCharge(S, 5); // flawless words charge the partner extra
     UI.updateHud(S);
+
+    // coding island: a finished line of code RUNS and prints its output
+    if (S.out) UI.runCode(S.out);
 
     if (S.isBoss) { UI.bossHit(S); SFX.bossHit(); }
     else { UI.targetHit(S); SFX.word(); }
