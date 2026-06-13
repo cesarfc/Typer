@@ -1015,6 +1015,20 @@ const PRACTICE_TIERS = [
   { id: "expert", label: "Expert", e: "👑", desc: "Capitals & full sentences · Hall of Fame", worlds: [5], count: 6,  need: 5 },
 ];
 
+// Story Typing: type a whole paragraph (no countdown — race your own wpm).
+// Uses capitals + punctuation, so it unlocks once world 6 (Hall of Fame) is
+// reached. `need` = world index that must be unlocked.
+const PARAGRAPHS = [
+  { id: "p1", title: "Sunrise at Pallet", e: "🌅", need: 5,
+    text: "A small Pikachu sat on the green hill. It watched the sun rise over Pallet Town. Soon it would meet a brave new trainer." },
+  { id: "p2", title: "The Big Catch", e: "🎣", need: 5,
+    text: "Misty threw her Poke Ball with a mighty cheer. The water sparkled as Staryu spun into battle. With fast fingers and a calm mind, the young trainer never gave up." },
+  { id: "p3", title: "The Long Road", e: "🗺️", need: 5,
+    text: "The road to the Pokemon League is long and full of surprises. You will cross tall grass, climb rocky caves, and sail across the bright blue sea. Every gym leader you meet will test your skill, but with practice you grow stronger each day." },
+  { id: "p4", title: "Welcome, Trainer", e: "📜", need: 5,
+    text: "Dear Trainer, welcome to the wonderful world of Pokemon! There are hundreds of creatures waiting to become your friends. Some live in deep forests, some hide in dark caves, and a few only appear under a full moon. Catch them, train them, and care for them. The journey is yours to write." },
+];
+
 const RARITY = {
   1: { label: "Common", color: "#9aa3d0" },
   2: { label: "Rare", color: "#4dc3ff" },
@@ -1047,6 +1061,7 @@ const TROPHIES = [
   { id: "shiny-10", e: "✨", name: "Shiny Charm", desc: "Collect 10 shiny Pokemon" },
   { id: "shiny-25", e: "💫", name: "Shiny Charm II", desc: "Collect 25 shiny Pokemon" },
   { id: "shiny-50", e: "🌈", name: "Shiny Charm III", desc: "Collect 50 shiny Pokemon" },
+  { id: "storyteller", e: "📖", name: "Storyteller", desc: "Finish a Story Typing paragraph" },
   { id: "hatch-1", e: "🐣", name: "Hatched!", desc: "Hatch a Mystery Egg" },
   { id: "party-6", e: "🎽", name: "Full Squad", desc: "Put 6 Pokemon in your party" },
   { id: "legend-1", e: "🌟", name: "Legend Catcher", desc: "Catch a roaming legendary" },

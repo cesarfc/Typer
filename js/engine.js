@@ -85,7 +85,7 @@ const Engine = {
     S.swatch = promptSwatch(p);          // hex color preview
     UI.showPrompt(S);
 
-    if (S.practice) { this.startTimer(Infinity); return; }
+    if (S.practice || S.paragraph) { this.startTimer(Infinity); return; }
 
     // typing-only budget (the clock measures fluency, never thinking)
     let ms = (S.baseTime + S.text.length * 0.6 + S.think) * this.difficulty().time * 1000 * (S.timeScale || 1);
@@ -323,6 +323,33 @@ const Engine = {
     this.nextPrompt();
   },
 
+  // Story Typing: one long paragraph, count-up stopwatch, race your own wpm
+  startParagraph(id) {
+    const def = PARAGRAPHS.find(p => p.id === id);
+    if (!def || !SAVE.worldUnlocked(def.need)) return;
+    this.paused = false;
+    this.pendingNext = false;
+    this.session = {
+      w: def.need, s: -7, isBoss: false,
+      world: {
+        name: "Story Typing", gradient: ["#142233", "#2d3a6e"], accent: "#7ee787",
+        targets: ["📖"], projectile: "✨",
+        hitText: ["The End!", "Bravo!", "Beautiful!", "Word perfect!"],
+        sceneEmojis: ["📖", "✨", "📚", "🪶"], levels: [],
+      },
+      paragraph: { id, def }, paragraphMode: true,
+      prompts: [def.text], idx: -1, text: "", pos: 0,
+      score: 0, combo: 0, bestCombo: 0,
+      hits: 0, errors: 0, errorsThisPrompt: 0, timeouts: 0, hearts: 3,
+      typingMs: 0, promptStart: 0, timerMs: 0, timerRemaining: 0,
+      baseTime: 0, state: "play",
+      partner: SAVE.leadCreature(), charge: 0, partnerReady: false, meterOn: false,
+      ninjaEligible: false, pendingRes: null, catchCreature: null,
+    };
+    UI.practiceScene(this.session);
+    this.nextPrompt();
+  },
+
   finishStage() {
     const S = this.session;
     this.stopTimer();
@@ -336,6 +363,16 @@ const Engine = {
       UI.showPracticeResults({
         tier: S.practice, timeMs, wpm, acc, bestCombo: S.bestCombo, ...applied,
       });
+      return;
+    }
+    if (S.paragraph) {
+      S.state = "done";
+      const total = S.hits + S.errors;
+      const acc = total ? S.hits / total : 1;
+      const timeMs = Math.round(Math.max(1000, S.typingMs));
+      const wpm = Math.round((S.hits / 5) / (timeMs / 60000));
+      const applied = SAVE.applyParagraph(S.paragraph.id, timeMs, wpm, acc);
+      UI.showParagraphResults({ def: S.paragraph.def, timeMs, wpm, acc, ...applied });
       return;
     }
     if (S.daily) { this.finishDaily(); return; }
@@ -823,6 +860,7 @@ const Engine = {
     if (!S) return;
     // non-story sessions can't restart via startStage (negative stage idx)
     if (S.practice) { this.startPractice(S.practice.id); return; }
+    if (S.paragraph) { this.startParagraph(S.paragraph.id); return; }
     if (S.s >= 0) { this.startStage(S.w, S.s); return; }
     this.session = null;
     UI.show("map");

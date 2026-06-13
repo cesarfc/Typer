@@ -53,6 +53,7 @@ const SAVE = {
       party: [],                   // up to 6 dex keys; first one is the lead partner
       roamer: null,                // { week, done } — weekly legendary attempt
       practice: {},                // tier id -> { time: bestMs, wpm: best }
+      paragraphs: {},              // story id -> { wpm, acc } personal bests
       flags: {},                   // one-time hints / NEW badges bookkeeping
       trophies: {},                // id -> true
       settings: { sound: true, hints: true, difficulty: "normal" },
@@ -690,6 +691,31 @@ const SAVE = {
     result.newTrophies = newTrophies;
     this.save();
     return result;
+  },
+
+  // ---- Story Typing: personal bests per paragraph ----
+  applyParagraph(id, timeMs, wpm, acc) {
+    const st = this.state;
+    const prev = st.paragraphs[id] || {};
+    const betterWpm = !prev.wpm || wpm > prev.wpm;
+    const betterAcc = prev.acc === undefined || acc > prev.acc;
+    if (betterWpm || betterAcc) this.bump("records");
+    this.dayInfo().school = true;
+    st.paragraphs[id] = { wpm: Math.max(wpm, prev.wpm || 0), acc: Math.max(acc, prev.acc || 0) };
+
+    const newTrophies = [];
+    this.award("storyteller", newTrophies);
+    if (wpm >= 15) this.award("wpm-15", newTrophies);
+    if (wpm >= 25) this.award("wpm-25", newTrophies);
+    if (wpm >= 35) this.award("wpm-35", newTrophies);
+    if (acc >= 1) this.award("perfect", newTrophies);
+    st.stats.bestWpm = Math.max(st.stats.bestWpm, wpm);
+
+    const xp = 15 + Math.min(20, wpm) + (betterWpm ? 10 : 0);
+    st.xp += xp;
+    this.collectTrophies(newTrophies);
+    this.save();
+    return { xp, betterWpm, betterAcc, prevWpm: prev.wpm || null, newTrophies };
   },
 
   // ---- Mystery Egg: what hatches depends on streak (better odds when

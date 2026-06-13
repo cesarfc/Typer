@@ -1582,6 +1582,21 @@ const UI = {
       }
     });
 
+    this.$("paragraph-list").addEventListener("click", e => {
+      const c = e.target.closest(".para-card");
+      if (!c) return;
+      SFX.init();
+      if (!c.classList.contains("locked")) {
+        Engine.startParagraph(c.dataset.para);
+      } else {
+        SFX.error();
+        c.classList.remove("denied");
+        void c.offsetWidth;
+        c.classList.add("denied");
+        this.toast(`🔒 Story Typing unlocks at ${WORLDS[5].emoji} ${WORLDS[5].name} — you'll need your capital letters!`);
+      }
+    });
+
     this.$("party-bar").addEventListener("click", e => {
       const slot = e.target.closest(".party-slot.filled");
       if (!slot) return;
@@ -1853,6 +1868,15 @@ const UI = {
       qc.classList.add("hidden");
       qc.innerHTML = "";
     }
+    // Story Typing: the whole paragraph, left-aligned and wrapped, in a
+    // scrolling box — type it straight through like a real typing test
+    if (S.paragraphMode) {
+      pw.className = "paragraph";
+      pw.innerHTML = [...S.text].map((c, i) =>
+        `<span class="ch ${i < S.pos ? "done" : i === S.pos ? "cur" : ""}">${c === " " ? " " : this.esc(c)}</span>`).join("");
+      this.highlightKey(S.text[S.pos]);
+      return;
+    }
     pw.className = "";
     pw.classList.toggle("code-prompt", !!S.codeMode);
     if (S.text.length > 30) pw.classList.add("xlong");
@@ -1871,18 +1895,25 @@ const UI = {
   },
 
   charDone(S) {
-    const spans = this.$("prompt-word").children;
+    const pw = this.$("prompt-word");
+    const spans = pw.children;
     if (spans[S.pos - 1]) {
       spans[S.pos - 1].classList.remove("cur", "mystery");
       spans[S.pos - 1].classList.add("done", "pop");
-      // reveal the real character now that the slot is filled
+      // reveal the real character now that the slot is filled (paragraph
+      // mode keeps real spaces; the battle word shows · for a space)
       const c = S.text[S.pos - 1];
-      spans[S.pos - 1].textContent = c === " " ? "·" : c;
+      if (!S.paragraphMode) spans[S.pos - 1].textContent = c === " " ? "·" : c;
     }
     if (spans[S.pos]) spans[S.pos].classList.add("cur");
     if (S.answerMode && S.errorsThisPrompt < 2) this.highlightKey(null);
     else this.highlightKey(S.text[S.pos]);
-    const r = this.$("prompt-word").getBoundingClientRect();
+    if (S.paragraphMode) {
+      // keep the cursor line in view as the story scrolls
+      if (spans[S.pos]) spans[S.pos].scrollIntoView({ block: "nearest", inline: "nearest" });
+      return; // skip the particle burst — it'd fire on every keystroke
+    }
+    const r = pw.getBoundingClientRect();
     this.burst(r.left + r.width / 2, r.top, [S.world.accent], 3, 2.2);
   },
 
@@ -2227,6 +2258,7 @@ const UI = {
     this.renderTopbar();
     this._lastStage = [res.w, res.s];
     this._practiceNext = null;
+    this._paragraphNext = null;
     this._practiceMode = false;
     this._islandReturn = !!(WORLDS[res.w] && WORLDS[res.w].island);
     this._resultsAt = performance.now();
@@ -2415,6 +2447,7 @@ const UI = {
     this.renderTopbar();
     this._lastStage = [S.w, S.s];
     this._practiceNext = null;
+    this._paragraphNext = null;
     this._practiceMode = false;
     this._islandReturn = !!(WORLDS[S.w] && WORLDS[S.w].island);
     this._resultsAt = performance.now();
@@ -2597,7 +2630,8 @@ const UI = {
     this.$("capslock-warn").classList.add("hidden");
     this.applyKbVisibility();
     this.practiceTimerUI(true);
-    this.$("hud-stage").textContent = `🏫 Practice · ${S.practice.label}`;
+    this.$("hud-stage").textContent = S.paragraph
+      ? `📖 Story · ${S.paragraph.def.title}` : `🏫 Practice · ${S.practice.label}`;
     this.$("hud-progress").classList.remove("hidden");
     this.$("hud-progress-fill").style.width = "0%";
     this.$("hud-hearts").classList.add("hidden");
@@ -2645,12 +2679,28 @@ const UI = {
         </span>
       </button>`;
     }).join("");
+
+    this.$("paragraph-list").innerHTML = PARAGRAPHS.map(p => {
+      const open = SAVE.worldUnlocked(p.need);
+      const pb = (SAVE.state.paragraphs || {})[p.id];
+      const pbHtml = pb ? `⚡ best ${pb.wpm} wpm · ${Math.round(pb.acc * 100)}%` : "no record yet — set one!";
+      const words = p.text.trim().split(/\s+/).length;
+      return `<button class="para-card ${open ? "" : "locked"}" data-para="${p.id}">
+        <span class="tier-e">${p.e}</span>
+        <span class="tier-info">
+          <b>${this.esc(p.title)}</b>
+          <i>${open ? `“${this.esc(p.text.slice(0, 46))}…”` : `Reach ${WORLDS[p.need].emoji} ${WORLDS[p.need].name} to unlock`}</i>
+          <em>${open ? `${words} words · ${pbHtml}` : "🔒 capitals & punctuation"}</em>
+        </span>
+      </button>`;
+    }).join("");
   },
 
   showPracticeResults(res) {
     this.show("results");
     this.renderTopbar();
     this._practiceNext = res.tier.id;
+    this._paragraphNext = null;
     this._practiceMode = true;
     this._nextTarget = null;
     this._lastStage = null;
@@ -2696,6 +2746,52 @@ const UI = {
     } else {
       SFX.word();
     }
+  },
+
+  showParagraphResults(res) {
+    this.show("results");
+    this.renderTopbar();
+    this._paragraphNext = res.def.id;
+    this._practiceNext = null;
+    this._practiceMode = true; // btn-replay returns to the Trainer School
+    this._nextTarget = null;
+    this._lastStage = null;
+    this._islandReturn = false;
+    this._resultsAt = performance.now();
+    const card = this.$("results-card");
+    card.classList.remove("defeat");
+    card.style.setProperty("--wa", "#7ee787");
+    this.$("results-title").textContent = `📖 ${res.def.title}`;
+    this.$("results-stars").classList.add("hidden");
+    this.$("results-grid").innerHTML = `
+      <div class="rstat"><div class="rstat-v">${res.wpm}</div><div class="rstat-l">words/min</div></div>
+      <div class="rstat"><div class="rstat-v">${Math.round(res.acc * 100)}%</div><div class="rstat-l">accuracy</div></div>
+      <div class="rstat"><div class="rstat-v">${this.fmtTime(res.timeMs)}</div><div class="rstat-l">your time</div></div>`;
+
+    const record = res.betterWpm;
+    const lines = [];
+    if (res.betterWpm) lines.push(`⚡ <b>NEW BEST SPEED!</b>${res.prevWpm ? ` (was ${res.prevWpm} wpm)` : ""}`);
+    else lines.push(`Your best: ⚡ ${res.prevWpm} wpm — read it again to beat it!`);
+    const catchBox = this.$("results-catch");
+    catchBox.className = "catch-result";
+    catchBox.innerHTML = `<div class="record-note ${record ? "gold" : ""}">${lines.join("<br>")}</div>`;
+    this.$("results-egg").className = "hidden";
+    this.$("results-medal").className = "hidden";
+    this.$("results-offer").className = "hidden";
+
+    this.$("xp-gained").textContent = `+${res.xp} XP`;
+    const lv = levelFromXp(SAVE.state.xp);
+    this.$("xp-level").textContent = `Lv ${lv.level} · ${titleForLevel(lv.level)}`;
+    this.$("results-xpfill").style.width = `${100 * lv.into / lv.need}%`;
+
+    const next = this.$("btn-next");
+    next.classList.remove("hidden");
+    next.innerHTML = `📖 Read Again <small class="key-hint">Enter</small>`;
+    this.$("btn-replay").classList.remove("hidden");
+    this.$("btn-replay").textContent = "🏫 Trainer School";
+    (res.newTrophies || []).forEach((t, i) => setTimeout(() => this.trophyToast(t), 900 + i * 800));
+    if (record) { this.confetti(); SFX.fanfare(); }
+    else SFX.word();
   },
 
   // ---------- wild encounter scene (grass + fishing + legendary) ----------
@@ -3444,7 +3540,8 @@ const UI = {
     });
 
     this.$("btn-next").addEventListener("click", () => {
-      if (this._practiceNext) Engine.startPractice(this._practiceNext);
+      if (this._paragraphNext) Engine.startParagraph(this._paragraphNext);
+      else if (this._practiceNext) Engine.startPractice(this._practiceNext);
       else if (this._nextTarget) {
         const [w, s] = this._nextTarget;
         if (WORLDS[w] && WORLDS[w].island) this.startLevelWithLesson(w, s, {});
@@ -3555,6 +3652,7 @@ const UI = {
       this.toast(`${bd.e} Challenge: <b>${bd.label}</b> — ${bd.desc}`);
     });
     this.$("day-chip").addEventListener("click", () => { SFX.click(); this.maybeDayCard(true); });
+    this.$("school-chip").addEventListener("click", () => { SFX.click(); this.show("practice"); });
     this.$("chart-chip").addEventListener("click", () => { SFX.click(); this.openSeaChart(); });
     this.$("island-back").addEventListener("click", () => { SFX.click(); this.openSeaChart(); });
     this.$("sea-chart").addEventListener("click", e => {
