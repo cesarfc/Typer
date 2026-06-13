@@ -122,6 +122,7 @@ function promptThink(p) { return typeof p === "string" ? 0 : (p.think || 0); }
 function promptLen(p) { return promptAnswer(p).length; }
 function promptOut(p) { return typeof p === "string" ? null : (p.out || null); }  // code run result
 function promptCode(p) { return typeof p === "object" && !!p.code; }              // monospace prompt
+function promptSwatch(p) { return typeof p === "string" ? null : (p.swatch || null); } // hex color preview
 
 // iOS "smart punctuation" can deliver curly quotes / long dashes through
 // the on-screen keyboard — fold them to the plain ASCII we validate against.
@@ -200,6 +201,28 @@ const LESSONS = {
     { say: "Real coders PREDICT what their code does before running it." },
     { say: "If x = 3, then 'x = x + 2' makes x bigger by 2. So x becomes 5!", board: "crate", arg: ["x", 5] },
     { say: "Your turn — think it through, then type the answer.", try: { d: "x = 3, then x = x + 2. What is x?", a: "5" } },
+  ]},
+
+  // ---- Old Power Plant (computer science) ----
+  hex: { e: "🔌", title: "Hex Colors", steps: [
+    { say: "Welcome to the Power Plant! Computers make colors with HEX codes — a # and six digits." },
+    { say: "#ff0000 is bright red: ff red, 00 green, 00 blue. The # is Shift + 3.", board: "hexswatch", arg: "#ff0000" },
+    { say: "Type a color and watch the swatch! #ffd34d (TypeQuest gold!)", guide: "#", typeWord: "#ffd34d" },
+  ]},
+  binary: { e: "🔌", title: "Binary", steps: [
+    { say: "Computers count with just 0 and 1 — that's BINARY! Each spot is worth double the one to its right." },
+    { say: "Four lamps: 8, 4, 2, 1. A 1 means ON. So 0101 = 4 + 1 = 5!", board: "lamps", arg: "0101" },
+    { say: "Try one: what is 0110? (the 4 and the 2 are ON)", try: { d: "🔢 0110 = ?", a: "6" } },
+  ]},
+  logic: { e: "🔌", title: "Logic Gates", steps: [
+    { say: "Computers think with LOGIC. AND needs BOTH things true. OR needs just ONE." },
+    { say: "Two switches and a light: AND only lights up when both are ON.", board: "gate", arg: "AND" },
+    { say: "Try it: is 'true AND false' true or false?", try: { d: "true AND false = ?", a: "false" } },
+  ]},
+  cipher: { e: "🔌", title: "Secret Codes", steps: [
+    { say: "Spies hide messages with CIPHERS. 'Shift back 1' moves each letter back one: b→a, c→b!" },
+    { say: "So 'dbu' shifts back to 'cat': d→c, b→a, u→t.", board: "cipher", arg: "dbu" },
+    { say: "Your turn — shift 'eph' back one letter each.", try: { d: "🔐 shift back 1: eph", a: "dog" } },
   ]},
 };
 
@@ -564,6 +587,60 @@ const WORLDS = [
                { a: "pikachu.win()", code: true, out: "CHAMPION!" }, { a: "evolve()", code: true, out: "✨" },
                { a: "debug()", code: true, out: "all clear!" }, { a: "reboot()", code: true, out: "online!" }],
   },
+  {
+    name: "Old Power Plant",
+    tagline: "Computer science! Hex colors, binary, logic, and secret codes.",
+    emoji: "⚡",
+    island: 1, kb: "full", statsLane: "facts", subject: "cs",
+    tutor: { name: "Rotom", id: 479, e: "🔌" },
+    gradient: ["#1a1208", "#5a4a1a"],
+    accent: "#ffe066",
+    targets: ["⚡", "🔋", "💡", "🔧"],
+    projectile: "⚡",
+    hitText: ["Powered!", "Online!", "Charged!", "Decoded!"],
+    sceneEmojis: ["⚡", "🔋", "💡", "🔌"],
+    boss: { name: "Zapdos", emoji: "⚡", id: 145, hp: 11, time: 8, taunt: "BZZZT! Reboot me if you can, human!" },
+    levels: [
+      { name: "Machine Words", keys: "", time: 7,
+        pool: ["cpu", "ram", "chip", "wire", "volt", "watt", "byte", "pixel", "robot", "sensor", "circuit", "battery"], count: 10 },
+      { name: "Paint with Hex", keys: "#", time: 9, lesson: "hex",
+        pool: [{ a: "#ff0000", code: true, swatch: "#ff0000" }, { a: "#00ff00", code: true, swatch: "#00ff00" },
+               { a: "#0000ff", code: true, swatch: "#0000ff" }, { a: "#ffd34d", code: true, swatch: "#ffd34d" },
+               { a: "#00ff99", code: true, swatch: "#00ff99" }, { a: "#ff00ff", code: true, swatch: "#ff00ff" }], count: 6 },
+      { name: "Robot Language", keys: "", time: 8, lesson: "binary",
+        pool: ["0101", "1010", "1100", "0011",
+               { d: "🔢 0001 = ?", a: "1", think: 6 }, { d: "🔢 0010 = ?", a: "2", think: 6 },
+               { d: "🔢 0100 = ?", a: "4", think: 6 }, { d: "🔢 0101 = ?", a: "5", think: 7 },
+               { d: "🔢 0110 = ?", a: "6", think: 7 }, { d: "🔢 1000 = ?", a: "8", think: 7 }], count: 9 },
+      { name: "Logic Gates", keys: "", time: 7, lesson: "logic",
+        pool: [{ d: "true AND true = ?", a: "true", think: 6 }, { d: "true AND false = ?", a: "false", think: 7 },
+               { d: "false OR true = ?", a: "true", think: 7 }, { d: "false OR false = ?", a: "false", think: 7 },
+               { d: "NOT true = ?", a: "false", think: 6 }, { d: "NOT false = ?", a: "true", think: 6 },
+               { d: "true AND false = ?", a: "false", think: 7 }], count: 7 },
+      { name: "Secret Wires", keys: "_/", time: 9,
+        pool: [{ a: "img/zapdos.png", code: true }, { a: "save/slot_1.json", code: true },
+               { a: "plant/gen_2/coil", code: true }, { a: "data/power_on.txt", code: true },
+               { a: "img/pikachu.png", code: true }, { a: "code/main_loop.js", code: true }], count: 6 },
+      { name: "Addresses", keys: "@", time: 9,
+        pool: [{ a: "dex.poke.com", code: true }, { a: "ash@pallet.town", code: true },
+               { a: "oak@lab.kanto", code: true }, { a: "wiki.poke.com", code: true },
+               { a: "misty@gym.cerulean", code: true }, { a: "shop.poke.com", code: true }], count: 6 },
+      { name: "Cipher Lab", keys: "", time: 9, lesson: "cipher",
+        pool: [{ d: "🔐 shift back 1: dbu", a: "cat", think: 8 }, { d: "🔐 shift back 1: eph", a: "dog", think: 8 },
+               { d: "🔐 shift back 1: tvo", a: "sun", think: 8 }, { d: "🔐 shift back 1: cju", a: "bit", think: 8 },
+               { d: "🔐 shift back 1: dpef", a: "code", think: 9 }], count: 5 },
+      { name: "Boot Sequence", keys: ":[]", time: 9,
+        pool: [{ a: "boot: ok", code: true, out: "booting..." }, { a: "load [ok]", code: true, out: "loaded!" },
+               { a: "power: on", code: true, out: "⚡ ONLINE" }, { a: "fans [3/3]", code: true, out: "cooling" },
+               { a: "check: pass", code: true, out: "all good" }, { a: "start [go]", code: true, out: "running!" }], count: 6 },
+    ],
+    bossPool: [{ d: "🔢 0111 = ?", a: "7", think: 7 }, { d: "true AND true = ?", a: "true", think: 6 },
+               { d: "🔢 1001 = ?", a: "9", think: 7 }, { d: "🔐 shift back 1: abqept", a: "zapdos", think: 9 },
+               { d: "NOT false = ?", a: "true", think: 6 }, { a: "power: on", code: true, out: "⚡" },
+               { d: "🔢 1010 = ?", a: "10", think: 7 }, { d: "false OR true = ?", a: "true", think: 7 },
+               { a: "reboot [go]", code: true, out: "ONLINE!" }, { d: "🔢 0011 = ?", a: "3", think: 7 },
+               { a: "zapdos: free", code: true, out: "⚡⚡⚡" }],
+  },
 ];
 
 // 16 Pokemon per world. The first 8 of each world are the original
@@ -644,6 +721,15 @@ const CREATURES = [
     { n: "Vikavolt", e: "🪲", id: 738, r: 3, evoOnly: true }, { n: "Metang", e: "🛠️", id: 375, r: 2, evoOnly: true },
     { n: "Genesect", e: "🤖", id: 649, r: 3 }, { n: "Magearna", e: "⚙️", id: 801, r: 3 },
   ],
+  [ // 8 — Old Power Plant (computer science)
+    { n: "Magnemite", e: "🧲", id: 81, r: 1 }, { n: "Voltorb", e: "🔴", id: 100, r: 1 }, { n: "Klink", e: "⚙️", id: 599, r: 1 },
+    { n: "Elekid", e: "🔌", id: 239, r: 1 }, { n: "Bronzor", e: "🪞", id: 436, r: 2 }, { n: "Togedemaru", e: "⚡", id: 777, r: 2 },
+    { n: "Helioptile", e: "🦎", id: 694, r: 1 }, { n: "Plusle", e: "➕", id: 311, r: 2 },
+    { n: "Magneton", e: "🧲", id: 82, r: 2, evoOnly: true }, { n: "Magnezone", e: "🛸", id: 462, r: 3, evoOnly: true },
+    { n: "Electrode", e: "🔴", id: 101, r: 2, evoOnly: true }, { n: "Klang", e: "⚙️", id: 600, r: 2, evoOnly: true },
+    { n: "Klinklang", e: "⚙️", id: 601, r: 3, evoOnly: true }, { n: "Electivire", e: "⚡", id: 466, r: 3, evoOnly: true },
+    { n: "Bronzong", e: "🔔", id: 437, r: 2, evoOnly: true }, { n: "Zapdos", e: "⚡", id: 145, r: 4 },
+  ],
 ];
 
 // Evolution families. Duplicate catches of a base earn its candy;
@@ -686,6 +772,11 @@ const EVOLUTIONS = [
   { base: "7-2", chain: ["7-10"] },                         // Joltik → Galvantula
   { base: "7-3", chain: ["7-11", "7-12"] },                 // Grubbin → Charjabug → Vikavolt
   { base: "7-4", chain: ["7-13"] },                         // Beldum → Metang
+  { base: "8-0", chain: ["8-8", "8-9"] },                   // Magnemite → Magneton → Magnezone
+  { base: "8-1", chain: ["8-10"] },                         // Voltorb → Electrode
+  { base: "8-2", chain: ["8-11", "8-12"] },                 // Klink → Klang → Klinklang
+  { base: "8-3", chain: ["8-13"] },                         // Elekid → Electivire
+  { base: "8-4", chain: ["8-14"] },                         // Bronzor → Bronzong
 ];
 
 // Local sprite files (downloaded once by tools/get-sprites.mjs, see README).

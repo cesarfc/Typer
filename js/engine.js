@@ -82,6 +82,7 @@ const Engine = {
     S.answerMode = !!S.display;          // display != typed -> hide the answer guide
     S.codeMode = promptCode(p);          // monospace code prompt
     S.out = promptOut(p);                // run result to print on completion
+    S.swatch = promptSwatch(p);          // hex color preview
     UI.showPrompt(S);
 
     if (S.practice) { this.startTimer(Infinity); return; }

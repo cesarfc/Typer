@@ -1024,6 +1024,27 @@ const UI = {
       const [name, val] = arg;
       return `<div class="lb-crate"><span class="crate-name">${this.esc(name)}</span><span class="crate-box">${this.esc(String(val))}</span></div>`;
     }
+    if (type === "hexswatch") {
+      const hex = arg;
+      return `<div class="lb-hex"><span class="hex-swatch big" style="background:${this.esc(hex)}"></span><span class="hex-code">${this.esc(hex)}</span></div>`;
+    }
+    if (type === "lamps") {
+      const bits = arg;
+      const vals = [8, 4, 2, 1].slice(-bits.length);
+      const sum = [...bits].reduce((a, b, i) => a + (b === "1" ? vals[i] : 0), 0);
+      return `<div class="lb-lamps">${[...bits].map((b, i) =>
+        `<span class="lamp ${b === "1" ? "on" : ""}"><b>${b}</b><i>${vals[i]}</i></span>`).join("")}<span class="lamp-sum">= ${sum}</span></div>`;
+    }
+    if (type === "gate") {
+      return `<div class="lb-gate"><span class="sw on">ON</span><span class="gate-op">${this.esc(arg)}</span><span class="sw on">ON</span><i>→</i><span class="bulb on">💡</span></div>`;
+    }
+    if (type === "cipher") {
+      const word = arg;
+      return `<div class="lb-cipher">${[...word].map(c => {
+        const prev = String.fromCharCode(c.charCodeAt(0) - 1);
+        return `<span class="cip"><b>${c}</b><i>↓</i><u>${prev}</u></span>`;
+      }).join("")}</div>`;
+    }
     return "";
   },
 
@@ -1583,6 +1604,11 @@ const UI = {
       qc.classList.remove("hidden");
       qc.classList.toggle("long", S.display.length > 18);
       qc.innerHTML = this.esc(S.display).replace(/❓|\?$/g, m => `<span class="q-mark">${m}</span>`);
+    } else if (S.swatch) {
+      // hex color prompt: show the live color the code paints
+      qc.classList.remove("hidden");
+      qc.classList.remove("long");
+      qc.innerHTML = `<span class="hex-swatch" style="background:${this.esc(S.swatch)}"></span>`;
     } else {
       qc.classList.add("hidden");
       qc.innerHTML = "";
@@ -1660,6 +1686,21 @@ const UI = {
     if ((m = d.match(/1\/(\d+)\s*of\s*(\d+)/))) {
       const parts = +m[1], whole = +m[2];
       return `<div class="help-pie">split ${whole} into ${parts} equal parts: ${whole} ÷ ${parts}</div>`;
+    }
+    if ((m = d.match(/([01]{2,})/))) {
+      // binary: show the 8-4-2-1 place values lit up
+      const bits = m[1];
+      const vals = [8, 4, 2, 1].slice(-bits.length);
+      const cells = [...bits].map((b, i) =>
+        `<span class="bin-cell ${b === "1" ? "on" : ""}">${vals[i]}<i>${b}</i></span>`).join("");
+      const sum = [...bits].reduce((a, b, i) => a + (b === "1" ? vals[i] : 0), 0);
+      return `<div class="help-bin">${cells}<b>= ${sum}</b></div>`;
+    }
+    if (/AND|OR|NOT/.test(d)) {
+      return `<div class="help-line">AND needs <b>both</b> true · OR needs <b>one</b> true · NOT <b>flips</b> it</div>`;
+    }
+    if (/shift back/.test(d)) {
+      return `<div class="help-line">move each letter back: b→a, c→b, d→c… use the alphabet!</div>`;
     }
     if ((m = d.match(/(\d+)\s*([+\-])\s*(\d+)/))) {
       return `<div class="help-line">work it out step by step — line up the ones, then the tens</div>`;
