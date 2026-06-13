@@ -126,6 +126,7 @@ const UI = {
     document.querySelectorAll(".navbtn").forEach(b =>
       b.classList.toggle("active", b.dataset.nav === name));
     if (name === "map") this.renderMap();
+    if (name === "island") this.renderIsland();
     if (name === "dex") this.renderDex();
     if (name === "trophies") this.renderTrophies();
     if (name === "journal") this.renderJournal();
@@ -408,7 +409,7 @@ const UI = {
     const rng = () => { h = (h * 1664525 + 1013904223) >>> 0; return h / 4294967296; };
     const candidates = [];
     WORLDS.forEach((w, wi) => {
-      if (!SAVE.worldUnlocked(wi)) return;
+      if (w.island || !this.GRASS_SPOTS[wi] || !SAVE.worldUnlocked(wi)) return;
       this.GRASS_SPOTS[wi].forEach((p, k) => candidates.push({ id: `${wi}-${k}`, w: wi, ...p }));
     });
     const order = candidates.map((c, i) => ({ c, r: rng() })).sort((a, b) => a.r - b.r);
@@ -498,10 +499,18 @@ const UI = {
     return out;
   },
 
+  // the main island only holds the story worlds; Scholar islands (world.island)
+  // live on their own route screens reached via the Sea Chart
+  mainWorldCount() {
+    let n = 0;
+    while (WORLDS[n] && !WORLDS[n].island) n++;
+    return n;
+  },
+
   mapNodes() {
     if (this._mapNodes) return this._mapNodes;
     const A = this.mapAnchors;
-    this._mapNodes = WORLDS.map((w, wi) => {
+    this._mapNodes = WORLDS.slice(0, this.mainWorldCount()).map((w, wi) => {
       const [ax, ay] = A[wi], [bx, by] = A[wi + 1];
       const n = w.levels.length + 1;
       const dx = bx - ax, dy = by - ay;
@@ -518,6 +527,7 @@ const UI = {
 
   mapFrontier() {
     for (let w = 0; w < WORLDS.length; w++) {
+      if (WORLDS[w].island) continue; // the marker stays on the main island
       for (let s = 0; s <= WORLDS[w].levels.length; s++) {
         if (SAVE.stageUnlocked(w, s) && SAVE.stageStars(w, s) === 0) return { w, s };
       }
@@ -540,7 +550,7 @@ const UI = {
 
     // painted island terrain + per-region color tints
     let html = this.terrainSvg();
-    const blobs = WORLDS.map((w, i) => {
+    const blobs = WORLDS.slice(0, this.mainWorldCount()).map((w, i) => {
       const [ax, ay] = this.mapAnchors[i], [bx, by] = this.mapAnchors[i + 1];
       return `radial-gradient(740px 580px at ${Math.round((ax + bx) / 2)}px ${Math.round((ay + by) / 2)}px, ${w.gradient[1]}59, transparent 72%)`;
     }).join(",");
@@ -599,6 +609,7 @@ const UI = {
       <span class="${daily.done ? "" : "podium-glow"}">${daily.done ? "✅" : "📋"}</span><b>Daily Drill</b></button>`;
 
     WORLDS.forEach((w, wi) => {
+      if (w.island) return; // Scholar islands render on their own route screen
       const ns = nodes[wi];
       const unlocked = SAVE.worldUnlocked(wi);
       const maxStars = (w.levels.length + 1) * 3;
@@ -662,6 +673,9 @@ const UI = {
     const dayDone = stamps.filter(x => x.done).length;
     dayChip.textContent = `📜 ${dayDone}/3`;
     dayChip.classList.toggle("ready", dayDone === 3);
+
+    // the ferry to the Scholar Archipelago appears once it's unlocked
+    this.$("chart-chip").classList.toggle("hidden", !this.archUnlocked());
 
     const eggChip = this.$("egg-chip");
     eggChip.classList.toggle("hidden", !egg);
@@ -759,6 +773,245 @@ const UI = {
 
   closeAreaPanel() {
     this.$("area-panel").classList.add("hidden");
+  },
+
+  // ---------- Scholar Archipelago: Sea Chart + island route screens ----------
+  ARCH_ISLANDS: [
+    { w: 6, name: "Gimmighoul Coast", emoji: "🪙", subject: "Math", blurb: "Number row · times tables · fractions", x: 26, y: 58, rumor: "Sailors hear counting in the fog…" },
+    { w: 7, name: "Circuit Town", emoji: "💾", subject: "Coding", blurb: "Symbols · real code that runs", x: 54, y: 34, rumor: "Strange glowing words flicker offshore…" },
+    { w: 8, name: "Power Plant", emoji: "⚡", subject: "Computer Science", blurb: "Binary · logic gates · secret codes", x: 80, y: 60, rumor: "A low electric hum rolls across the water…" },
+  ],
+
+  archUnlocked() {
+    return SAVE.worldUnlocked(6); // the whole chain opens with the first island
+  },
+
+  openSeaChart() {
+    const sc = this.$("sea-chart");
+    const kbDone = SAVE.medalPoints();
+    const islandCard = isl => {
+      const exists = !!WORLDS[isl.w];
+      const open = exists && SAVE.worldUnlocked(isl.w);
+      const stars = exists ? SAVE.worldStars(isl.w) : 0;
+      const maxStars = exists ? (WORLDS[isl.w].levels.length + 1) * 3 : 0;
+      const ring = open ? Math.round(100 * stars / maxStars) : 0;
+      if (!exists || !open) {
+        return `<div class="chart-isle locked" style="left:${isl.x}%;top:${isl.y}%">
+          <div class="isle-blob locked"><span class="isle-cloud">☁️</span><span class="isle-cloud c2">☁️</span></div>
+          <b>???</b><i class="isle-rumor">${this.esc(isl.rumor)}</i>
+          <span class="isle-lock">🔒 Beat the Hall of Fame to sail here</span></div>`;
+      }
+      return `<button class="chart-isle" data-isle="${isl.w}" style="left:${isl.x}%;top:${isl.y}%">
+        <div class="isle-blob" style="--ring:${ring}%"><span class="isle-emoji">${isl.emoji}</span></div>
+        <b>${this.esc(isl.name)}</b><i>${this.esc(isl.subject)} · ★ ${stars}/${maxStars}</i>
+        <span class="isle-blurb">${this.esc(isl.blurb)}</span></button>`;
+    };
+    sc.innerHTML = `<div class="chart-card">
+      <button id="chart-close" aria-label="Close">✕</button>
+      <h2>🗺️ Sea Chart</h2>
+      <p class="chart-sub">Sail the Scholar Archipelago — new islands that teach real skills!</p>
+      <div class="chart-sea">
+        <button class="chart-isle home" data-isle="home" style="left:8%;top:30%">
+          <div class="isle-blob home"><span class="isle-emoji">⌨️</span></div>
+          <b>Keyboard Island</b><i>Home · ${kbDone} medals</i></button>
+        ${this.ARCH_ISLANDS.map(islandCard).join("")}
+        <svg class="chart-routes" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <path d="M14,33 Q30,45 28,56" /><path d="M32,56 Q45,42 54,37" /><path d="M58,37 Q72,44 80,58" />
+        </svg>
+      </div>
+    </div>`;
+    sc.classList.remove("hidden");
+  },
+
+  closeSeaChart() { this.$("sea-chart").classList.add("hidden"); },
+
+  sailTo(w) {
+    this.closeSeaChart();
+    if (w === "home") { this.show("map"); return; }
+    this._islandW = +w;
+    SFX.fanfare();
+    this.show("island");
+  },
+
+  renderIsland(w) {
+    if (w == null) w = this._islandW;
+    if (w == null || !WORLDS[w]) { this.show("map"); return; }
+    this._islandW = w;
+    const world = WORLDS[w];
+    const route = this.$("island-route");
+    const n = world.levels.length + 1; // + boss
+    // a gentle winding column of nodes from bottom (start) to top (boss)
+    let html = `<div class="isle-header"><h2>${world.emoji} ${this.esc(world.name)}</h2>
+      <p>${this.esc(world.tagline)}</p>
+      ${world.subject === "math" ? `<span class="coin-count">🪙 ${SAVE.state.coins || 0} Gold Coins</span>` : ""}</div>`;
+    // tutor building at the pier
+    html += `<button class="isle-tutor" data-lesson="intro" title="${this.esc(world.tutor ? world.tutor.name : "Tutor")}'s lesson">
+      ${this.pokeHtml(world.tutor && world.tutor.id, world.tutor ? world.tutor.e : "🎓", { cls: "poke-img tutor-img" })}
+      <b>${this.esc(world.tutor ? world.tutor.name : "Tutor")}'s School</b></button>`;
+    for (let s = 0; s < n; s++) {
+      const isBoss = s === world.levels.length;
+      const open = SAVE.stageUnlocked(w, s);
+      const st = SAVE.stageStars(w, s);
+      const next = open && st === 0;
+      const side = s % 2 === 0 ? "left" : "right";
+      const stars = isBoss ? (st > 0 ? "🏆" : "") : `${"★".repeat(st)}<span class="off">${"★".repeat(3 - st)}</span>`;
+      const label = isBoss ? `BOSS: ${world.boss.name}` : world.levels[s].name;
+      html += `<button class="isle-node ${side} ${isBoss ? "boss" : ""} ${open ? "" : "locked"} ${next ? "next" : ""} ${st > 0 ? "done" : ""}"
+        data-w="${w}" data-s="${s}" title="${this.esc(open ? label : "Locked")}">
+        <span class="node-num">${isBoss ? this.pokeHtml(world.boss.id, world.boss.emoji, { cls: "poke-img" }) : s + 1}</span>
+        <span class="node-label">${this.esc(label)}</span>
+        <span class="node-stars">${stars}</span></button>`;
+    }
+    route.innerHTML = html;
+    route.scrollTop = route.scrollHeight; // start at the pier (bottom)
+  },
+
+  // ---------- concept lessons (assume the trainer is new to the subject) ----------
+  // play a level's lesson first if it hasn't been seen, then start the level
+  startLevelWithLesson(w, s, opts) {
+    const world = WORLDS[w];
+    const isBoss = s === world.levels.length;
+    const lid = !isBoss && world.levels[s].lesson;
+    const seen = SAVE.state.flags.lessons || {};
+    if (lid && LESSONS[lid] && !seen[lid] && !(opts && opts.skipLesson)) {
+      this.startLesson(lid, world, () => Engine.startStage(w, s, opts));
+      return;
+    }
+    Engine.startStage(w, s, opts);
+  },
+
+  startLesson(id, world, onDone) {
+    const def = LESSONS[id];
+    if (!def) { onDone && onDone(); return; }
+    this.lesson = { id, def, step: 0, world, onDone, guideOk: false };
+    this.$("lesson-tutor").innerHTML = world && world.tutor
+      ? this.pokeHtml(world.tutor.id, world.tutor.e, { cls: "poke-img" }) : def.e;
+    this.$("lesson-overlay").classList.remove("hidden");
+    this.lessonShow();
+  },
+
+  lessonShow() {
+    const L = this.lesson;
+    const st = L.def.steps[L.step];
+    this.$("lesson-bubble").innerHTML = st.say || "";
+    this.$("lesson-board").innerHTML = st.board ? this.lessonBoard(st.board, st.arg) : "";
+    this.$("lesson-board").classList.toggle("hidden", !st.board);
+    const tryBox = this.$("lesson-try");
+    const next = this.$("lesson-next");
+    L.guideOk = false;
+    L.typed = "";
+    if (st.guide || st.try) {
+      // a guided keypress or a full untimed practice prompt
+      const target = st.try ? promptAnswer(st.try) : st.guide;
+      L.target = target;
+      L.tryQuestion = st.try ? promptDisplay(st.try) : null;
+      tryBox.classList.remove("hidden");
+      tryBox.innerHTML = `${L.tryQuestion ? `<div class="lt-q">${this.esc(L.tryQuestion)}</div>` : ""}
+        <div class="lt-slots">${[...target].map((c, i) =>
+          `<span class="lt-ch ${i === 0 ? "cur" : ""}">${this.esc(c)}</span>`).join("")}</div>
+        <div class="lt-hint">⌨️ type it to continue</div>`;
+      next.classList.add("hidden");
+      this.highlightKey(target[0]);
+    } else {
+      tryBox.classList.add("hidden");
+      tryBox.innerHTML = "";
+      next.classList.remove("hidden");
+      this.highlightKey(null);
+    }
+    next.textContent = L.step < L.def.steps.length - 1 ? "Next ▶" : "Start the level! ▶";
+  },
+
+  // keystrokes during a guide/try lesson step
+  lessonKey(e) {
+    const L = this.lesson;
+    if (!L || !L.target) return;
+    if (e.key && e.key.length === 1) {
+      e.preventDefault();
+      const key = normalizeKey(e.key);
+      const pos = L.typed.length;
+      if (key === L.target[pos]) {
+        L.typed += key;
+        const slots = this.$("lesson-try").querySelectorAll(".lt-ch");
+        if (slots[pos]) { slots[pos].classList.remove("cur"); slots[pos].classList.add("done"); }
+        if (slots[pos + 1]) slots[pos + 1].classList.add("cur");
+        SFX.click(pos + 1);
+        if (L.typed.length >= L.target.length) {
+          this.highlightKey(null);
+          SFX.word();
+          setTimeout(() => this.lessonNext(), 350);
+        } else {
+          this.highlightKey(L.target[L.typed.length]);
+        }
+      } else {
+        SFX.error();
+        const slots = this.$("lesson-try").querySelectorAll(".lt-ch");
+        if (slots[pos]) { slots[pos].classList.add("err"); setTimeout(() => slots[pos].classList.remove("err"), 250); }
+      }
+    }
+  },
+
+  lessonNext() {
+    const L = this.lesson;
+    if (!L) return;
+    if (L.step < L.def.steps.length - 1) {
+      L.step++;
+      this.lessonShow();
+      SFX.click();
+    } else {
+      this.lessonFinish(false);
+    }
+  },
+
+  lessonFinish(skipped) {
+    const L = this.lesson;
+    if (!L) return;
+    this.$("lesson-overlay").classList.add("hidden");
+    this.highlightKey(null);
+    SAVE.state.flags.lessons = SAVE.state.flags.lessons || {};
+    if (!SAVE.state.flags.lessons[L.id]) {
+      SAVE.state.flags.lessons[L.id] = true;
+      if (!skipped) SAVE.state.xp += 5; // a small thank-you for learning
+      SAVE.save();
+    }
+    this.lesson = null;
+    if (L.onDone) L.onDone();
+  },
+
+  // visual boards: concrete -> pictorial -> abstract
+  lessonBoard(type, arg) {
+    if (type === "numrow") {
+      const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="];
+      return `<div class="lb-numrow">${keys.map(k =>
+        `<span class="lb-key ${k === arg ? "hot" : ""}">${k}</span>`).join("")}</div>`;
+    }
+    if (type === "place") {
+      const s = String(arg).split("");
+      const places = ["", "", "ones", "tens", "hundreds", "thousands"];
+      return `<div class="lb-place">${s.map((d, i) => {
+        const mag = Math.pow(10, s.length - 1 - i);
+        return `<div class="lb-digit"><b>${+d * mag}</b><i>${places[s.length - i] || ""}</i></div>`;
+      }).join("<span class='lb-plus'>+</span>")}</div>`;
+    }
+    if (type === "groups") {
+      const [g, m] = arg;
+      return `<div class="lb-groups">${Array.from({ length: g }, () =>
+        `<div class="lb-group">${"🍓".repeat(m)}</div>`).join("")}</div>`;
+    }
+    if (type === "skip") {
+      const [by, times] = arg;
+      return `<div class="lb-skip">${Array.from({ length: times }, (_, i) =>
+        `<span class="lb-step">${by * (i + 1)}</span>`).join("<i>→</i>")}</div>`;
+    }
+    if (type === "triangle") {
+      const [top, a, b] = arg;
+      return `<div class="lb-tri"><span class="tri-top">${top}</span><div class="tri-bot"><span>${a}</span><span>${b}</span></div></div>`;
+    }
+    if (type === "pie") {
+      const [, parts] = arg;
+      return `<div class="lb-pie">${Array.from({ length: parts }, (_, i) =>
+        `<span class="pie-slice s${parts}" style="--i:${i}">🥧</span>`).join("")}<i>${parts} equal parts</i></div>`;
+    }
+    return "";
   },
 
   // ---------- Professor's Letters: features introduce themselves ----------
@@ -866,7 +1119,7 @@ const UI = {
     if (!keys.includes(e.key)) return;
     e.preventDefault();
     const flat = [];
-    WORLDS.forEach((w, wi) => { for (let s = 0; s <= w.levels.length; s++) flat.push({ w: wi, s }); });
+    WORLDS.forEach((w, wi) => { if (w.island) return; for (let s = 0; s <= w.levels.length; s++) flat.push({ w: wi, s }); });
     if (this._mapSel === null || this._mapSel === undefined) {
       const f = this.mapFrontier();
       this._mapSel = flat.findIndex(n => n.w === f.w && n.s === f.s);
@@ -1111,19 +1364,36 @@ const UI = {
     return `<svg class="hand" viewBox="0 0 116 112" aria-hidden="true">${svg}</svg>`;
   },
 
-  buildKeyboard() {
+  // upper-case legends that sit in the corner of a key for shifted symbols
+  _shiftLegend(base) {
+    const m = { "1": "!", "2": "@", "3": "#", "4": "$", "5": "%", "6": "^",
+      "7": "&", "8": "*", "9": "(", "0": ")", "-": "_", "=": "+",
+      "[": "{", "]": "}", "'": "\"", ";": ":", ",": "<", ".": ">", "/": "?", "\\": "|" };
+    return m[base] || null;
+  },
+
+  _kbLayout: "letters",
+
+  buildKeyboard(layoutId = "letters") {
+    this._kbLayout = layoutId;
+    const rows = KB_LAYOUTS[layoutId] || KB_ROWS;
+    const shiftRowIdx = rows.length - 2; // the row that gets the ⇧ keys
     let html = "";
-    KB_ROWS.forEach((row, ri) => {
+    rows.forEach((row, ri) => {
       html += `<div class="kb-row">`;
-      if (ri === 2) html += `<div class="key wide shift" data-key="shift-l">⇧</div>`;
+      if (ri === shiftRowIdx) html += `<div class="key wide shift" data-key="shift-l">⇧</div>`;
       row.forEach(k => {
         const home = "fj".includes(k) ? " home" : "";
-        html += `<div class="key f${KEY_FINGER[k] ?? 0}${home}" data-key="${this.esc(k)}">${k === "'" ? "&#39;" : k}</div>`;
+        const leg = this._shiftLegend(k);
+        const disp = k === "'" ? "&#39;" : k === "\\" ? "\\" : k;
+        html += `<div class="key f${KEY_FINGER[k] ?? 0}${home}" data-key="${this.esc(k)}">${
+          leg ? `<small class="shift-legend">${this.esc(leg)}</small>` : ""}${disp}</div>`;
       });
-      if (ri === 2) html += `<div class="key wide shift" data-key="shift-r">⇧</div>`;
+      if (ri === shiftRowIdx) html += `<div class="key wide shift" data-key="shift-r">⇧</div>`;
       html += `</div>`;
     });
     html += `<div class="kb-row"><div class="key space f8" data-key=" ">space</div></div>`;
+    this.$("kb").classList.toggle("kb-full", layoutId === "full");
     // one keyboard + hands for the game screen, one set for the tutorial
     this.$("kb").innerHTML = html;
     this.$("tut-kb").innerHTML = html;
@@ -1141,19 +1411,32 @@ const UI = {
   },
 
   highlightKey(ch) {
-    document.querySelectorAll(".key.hl").forEach(k => k.classList.remove("hl"));
+    document.querySelectorAll(".key.hl, .key.hl-shift").forEach(k => k.classList.remove("hl", "hl-shift"));
     document.querySelectorAll(".hand-finger.on").forEach(f => f.classList.remove("on"));
     const hint = this.$("finger-hint");
     if (!ch) { hint.innerHTML = "&nbsp;"; return; }
-    const lower = ch.toLowerCase();
-    const isUpper = ch !== lower && /[a-z]/.test(lower);
-    document.querySelectorAll(`.key[data-key="${CSS.escape(lower)}"]`).forEach(el => el.classList.add("hl"));
-    const f = KEY_FINGER[lower];
+
+    // shifted symbols (parens, quotes, +, etc.) press a base key + Shift
+    const shifted = SHIFT_MAP[ch];
+    const base = shifted || ch.toLowerCase();
+    const lowerLetter = ch.toLowerCase();
+    const isUpper = !shifted && ch !== lowerLetter && /[a-z]/.test(lowerLetter);
+    const needShift = isUpper || !!shifted;
+
+    document.querySelectorAll(`.key[data-key="${CSS.escape(base)}"]`).forEach(el =>
+      el.classList.add(shifted ? "hl-shift" : "hl"));
+    const f = KEY_FINGER[base];
     let txt = f === undefined ? "" : FINGER_NAMES[f];
     if (f !== undefined) {
       document.querySelectorAll(`.hand-finger[data-f="${f}"]`).forEach(el => el.classList.add("on"));
     }
-    if (isUpper) {
+    // name the symbol so kids learn "parenthesis", "quotes", etc.
+    const SYM_NAMES = { "(": "open paren (", ")": "close paren )", "\"": "quote \"",
+      "{": "open brace {", "}": "close brace }", ";": "semicolon ;", ":": "colon :",
+      "+": "plus +", "=": "equals =", "-": "minus -", "/": "slash /", "_": "under_score",
+      "#": "hash #", "@": "at @", "<": "less than <", ">": "greater than >" };
+    if (SYM_NAMES[ch]) txt = `${SYM_NAMES[ch]} — ${txt}`;
+    if (needShift) {
       const leftHand = f <= 3;
       document.querySelectorAll(`.key[data-key="${leftHand ? "shift-r" : "shift-l"}"]`).forEach(el => el.classList.add("hl"));
       document.querySelectorAll(`.hand-finger[data-f="${leftHand ? 7 : 0}"]`).forEach(el => el.classList.add("on"));
@@ -1175,6 +1458,14 @@ const UI = {
     const w = S.world;
     document.body.classList.remove("super-mode");
     this.$("capslock-warn").classList.add("hidden");
+    // Scholar islands need the number row / symbols; others keep the
+    // original letters board (and its tight small-screen height budget)
+    const layout = w.kb || "letters";
+    if (this._kbLayout !== layout) this.buildKeyboard(layout);
+    this.$("question-card").classList.add("hidden");
+    this.$("helper-card").classList.add("hidden");
+    this.$("think-pill").classList.add("hidden");
+    this.$("code-output").classList.add("hidden");
     this.applyKbVisibility();
     this.practiceTimerUI(false);
 
@@ -1265,31 +1556,127 @@ const UI = {
     }
     wrap.style.opacity = 1;
     wrap.style.transform = "none";
+    this.$("helper-card").classList.add("hidden"); // fresh prompt, fresh start
+    this.$("code-output").classList.add("hidden");
     this.renderPromptText(S);
     this.$("hud-progress-fill").style.width = `${Math.round(100 * S.idx / S.prompts.length)}%`;
   },
 
   renderPromptText(S) {
     const pw = this.$("prompt-word");
-    pw.classList.remove("long", "xlong");
+    const qc = this.$("question-card");
+    // the question (math problem / code-output prompt) above the answer slots
+    if (S.display) {
+      qc.classList.remove("hidden");
+      qc.classList.toggle("long", S.display.length > 18);
+      qc.innerHTML = this.esc(S.display).replace(/❓|\?$/g, m => `<span class="q-mark">${m}</span>`);
+    } else {
+      qc.classList.add("hidden");
+      qc.innerHTML = "";
+    }
+    pw.className = "";
+    pw.classList.toggle("code-prompt", !!S.codeMode);
     if (S.text.length > 30) pw.classList.add("xlong");
     else if (S.text.length > 16) pw.classList.add("long");
-    pw.innerHTML = [...S.text].map((c, i) =>
-      `<span class="ch ${i < S.pos ? "done" : i === S.pos ? "cur" : ""} ${c === " " ? "sp" : ""}">${c === " " ? "·" : this.esc(c)}</span>`
-    ).join("");
-    this.highlightKey(S.text[S.pos]);
+    // answer-mode: untyped characters render as blank slots, not the answer
+    pw.innerHTML = [...S.text].map((c, i) => {
+      const typed = i < S.pos;
+      const cur = i === S.pos;
+      const hideAnswer = S.answerMode && !typed;
+      const glyph = c === " " ? "·" : hideAnswer ? "_" : this.esc(c);
+      return `<span class="ch ${typed ? "done" : cur ? "cur" : ""} ${c === " " ? "sp" : ""} ${hideAnswer ? "mystery" : ""}">${glyph}</span>`;
+    }).join("");
+    // suppress the answer guide in answer-mode until 2 errors turn it into a rescue
+    if (S.answerMode && S.errorsThisPrompt < 2) this.highlightKey(null);
+    else this.highlightKey(S.text[S.pos]);
   },
 
   charDone(S) {
     const spans = this.$("prompt-word").children;
     if (spans[S.pos - 1]) {
-      spans[S.pos - 1].classList.remove("cur");
+      spans[S.pos - 1].classList.remove("cur", "mystery");
       spans[S.pos - 1].classList.add("done", "pop");
+      // reveal the real character now that the slot is filled
+      const c = S.text[S.pos - 1];
+      spans[S.pos - 1].textContent = c === " " ? "·" : c;
     }
     if (spans[S.pos]) spans[S.pos].classList.add("cur");
-    this.highlightKey(S.text[S.pos]);
+    if (S.answerMode && S.errorsThisPrompt < 2) this.highlightKey(null);
+    else this.highlightKey(S.text[S.pos]);
     const r = this.$("prompt-word").getBoundingClientRect();
     this.burst(r.left + r.width / 2, r.top, [S.world.accent], 3, 2.2);
+  },
+
+  // ---------- Scholar islands: think/type, helper cards, ghost answers ----------
+  thinkPhase(S, on) {
+    const pill = this.$("think-pill");
+    const bar = this.$("timer-bar");
+    if (on) {
+      pill.classList.remove("hidden");
+      pill.textContent = "🤔 think it through…";
+      bar.classList.add("thinking"); // dim, breathing — no countdown yet
+    } else {
+      pill.classList.remove("hidden");
+      pill.textContent = "⌨️ go!";
+      bar.classList.remove("thinking");
+      setTimeout(() => { if (this.$("think-pill").textContent === "⌨️ go!") this.$("think-pill").classList.add("hidden"); }, 600);
+    }
+  },
+
+  showHelper(S) {
+    const card = this.$("helper-card");
+    const html = this.helperContent(S);
+    if (!html) return;
+    card.innerHTML = `<div class="helper-inner"><span class="helper-tag">📝 trainer's notes</span>${html}</div>`;
+    card.classList.remove("hidden");
+  },
+
+  // pictorial scaffolds matched to the operation in the question
+  helperContent(S) {
+    const d = S.display || "";
+    let m;
+    if ((m = d.match(/(\d+)\s*×\s*(\d+)/))) {
+      const a = +m[1], b = +m[2];
+      const strip = Array.from({ length: a }, (_, i) => `<span>${b * (i + 1)}</span>`).join("<i>·</i>");
+      return `<div class="help-skip">count by ${b}s: ${strip}</div>`;
+    }
+    if ((m = d.match(/(\d+)\s*÷\s*(\d+)/))) {
+      const a = +m[1], b = +m[2];
+      return `<div class="help-triangle"><b>${a}</b><span>${b} × ❓ = ${a}</span></div>`;
+    }
+    if ((m = d.match(/1\/(\d+)\s*of\s*(\d+)/))) {
+      const parts = +m[1], whole = +m[2];
+      return `<div class="help-pie">split ${whole} into ${parts} equal parts: ${whole} ÷ ${parts}</div>`;
+    }
+    if ((m = d.match(/(\d+)\s*([+\-])\s*(\d+)/))) {
+      return `<div class="help-line">work it out step by step — line up the ones, then the tens</div>`;
+    }
+    return `<div class="help-line">take your time — you've got this! 💪</div>`;
+  },
+
+  ghostAnswer(S, cb) {
+    // type the answer in blue, slot by slot — shown, not earned (stays
+    // a "mystery" reveal). Then the kid echoes it once to continue.
+    const spans = this.$("prompt-word").children;
+    let i = S.pos;
+    const step = () => {
+      if (i >= S.text.length) { if (cb) cb(); return; }
+      const el = spans[i];
+      if (el) { el.classList.add("ghost"); el.textContent = S.text[i] === " " ? "·" : S.text[i]; el.classList.remove("mystery"); }
+      i++;
+      setTimeout(step, 300);
+    };
+    this.$("finger-hint").innerHTML = "💡 Here's the answer — now type it once to go on!";
+    step();
+  },
+
+  floatText(text) {
+    const a = this.$("arena");
+    const el = document.createElement("div");
+    el.className = "float-text";
+    el.textContent = text;
+    a.appendChild(el);
+    setTimeout(() => el.remove(), 1400);
   },
 
   charError(S) {
@@ -1303,6 +1690,13 @@ const UI = {
     pw.classList.remove("shake");
     void pw.offsetWidth;
     pw.classList.add("shake");
+    // first slip on a Scholar prompt: gentle nudge, no content hint yet;
+    // at 2 the guide wakes as a rescue
+    if (S.scholar) {
+      if (S.answerMode && S.errorsThisPrompt >= 2) this.highlightKey(S.text[S.pos]);
+      const hint = this.$("finger-hint");
+      if (S.errorsThisPrompt === 1) { hint.innerHTML = "Not quite — check it again! ✋"; }
+    }
   },
 
   setTimer(frac) {
@@ -1524,6 +1918,7 @@ const UI = {
     this._lastStage = [res.w, res.s];
     this._practiceNext = null;
     this._practiceMode = false;
+    this._islandReturn = !!(WORLDS[res.w] && WORLDS[res.w].island);
     this._resultsAt = performance.now();
     this.$("btn-replay").textContent = "↻ Replay";
     this.$("btn-replay").classList.remove("hidden");
@@ -1711,6 +2106,7 @@ const UI = {
     this._lastStage = [S.w, S.s];
     this._practiceNext = null;
     this._practiceMode = false;
+    this._islandReturn = !!(WORLDS[S.w] && WORLDS[S.w].island);
     this._resultsAt = performance.now();
     this.$("results-egg").className = "hidden";          // no stale egg note
     this.$("results-medal").className = "hidden";        // no stale medal beat
@@ -1764,9 +2160,11 @@ const UI = {
         const candy = SAVE.state.candy[key] || 0;
         const fam = SAVE.familyFor(key);
         const targets = SAVE.evoTargetsFor(key);
-        const candyHtml = fam ? `<div class="dex-candy">🍬 ${candy}/${CANDY_COST}${
-          SAVE.state.vouchers > 0 ? ` <button class="btn-voucher" data-vbase="${key}" title="Spend a candy voucher here">🎟+1</button>` : ""
-        }</div>` : "";
+        const candyHtml = fam ? (fam.coins
+          ? `<div class="dex-candy">🪙 ${SAVE.state.coins || 0}/${fam.coins}</div>`
+          : `<div class="dex-candy">🍬 ${candy}/${CANDY_COST}${
+              SAVE.state.vouchers > 0 ? ` <button class="btn-voucher" data-vbase="${key}" title="Spend a candy voucher here">🎟+1</button>` : ""
+            }</div>`) : "";
         const evoBtn = targets.length
           ? `<button class="btn-evolve" data-base="${key}">EVOLVE!</button>` : "";
         const inParty = SAVE.state.party.includes(key);
@@ -2476,7 +2874,9 @@ const UI = {
     if (!this._lc) return;
     const { w, s, band } = this._lc;
     this.closeLevelCard();
-    Engine.startStage(w, s, { band });
+    // Scholar island levels teach the concept first (once)
+    if (WORLDS[w].island) this.startLevelWithLesson(w, s, { band });
+    else Engine.startStage(w, s, { band });
   },
 
   // ---------- Today's Adventure: three stamps and a soft landing ----------
@@ -2771,14 +3171,21 @@ const UI = {
 
     this.$("btn-next").addEventListener("click", () => {
       if (this._practiceNext) Engine.startPractice(this._practiceNext);
-      else if (this._nextTarget) Engine.startStage(this._nextTarget[0], this._nextTarget[1]);
-      else this.show("map");
+      else if (this._nextTarget) {
+        const [w, s] = this._nextTarget;
+        if (WORLDS[w] && WORLDS[w].island) this.startLevelWithLesson(w, s, {});
+        else Engine.startStage(w, s);
+      } else this.show(this._islandReturn ? "island" : "map");
     });
     this.$("btn-replay").addEventListener("click", () => {
       if (this._practiceMode) this.show("practice");
-      else if (this._lastStage) Engine.startStage(this._lastStage[0], this._lastStage[1]);
+      else if (this._lastStage) {
+        const [w, s] = this._lastStage;
+        if (WORLDS[w] && WORLDS[w].island) Engine.startStage(w, s, {});
+        else Engine.startStage(w, s);
+      }
     });
-    this.$("btn-tomap").addEventListener("click", () => this.show("map"));
+    this.$("btn-tomap").addEventListener("click", () => this.show(this._islandReturn ? "island" : "map"));
 
     // evolution: EVOLVE! buttons in the dex + the chooser modal
     this.$("dex-list").addEventListener("click", e => {
@@ -2869,6 +3276,36 @@ const UI = {
       this.toast(`${bd.e} Skill band: <b>${bd.label}</b> — ${bd.desc}`);
     });
     this.$("day-chip").addEventListener("click", () => { SFX.click(); this.maybeDayCard(true); });
+    this.$("chart-chip").addEventListener("click", () => { SFX.click(); this.openSeaChart(); });
+    this.$("island-back").addEventListener("click", () => { SFX.click(); this.openSeaChart(); });
+    this.$("sea-chart").addEventListener("click", e => {
+      if (e.target.closest("#chart-close") || e.target.id === "sea-chart") { SFX.click(); this.closeSeaChart(); return; }
+      const isl = e.target.closest(".chart-isle");
+      if (isl && isl.dataset.isle) { SFX.click(); this.sailTo(isl.dataset.isle); }
+    });
+    this.$("island-route").addEventListener("click", e => {
+      const tut = e.target.closest(".isle-tutor");
+      if (tut) {
+        SFX.click();
+        const world = WORLDS[this._islandW];
+        // replay the first concept lesson on this island
+        const firstLid = (world.levels.find(l => l.lesson) || {}).lesson;
+        if (firstLid) this.startLesson(firstLid, world, null);
+        return;
+      }
+      const node = e.target.closest(".isle-node");
+      if (!node) return;
+      SFX.init();
+      if (node.classList.contains("locked")) {
+        SFX.error();
+        node.classList.remove("denied"); void node.offsetWidth; node.classList.add("denied");
+        this.toast("🔒 Finish the level before this one first!");
+        return;
+      }
+      this.openLevelCard(+node.dataset.w, +node.dataset.s);
+    });
+    this.$("lesson-next").addEventListener("click", () => this.lessonNext());
+    this.$("lesson-skip").addEventListener("click", () => { SFX.click(); this.lessonFinish(true); });
     this.$("level-card").addEventListener("click", e => {
       if (e.target.id === "level-card" || e.target.closest("#lc-close")) {
         SFX.click();

@@ -11,6 +11,11 @@ window.addEventListener("DOMContentLoaded", () => {
   // one routing point for keys, whether they arrive from a real keyboard
   // (keydown) or from a touch device's on-screen keyboard (beforeinput)
   const routeKey = e => {
+    // a concept lesson with a guided keypress owns the keyboard while open
+    if (!document.getElementById("lesson-overlay").classList.contains("hidden")) {
+      UI.lessonKey(e);
+      return;
+    }
     if (UI.current === "game") {
       Engine.handleKey(e);
     } else if (UI.current === "tutorial") {

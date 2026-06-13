@@ -81,6 +81,99 @@ const FINGER_NAMES = [
   "right index", "right middle", "right ring", "right pinky", "thumb",
 ];
 
+// ---- extra finger assignments for the number row and symbols (Scholar
+// Archipelago). Standard touch-typing reaches: index fingers take two
+// columns, pinkies the far edges. ----
+Object.assign(KEY_FINGER, {
+  "1": 0, "2": 1, "3": 2, "4": 3, "5": 3,
+  "6": 4, "7": 4, "8": 5, "9": 6, "0": 7,
+  "-": 7, "=": 7, "[": 7, "]": 7, "\\": 7,
+});
+
+// A target symbol -> the physical (base) key you press, so the keyboard
+// guide lights the right key and the Shift logic knows when Shift is held.
+// Keys NOT in this map are typed without Shift (digits, - = etc).
+const SHIFT_MAP = {
+  "(": "9", ")": "0", "_": "-", "+": "=",
+  "\"": "'", "<": ",", ">": ".", "?": "/",
+  "{": "[", "}": "]", "|": "\\",
+  "@": "2", "#": "3", "$": "4", "%": "5", "^": "6", "&": "7", "*": "8",
+  "!": "1", ":": ";",
+};
+
+// keyboard layouts a world can request (world.kb). "letters" keeps the
+// original 3-row board; "full" adds the number row for the math/CS islands.
+const KB_LAYOUTS = {
+  letters: KB_ROWS,
+  full: [
+    ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="],
+    ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "[", "]"],
+    ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";", "'"],
+    ["z", "x", "c", "v", "b", "n", "m", ",", ".", "/"],
+  ],
+};
+
+// ---- prompt objects: a prompt is either a plain string (display == typed)
+// or { d: question, a: answer, think: seconds } where the player reads `d`
+// and types `a`. These helpers let the whole engine treat both alike. ----
+function promptAnswer(p) { return typeof p === "string" ? p : p.a; }
+function promptDisplay(p) { return typeof p === "string" ? null : (p.d || null); }
+function promptThink(p) { return typeof p === "string" ? 0 : (p.think || 0); }
+function promptLen(p) { return promptAnswer(p).length; }
+
+// iOS "smart punctuation" can deliver curly quotes / long dashes through
+// the on-screen keyboard — fold them to the plain ASCII we validate against.
+const CHAR_EQUIV = {
+  "‘": "'", "’": "'", "“": "\"", "”": "\"",
+  "–": "-", "—": "-", "×": "x", "÷": "/",
+};
+function normalizeKey(ch) { return CHAR_EQUIV[ch] || ch; }
+
+// ---- Concept lessons: each new-idea level opens with a short, interactive
+// lesson that assumes the trainer is brand-new to the subject. Steps:
+//   { say }            tutor speech only
+//   { say, board,arg } show a visual board (see UI.lessonBoard)
+//   { say, guide }     wait for ONE specific keypress (full hint stack)
+//   { say, try }       one untimed real prompt {d, a}
+// concrete -> pictorial -> abstract throughout. ----
+const LESSONS = {
+  numrow: { e: "🥄", title: "The Number Row", steps: [
+    { say: "Welcome to Gimmighoul Coast! Here we count treasure with NUMBERS." },
+    { say: "Number keys sit in a row ABOVE the letters. The rule: reach up, then come back home!", board: "numrow", arg: null },
+    { say: "Find the 4 — your left index finger reaches up.", board: "numrow", arg: "4", guide: "4" },
+    { say: "Now the 7 — right index finger reaches up.", board: "numrow", arg: "7", guide: "7" },
+    { say: "On this island the clock only runs while you TYPE. Take all the time you need to think!" },
+  ]},
+  place: { e: "🥄", title: "Big Numbers", steps: [
+    { say: "Big numbers are made of parts. 347 = 300 + 40 + 7." },
+    { say: "Three hundreds, four tens, seven ones — type the digits in order: 3, 4, 7.", board: "place", arg: 347 },
+    { say: "Try it: what is 300 + 40 + 7?", try: { d: "300 + 40 + 7 = ?", a: "347" } },
+  ]},
+  times: { e: "🥄", title: "Times Tables", steps: [
+    { say: "Multiplication is fast adding! '3 × 4' means 3 GROUPS of 4." },
+    { say: "Three groups, four berries each. Count them all up!", board: "groups", arg: [3, 4] },
+    { say: "A trick: skip-count by 4s — 4, 8, 12!", board: "skip", arg: [4, 3] },
+    { say: "Your turn — how many berries? Type the total.", try: { d: "3 × 4 = ?", a: "12" } },
+    { say: "One more: 2 groups of 5.", try: { d: "2 × 5 = ?", a: "10" } },
+  ]},
+  divide: { e: "🥄", title: "Division", steps: [
+    { say: "Division shares things into equal groups. '12 ÷ 3' asks: share 12 into 3 bowls — how many each?" },
+    { say: "12 berries, 3 bowls... 4 in each bowl!", board: "groups", arg: [3, 4] },
+    { say: "Multiplication and division are best friends: 3 × 4 = 12, so 12 ÷ 3 = 4.", board: "triangle", arg: [12, 3, 4] },
+    { say: "Try it: share 12 into 3 groups.", try: { d: "12 ÷ 3 = ?", a: "4" } },
+  ]},
+  equation: { e: "🥄", title: "Equations", steps: [
+    { say: "An equation balances both sides of an = sign. 6 + 7 = 13." },
+    { say: "The + key and the = key are on the right edge of the number row — right pinky reaches!", board: "numrow", arg: "=" },
+    { say: "Type the whole equation: 6+7=13", guide: "6", typeWord: "6+7=13" },
+  ]},
+  fractions: { e: "🥄", title: "Fractions", steps: [
+    { say: "A fraction is part of a whole. '1/2' means one of two equal parts — a half!" },
+    { say: "1/2 of 8 means split 8 into 2 halves: 4 and 4. Each half is 4.", board: "pie", arg: [1, 2] },
+    { say: "Try it: what is 1/2 of 8?", try: { d: "1/2 of 8 = ?", a: "4" } },
+  ]},
+};
+
 const WORLDS = [
   {
     name: "Pallet Meadow",
@@ -323,6 +416,70 @@ const WORLDS = [
                "No. Not my glitches.", "You type like a true master.", "The Pokedex is saved.",
                "Long live the Pokemon Master."],
   },
+
+  // ============================================================
+  // SCHOLAR ARCHIPELAGO — island 1. Reached by ferry from the dock.
+  // These worlds teach school subjects: math, coding, computer science,
+  // while also opening new keyboard territory. Prompts may be
+  // { d: question, a: answer } objects (display != typed).
+  // ============================================================
+  {
+    name: "Gimmighoul Coast",
+    tagline: "Treasure math! The number row, +, -, and times tables.",
+    emoji: "🪙",
+    island: 1, kb: "full", statsLane: "facts", subject: "math",
+    tutor: { name: "Alakazam", id: 65, e: "🥄" },
+    gradient: ["#3a2c10", "#a9852f"],
+    accent: "#ffd34d",
+    targets: ["🪙", "💰", "💎", "🗝️"],
+    projectile: "🪙",
+    hitText: ["Cha-ching!", "Treasure!", "Counted!", "Solved!"],
+    sceneEmojis: ["🪙", "💰", "🏝️", "⛵"],
+    boss: { name: "Gholdengo", emoji: "🪙", id: 1000, hp: 11, time: 7, taunt: "You'll never count past my coins!" },
+    levels: [
+      { name: "4 and 7", keys: "47", time: 7, lesson: "numrow",
+        pool: ["4", "7", "44", "77", "47", "74", "474", "747", "447", "774", "7447", "4774"], count: 10 },
+      { name: "3 and 8", keys: "38", time: 7,
+        pool: ["3", "8", "38", "83", "338", "883", "3838", "8383",
+               { d: "🍓🍓🍓 berries — how many?", a: "3", think: 3 },
+               { d: "🍓🍓🍓🍓🍓🍓🍓🍓 berries — how many?", a: "8", think: 3 }], count: 10 },
+      { name: "2 and 9", keys: "29", time: 7,
+        pool: ["2", "9", "29", "92", "229", "992", "2929",
+               { d: "type the number: two hundred ninety-two", a: "292", think: 4 },
+               { d: "type the number: nine hundred twenty-nine", a: "929", think: 4 }], count: 10 },
+      { name: "Full Number Row", keys: "1056", time: 7, lesson: "place",
+        pool: ["1", "0", "5", "6", "105", "560", "1056", "90210", "5060",
+               { d: "300 + 40 + 7 = ?", a: "347", think: 5 },
+               { d: "500 + 60 + 1 = ?", a: "561", think: 5 }], count: 11 },
+      { name: "Times Tables I", keys: "", time: 6, lesson: "times",
+        pool: [{ d: "2 × 5 = ?", a: "10", think: 5 }, { d: "3 × 4 = ?", a: "12", think: 5 },
+               { d: "5 × 5 = ?", a: "25", think: 5 }, { d: "7 × 3 = ?", a: "21", think: 6 },
+               { d: "4 × 4 = ?", a: "16", think: 5 }, { d: "10 × 6 = ?", a: "60", think: 5 },
+               { d: "2 × 9 = ?", a: "18", think: 5 }, { d: "5 × 8 = ?", a: "40", think: 6 },
+               { d: "3 × 6 = ?", a: "18", think: 6 }, { d: "4 × 7 = ?", a: "28", think: 6 }], count: 8 },
+      { name: "Times & Divide", keys: "", time: 6, lesson: "divide",
+        pool: [{ d: "12 ÷ 3 = ?", a: "4", think: 5 }, { d: "42 ÷ 6 = ?", a: "7", think: 6 },
+               { d: "6 × 7 = ?", a: "42", think: 6 }, { d: "8 × 8 = ?", a: "64", think: 6 },
+               { d: "63 ÷ 9 = ?", a: "7", think: 6 }, { d: "9 × 7 = ?", a: "63", think: 6 },
+               { d: "56 ÷ 8 = ?", a: "7", think: 6 }, { d: "48 ÷ 6 = ?", a: "8", think: 6 },
+               { d: "7 × 8 = ?", a: "56", think: 6 }, { d: "72 ÷ 9 = ?", a: "8", think: 6 }], count: 8 },
+      { name: "Equation Builder", keys: "+-=", time: 7, lesson: "equation",
+        pool: ["6+7=13", "9+8=17", "13-7=6", "15-8=7", "4+9=13", "12-5=7",
+               { d: "356 + 248 = ?", a: "604", think: 7 }, { d: "473 + 159 = ?", a: "632", think: 7 },
+               { d: "602 - 247 = ?", a: "355", think: 7 }], count: 9 },
+      { name: "Treasure Math", keys: "/", time: 7, lesson: "fractions",
+        pool: [{ d: "🥧 1/2 of 8 = ?", a: "4", think: 6 }, { d: "🥧 1/4 of 12 = ?", a: "3", think: 6 },
+               { d: "🥧 1/2 of 14 = ?", a: "7", think: 6 }, { d: "2 + 3 × 4 = ?", a: "14", think: 7 },
+               { d: "10 - 2 × 3 = ?", a: "4", think: 7 }, { d: "🥧 1/3 of 9 = ?", a: "3", think: 6 },
+               { d: "5 × 2 + 6 = ?", a: "16", think: 7 }, { d: "🥧 1/4 of 20 = ?", a: "5", think: 6 }], count: 8 },
+    ],
+    bossPool: [{ d: "8 × 7 = ?", a: "56", think: 6 }, { d: "54 ÷ 6 = ?", a: "9", think: 6 },
+               { d: "9 × 9 = ?", a: "81", think: 6 }, { d: "7 × 6 = ?", a: "42", think: 6 },
+               { d: "🥧 1/2 of 18 = ?", a: "9", think: 6 }, { d: "248 + 367 = ?", a: "615", think: 7 },
+               { d: "3 × 4 + 8 = ?", a: "20", think: 7 }, { d: "63 ÷ 7 = ?", a: "9", think: 6 },
+               { d: "6 × 8 = ?", a: "48", think: 6 }, { d: "100 - 45 = ?", a: "55", think: 7 },
+               { d: "9 × 8 = ?", a: "72", think: 6 }],
+  },
 ];
 
 // 16 Pokemon per world. The first 8 of each world are the original
@@ -385,6 +542,15 @@ const CREATURES = [
     { n: "Victini", e: "🔥", id: 494, r: 3 }, { n: "Zamazenta", e: "🛡️", id: 889, r: 3 },
     { n: "Miraidon", e: "🐉", id: 1008, r: 3 }, { n: "Eternatus", e: "🌌", id: 890, r: 3 },
   ],
+  [ // 6 — Gimmighoul Coast (math)
+    { n: "Meowth", e: "🐱", id: 52, r: 1 }, { n: "Skwovet", e: "🐿️", id: 819, r: 1 }, { n: "Numel", e: "🐫", id: 322, r: 1 },
+    { n: "Chingling", e: "🔔", id: 433, r: 1 }, { n: "Sableye", e: "💎", id: 302, r: 2 }, { n: "Carbink", e: "💍", id: 703, r: 2 },
+    { n: "Gimmighoul", e: "🪙", id: 999, r: 3 }, { n: "Mawile", e: "🪤", id: 303, r: 2 },
+    { n: "Persian", e: "🐈", id: 53, r: 2, evoOnly: true }, { n: "Greedent", e: "🐿️", id: 820, r: 2, evoOnly: true },
+    { n: "Camerupt", e: "🌋", id: 323, r: 2, evoOnly: true }, { n: "Chimecho", e: "🎐", id: 358, r: 2, evoOnly: true },
+    { n: "Gholdengo", e: "🪙", id: 1000, r: 4, evoOnly: true }, { n: "Luvdisc", e: "💗", id: 370, r: 1 },
+    { n: "Smeargle", e: "🎨", id: 235, r: 2 }, { n: "Chatot", e: "🎵", id: 441, r: 1 },
+  ],
 ];
 
 // Evolution families. Duplicate catches of a base earn its candy;
@@ -418,6 +584,11 @@ const EVOLUTIONS = [
   { base: "4-2", chain: ["4-11", "4-12"] },                 // Squirtle → Wartortle → Blastoise
   { base: "4-3", chain: ["4-13"] },                         // Vulpix → Ninetales
   { base: "4-14", chain: ["4-15"] },                        // Shroomish → Breloom
+  { base: "6-0", chain: ["6-8"] },                          // Meowth → Persian
+  { base: "6-1", chain: ["6-9"] },                          // Skwovet → Greedent
+  { base: "6-2", chain: ["6-10"] },                         // Numel → Camerupt
+  { base: "6-3", chain: ["6-11"] },                         // Chingling → Chimecho
+  { base: "6-6", chain: ["6-12"], coins: 30 },              // Gimmighoul → Gholdengo (30 coins!)
 ];
 
 // Local sprite files (downloaded once by tools/get-sprites.mjs, see README).
@@ -594,7 +765,7 @@ const ELITE = [
 ];
 
 // dex keys of water Pokemon that can be hooked at fishing spots
-const WATER_POKEMON = ["0-0", "0-5", "3-0", "3-1", "3-2", "3-3", "4-2", "5-0"];
+const WATER_POKEMON = ["0-0", "0-5", "3-0", "3-1", "3-2", "3-3", "4-2", "5-0", "6-13"];
 
 // what an evolution-only Pokemon evolves FROM (chains may cross worlds,
 // e.g. Growlithe in the Stadium evolves into Arcanine on Mt. Moon)

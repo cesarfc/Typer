@@ -28,7 +28,10 @@ const Engine = {
     // skill band: Explorer faces shorter words and softer bosses, Ace the
     // opposite — orthogonal to the time-based difficulty setting
     const band = BANDS[opts.band || SAVE.state.band] ? (opts.band || SAVE.state.band) : "trainer";
-    const pool = isBoss ? world.bossPool : bandPool(lvl.pool, band, lvl.count);
+    // band word-length filtering only applies to plain-word (string) pools;
+    // Scholar islands keep their authored math/code ramp for every band
+    const rawPool = isBoss ? world.bossPool : lvl.pool;
+    const pool = world.island ? rawPool : bandPool(rawPool, band, lvl.count);
     const count = isBoss ? Math.max(6, world.boss.hp + BANDS[band].bossHp) : lvl.count;
 
     let prompts = [];
@@ -47,6 +50,8 @@ const Engine = {
       baseTime: (isBoss ? world.boss.time : lvl.time) * BANDS[band].time,
       band,
       timeScale: opts.assist ? 1.45 : 1, // one-run "more time" rescue
+      scholar: !!world.island,           // think/type clock + helper ladder
+      statsLane: world.statsLane || "type",
       state: "play",
       ninjaEligible: UI.kbHidden,
       pendingRes: null,
@@ -70,13 +75,27 @@ const Engine = {
     S.state = "play";
     S.pos = 0;
     S.errorsThisPrompt = 0;
-    S.text = S.prompts[S.idx];
+    const p = S.prompts[S.idx];
+    S.text = promptAnswer(p);
+    S.display = promptDisplay(p);        // the question (null for copy prompts)
+    S.think = promptThink(p);            // seconds of free thinking time
+    S.answerMode = !!S.display;          // display != typed -> hide the answer guide
     UI.showPrompt(S);
-    // practice runs have no countdown — the "timer" is a count-up stopwatch
-    let ms = S.practice ? Infinity : (S.baseTime + S.text.length * 0.6) * this.difficulty().time * 1000 * (S.timeScale || 1);
-    // the first prompt shares the screen with the level announcement:
-    // grant reading time so the lesson never costs the clock
-    if (S.idx === 0 && isFinite(ms)) ms += 700;
+
+    if (S.practice) { this.startTimer(Infinity); return; }
+
+    // typing-only budget (the clock measures fluency, never thinking)
+    let ms = (S.baseTime + S.text.length * 0.6 + S.think) * this.difficulty().time * 1000 * (S.timeScale || 1);
+    if (S.idx === 0 && isFinite(ms)) ms += 700; // reading time for the announce
+
+    // Scholar islands: "the clock only runs while you type" — pause until
+    // the first keystroke, so working out an answer never costs the clock
+    if (S.scholar) {
+      S.awaitingKey = true;
+      UI.thinkPhase(S, true);
+      S.pendingMs = ms;
+      return;
+    }
     this.startTimer(ms);
   },
 
@@ -145,10 +164,18 @@ const Engine = {
     UI.capsCheck(e);
     if (!UI.kbHidden) S.ninjaEligible = false;
 
-    const expected = S.text[S.pos];
-    SAVE.recordKey(expected, e.key === expected);
+    // first keystroke on a Scholar prompt wakes the typing clock
+    if (S.awaitingKey) {
+      S.awaitingKey = false;
+      UI.thinkPhase(S, false);
+      this.startTimer(S.pendingMs);
+    }
 
-    if (e.key === expected) {
+    const key = normalizeKey(e.key);
+    const expected = S.text[S.pos];
+    SAVE.recordKey(expected, key === expected);
+
+    if (key === expected) {
       S.pos++;
       S.hits++;
       S.combo++;
@@ -167,12 +194,38 @@ const Engine = {
     } else {
       S.errors++;
       S.errorsThisPrompt++;
-      S.combo = 0;
-      UI.superMode(false);
+      // arithmetic slips are thinking, not typing: the FIRST wrong attempt
+      // on a Scholar answer prompt doesn't break the combo
+      if (!(S.answerMode && S.errorsThisPrompt === 1)) {
+        S.combo = 0;
+        UI.superMode(false);
+      }
       SFX.error();
       UI.charError(S);
+      // the helper card / hint ladder teaches instead of scolding
+      if (S.scholar) this.scholarHint(S);
     }
     UI.updateHud(S);
+  },
+
+  // three-step support ladder on Scholar prompts: self-correct chance ->
+  // helper card -> ghost-type the answer + silently re-queue
+  scholarHint(S) {
+    if (S.errorsThisPrompt === 2) {
+      UI.showHelper(S);          // trainer's notes (skip-count, fact triangle, ...)
+    } else if (S.errorsThisPrompt >= 3 && !S.ghosting) {
+      S.ghosting = true;
+      UI.ghostAnswer(S, () => {  // shows the answer in blue; kid echoes it once
+        S.ghosting = false;
+        // re-meet this exact prompt a few cards later (unless near the end)
+        if (S.answerMode && (S.requeuedHint || 0) < 3 && S.idx < S.prompts.length - 1) {
+          const insertAt = Math.min(S.prompts.length, S.idx + 3);
+          S.prompts.splice(insertAt, 0, S.prompts[S.idx]);
+          S.requeuedHint = (S.requeuedHint || 0) + 1;
+          S.requeuedIdx = insertAt;
+        }
+      });
+    }
   },
 
   addCharge(S, amt) {
@@ -201,6 +254,12 @@ const Engine = {
     if (S.requeueMissed && !perfect && (S.requeued || 0) < 4) {
       S.prompts.push(S.text);
       S.requeued = (S.requeued || 0) + 1;
+    }
+    // solving a re-queued "remembered" Scholar prompt is a small celebration
+    if (S.scholar && S.requeuedIdx === S.idx && perfect) {
+      S.score += 5;
+      UI.floatText("🧠 You remembered! +5");
+      S.requeuedIdx = -1;
     }
     S.score += perfect ? 5 : 2;
     if (perfect) this.addCharge(S, 5); // flawless words charge the partner extra
@@ -288,9 +347,11 @@ const Engine = {
 
     const ninja = S.ninjaEligible && UI.kbHidden;
     const diff = this.difficulty();
+    const facts = S.statsLane === "facts";
     let xp = S.isBoss ? 50 + 15 * stars : 20 + 10 * stars;
     if (acc >= 1 && total > 0) xp += 10;
-    xp += Math.min(20, wpm);
+    // facts islands earn from answers solved, not raw WPM (math answers are short)
+    xp += facts ? Math.min(20, S.hits) : Math.min(20, wpm);
     if (ninja) xp = Math.round(xp * 1.5);
     if (diff.xp > 1) xp = Math.round(xp * diff.xp);
     xp = Math.round(xp * (BANDS[S.band] ? BANDS[S.band].xp : 1));
@@ -299,9 +360,14 @@ const Engine = {
       w: S.w, s: S.s, isBoss: S.isBoss, stars, acc, wpm, xp,
       score: S.score, bestCombo: S.bestCombo, errors: S.errors, timeouts: S.timeouts,
       ninja, turbo: diff.xp > 1, xpBefore: SAVE.state.xp,
-      band: S.band || "trainer",
+      band: S.band || "trainer", factsLane: facts,
       firstClear: SAVE.stageStars(S.w, S.s) === 0,
     };
+    // Gimmighoul Coast pays Gold Coins (= stars) toward Gholdengo
+    if (S.world.subject === "math" && stars > 0) {
+      SAVE.addCoins(stars);
+      res.coins = stars;
+    }
     const applied = SAVE.applyResult(res);
     res.trophies = applied.newTrophies;
     res.levelUp = applied.levelUps;

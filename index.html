@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192.png">
-<link rel="stylesheet" href="css/style.css?v=21">
+<link rel="stylesheet" href="css/style.css?v=22">
 </head>
 <body>
 <div id="app">
@@ -77,6 +77,14 @@
       </div>
     </section>
 
+    <!-- ============ ISLAND (Scholar Archipelago route) ============ -->
+    <section id="screen-island" class="screen hidden">
+      <div id="island-viewport">
+        <div id="island-route"></div>
+      </div>
+      <button id="island-back" title="Back to the Sea Chart">⛵ Sea Chart</button>
+    </section>
+
     <!-- ============ WORLD MAP ============ -->
     <section id="screen-map" class="screen hidden">
       <div id="region-viewport">
@@ -86,6 +94,7 @@
           <button id="wild-chip" class="map-hint" title="Wild encounters left today — click to learn more" aria-label="Wild encounters left today">🌿 · 🎣</button>
           <button id="egg-chip" class="map-hint hidden">🥚</button>
           <button id="day-chip" class="map-hint" title="Today's Adventure">📜 0/3</button>
+          <button id="chart-chip" class="map-hint hidden" title="Sail to the Scholar Archipelago">🗺️ Sea Chart</button>
           <button id="btn-findme">📍 Find me</button>
         </div>
         <div id="party-bar"></div>
@@ -130,7 +139,11 @@
       </div>
 
       <div id="prompt-area">
+        <div id="question-card" class="hidden"></div>
+        <div id="helper-card" class="hidden"></div>
         <div id="prompt-word"></div>
+        <div id="think-pill" class="hidden">🤔 think it through…</div>
+        <div id="code-output" class="hidden"></div>
         <div id="timer-bar"><div id="timer-fill"></div></div>
         <div id="stopwatch" class="hidden">⏱ <span id="stopwatch-time">0.0s</span> · <span id="stopwatch-wpm">0 wpm</span></div>
         <div id="finger-hint">&nbsp;</div>
@@ -272,6 +285,16 @@
   <div id="level-card" class="hidden"></div>
   <div id="day-card" class="hidden"></div>
   <div id="ceremony" class="hidden"></div>
+  <div id="sea-chart" class="hidden"></div>
+  <div id="lesson-overlay" class="hidden">
+    <div class="lesson-card">
+      <div class="lesson-guide"><span id="lesson-tutor">🥄</span><div id="lesson-bubble"></div></div>
+      <div id="lesson-board"></div>
+      <div id="lesson-try" class="hidden"></div>
+      <button id="lesson-next" class="big-btn">Next ▶</button>
+      <button id="lesson-skip" class="link-btn">I know this — skip</button>
+    </div>
+  </div>
 
   <div id="letter-overlay" class="hidden">
     <div class="letter-card">
@@ -304,13 +327,13 @@
   <div id="area-panel" class="hidden"></div>
 
 </div>
-<script src="js/data.js?v=21"></script>
-<script src="js/audio.js?v=21"></script>
-<script src="js/save.js?v=21"></script>
-<script src="js/engine.js?v=21"></script>
-<script src="js/sprites.js?v=21"></script>
-<script src="js/ui.js?v=21"></script>
-<script src="js/tutorial.js?v=21"></script>
-<script src="js/main.js?v=21"></script>
+<script src="js/data.js?v=22"></script>
+<script src="js/audio.js?v=22"></script>
+<script src="js/save.js?v=22"></script>
+<script src="js/engine.js?v=22"></script>
+<script src="js/sprites.js?v=22"></script>
+<script src="js/ui.js?v=22"></script>
+<script src="js/tutorial.js?v=22"></script>
+<script src="js/main.js?v=22"></script>
 </body>
 </html>
