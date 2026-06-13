@@ -1833,8 +1833,11 @@ const UI = {
     } else if (S.wild) {
       // the wild Pokemon stays on screen for the whole battle
       const c = S.wild.creature;
-      target.innerHTML = this.pokeHtml(c.id, c.e);
-      target.className = "catch-size";
+      const shiny = !!S.wild.shiny;
+      target.innerHTML = this.pokeHtml(c.id, c.e, { shiny });
+      target.className = "catch-size" + (shiny ? " shiny-poke" : "");
+      // for fishing the fish appears at the bite (here), not in wildScene
+      if (shiny && !S._shinyRevealed && S.state === "play") this.shinyReveal(S);
     } else {
       // levels shoot neutral targets — Pokemon are caught, not shot at
       target.textContent = S.world.targets[S.idx % S.world.targets.length];
@@ -2215,11 +2218,14 @@ const UI = {
       flash.className = "poke-flash";
       wrap.appendChild(flash);
       setTimeout(() => flash.remove(), 550);
-      target.innerHTML = `<span class="poke-pop">${this.pokeHtml(creature.id, creature.e)}</span>`;
+      const shiny = !!(S.wild && S.wild.shiny);
+      target.className = "catch-size" + (shiny ? " shiny-poke" : "");
+      target.innerHTML = `<span class="poke-pop">${this.pokeHtml(creature.id, creature.e, { shiny })}</span>`;
+      if (shiny) this.shinyReveal(S);
     }, 1780);
     setTimeout(() => {
       if (!alive()) return;
-      this.announce(`A wild ${creature.n} appeared!`, 1600);
+      this.announce(S.wild && S.wild.shiny ? `✨ A SHINY ${creature.n}! ✨` : `A wild ${creature.n} appeared!`, 1600);
       SFX.combo();
       done();
     }, 2380);
@@ -2849,13 +2855,45 @@ const UI = {
       this.highlightKey(null);
       this.announce("Wait for it...", 1500);
     } else {
-      target.className = "catch-size";
-      target.innerHTML = `<span class="poke-pop">${this.pokeHtml(c.id, c.e)}</span>`;
-      this.announce(legendary ? `The legendary ${c.n} appeared!` : `A wild ${c.n} jumped out!`, 1900);
+      const shiny = !!S.wild.shiny;
+      target.className = "catch-size" + (shiny ? " shiny-poke" : "");
+      target.innerHTML = `<span class="poke-pop">${this.pokeHtml(c.id, c.e, { shiny })}</span>`;
+      if (shiny) {
+        this.shinyReveal(S);
+      } else {
+        this.announce(legendary ? `The legendary ${c.n} appeared!` : `A wild ${c.n} jumped out!`, 1900);
+        SFX.pop();
+        if (legendary) SFX.fanfare();
+      }
       this.speech(legendary ? "Pass my trial of three words!" : "Weaken me with words first!", 2600);
-      SFX.pop();
-      if (legendary) SFX.fanfare();
     }
+  },
+
+  // the moment a shiny wild Pokemon is revealed: sparkles, a twinkle, a shout
+  shinyReveal(S) {
+    if (S._shinyRevealed) return;
+    S._shinyRevealed = true;
+    const wrap = this.$("target-wrap");
+    // a white→gold flash behind the Pokemon
+    const flash = document.createElement("div");
+    flash.className = "shiny-flash";
+    wrap.appendChild(flash);
+    setTimeout(() => flash.remove(), 700);
+    // a burst of ✨ around it
+    for (let i = 0; i < 9; i++) {
+      const s = document.createElement("span");
+      s.className = "shiny-spark";
+      s.textContent = "✨";
+      s.style.left = `${15 + Math.random() * 70}%`;
+      s.style.top = `${5 + Math.random() * 80}%`;
+      s.style.animationDelay = `${Math.random() * 0.35}s`;
+      wrap.appendChild(s);
+      setTimeout(() => s.remove(), 1500);
+    }
+    const r = this.$("target").getBoundingClientRect();
+    this.burst(r.left + r.width / 2, r.top + r.height / 2, ["#fff", "#ffd34d", "#ffe9a8"], 22, 5.5);
+    SFX.shiny();
+    this.announce(`✨ A SHINY ${S.wild.creature.n}!! ✨`, 2400);
   },
 
   // ---------- Mystery Egg hatching ----------

@@ -74,6 +74,12 @@ const SFX = {
   catchJingle() {
     [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.12, { gain: 0.12, when: i * 0.1 }));
   },
+  // a bright sparkly twinkle for a shiny reveal
+  shiny() {
+    [1318, 1568, 2093, 2637].forEach((f, i) => this.tone(f, 0.16, { type: "triangle", gain: 0.09, when: i * 0.07 }));
+    this.tone(3136, 0.5, { gain: 0.07, when: 0.28 });
+    this.noise(0.06, { gain: 0.04, freq: 7000, when: 0.28 });
+  },
   star(i) {
     this.tone(700 + i * 160, 0.18, { gain: 0.13 });
   },

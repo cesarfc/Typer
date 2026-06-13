@@ -505,7 +505,9 @@ const Engine = {
       more = SAVE.bumpCombo(S.bestCombo);
     } else {
       const odds = SAVE.shinyOdds();
-      const shiny = (res.wild ? Math.random() < odds.wild : res.stars === 3 && Math.random() < odds.catch3);
+      // a wild Pokemon already revealed its shininess on the field — keep it;
+      // the post-level catch still rolls at the moment of catching
+      const shiny = (res.wild ? !!S.wild.shiny : res.stars === 3 && Math.random() < odds.catch3);
       res.caught = { ...c, shiny };
       more = SAVE.addCreature(c.w, c.i, shiny).concat(SAVE.bumpCombo(S.bestCombo));
       if (S.wild && S.wild.source === "legendary") SAVE.award("legend-1", more);
@@ -554,6 +556,10 @@ const Engine = {
   },
 
   wildSession(w, prompts, wild) {
+    // shiny is decided the moment the wild Pokemon appears — so the trainer
+    // discovers it sparkling during the battle, not only at the catch. Only a
+    // brand-new (non-duplicate) catch can shine.
+    if (!wild.creature.duplicate && Math.random() < SAVE.shinyOdds().wild) wild.shiny = true;
     this.paused = false;
     this.pendingNext = false;
     this.session = {
