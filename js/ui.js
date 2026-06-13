@@ -1744,6 +1744,7 @@ const UI = {
   // ---------- game screen ----------
   gameStart(S) {
     this.show("game");
+    this.$("screen-game").classList.remove("paragraph-mode");
     const w = S.world;
     document.body.classList.remove("super-mode");
     this.$("capslock-warn").classList.add("hidden");
@@ -1871,12 +1872,24 @@ const UI = {
       qc.classList.add("hidden");
       qc.innerHTML = "";
     }
-    // Story Typing: the whole paragraph, left-aligned and wrapped, in a
-    // scrolling box — type it straight through like a real typing test
+    // Story Typing: the whole paragraph as flowing prose — chars are grouped
+    // into non-breaking words so lines wrap at spaces, never mid-word
     if (S.paragraphMode) {
       pw.className = "paragraph";
-      pw.innerHTML = [...S.text].map((c, i) =>
-        `<span class="ch ${i < S.pos ? "done" : i === S.pos ? "cur" : ""}">${c === " " ? " " : this.esc(c)}</span>`).join("");
+      const chs = [...S.text];
+      const chSpan = i => `<span class="ch ${i < S.pos ? "done" : i === S.pos ? "cur" : ""}">${this.esc(chs[i])}</span>`;
+      let html = "", i = 0;
+      while (i < chs.length) {
+        if (chs[i] === " ") {
+          html += `<span class="ch sp ${i < S.pos ? "done" : i === S.pos ? "cur" : ""}"> </span>`;
+          i++;
+        } else {
+          html += `<span class="pword">`;
+          while (i < chs.length && chs[i] !== " ") { html += chSpan(i); i++; }
+          html += `</span>`;
+        }
+      }
+      pw.innerHTML = html;
       this.highlightKey(S.text[S.pos]);
       return;
     }
@@ -1899,7 +1912,8 @@ const UI = {
 
   charDone(S) {
     const pw = this.$("prompt-word");
-    const spans = pw.children;
+    // paragraph chars are nested inside .pword groups, so index the flat .ch list
+    const spans = S.paragraphMode ? pw.querySelectorAll(".ch") : pw.children;
     if (spans[S.pos - 1]) {
       spans[S.pos - 1].classList.remove("cur", "mystery");
       spans[S.pos - 1].classList.add("done", "pop");
@@ -2024,13 +2038,13 @@ const UI = {
   },
 
   charError(S) {
-    const spans = this.$("prompt-word").children;
+    const pw = this.$("prompt-word");
+    const spans = S.paragraphMode ? pw.querySelectorAll(".ch") : pw.children;
     const el = spans[S.pos];
     if (el) {
       el.classList.add("err");
       setTimeout(() => el.classList.remove("err"), 260);
     }
-    const pw = this.$("prompt-word");
     pw.classList.remove("shake");
     void pw.offsetWidth;
     pw.classList.add("shake");
@@ -2631,6 +2645,8 @@ const UI = {
 
   practiceScene(S) {
     this.show("game");
+    // Story Typing is a pure typing test — no battle arena up top
+    this.$("screen-game").classList.toggle("paragraph-mode", !!S.paragraph);
     const w = S.world;
     document.body.classList.remove("super-mode");
     this.$("capslock-warn").classList.add("hidden");
@@ -2803,6 +2819,7 @@ const UI = {
   // ---------- wild encounter scene (grass + fishing + legendary) ----------
   wildScene(S) {
     this.show("game");
+    this.$("screen-game").classList.remove("paragraph-mode");
     const w = S.world;
     const c = S.wild.creature;
     const fishing = S.wild.source === "fish";
@@ -2985,6 +3002,7 @@ const UI = {
   // ---------- evolution scene ----------
   evolutionScene(S) {
     this.show("game");
+    this.$("screen-game").classList.remove("paragraph-mode");
     const w = S.world;
     document.body.classList.remove("super-mode");
     this.$("capslock-warn").classList.add("hidden");
@@ -3203,6 +3221,7 @@ const UI = {
   // ---------- special scene (Daily Drill & friends: countdown, no boss) ----------
   specialScene(S, label) {
     this.show("game");
+    this.$("screen-game").classList.remove("paragraph-mode");
     const w = S.world;
     document.body.classList.remove("super-mode");
     this.$("capslock-warn").classList.add("hidden");

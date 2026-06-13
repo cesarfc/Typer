@@ -2336,20 +2336,30 @@ button, .screen, #topbar { touch-action: manipulation; }
 .cip u { text-decoration: none; font-size: 22px; color: var(--good); font-weight: 900; }
 
 /* ============ Story Typing (paragraph mode) ============ */
+/* it's a pure reading test — drop the battle arena and let the story panel
+   take the room, centred, matching the framed look of the other modes */
+#screen-game.paragraph-mode #arena { display: none; }
+#screen-game.paragraph-mode #prompt-area {
+  flex: 1; display: flex; flex-direction: column; justify-content: center;
+}
+#screen-game.paragraph-mode #finger-hint { text-align: center; }
+
 #prompt-word.paragraph {
   white-space: pre-wrap;
   text-align: left;
-  font-size: 22px;
-  line-height: 1.75;
+  font-size: 23px;
+  line-height: 1.85;
   font-weight: 600;
   font-family: var(--font);
+  letter-spacing: 0;
   max-width: min(680px, 94%);
   margin: 0 auto;
-  max-height: 8.5em;       /* ~5 lines, then it scrolls with the cursor */
+  max-height: 13em;        /* plenty of room now the arena is gone */
   overflow-y: auto;
   padding: 4px 6px;
-  letter-spacing: .3px;
 }
+/* words never break mid-word — lines wrap only at the spaces between them */
+#prompt-word.paragraph .pword { white-space: nowrap; }
 /* flatten the battle "tile" look into flowing prose */
 #prompt-word.paragraph .ch {
   display: inline; padding: 0; background: none; border: none; border-radius: 0;
