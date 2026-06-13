@@ -2146,6 +2146,11 @@ button, .screen, #topbar { touch-action: manipulation; }
 .chart-isle.locked b { color: var(--dim); }
 .isle-rumor { display: block; font-size: 10px; color: var(--dim); font-style: italic; }
 .isle-lock { display: block; font-size: 10px; color: var(--gold); margin-top: 2px; }
+/* the global button:hover/:active transform (translateY) would clobber the
+   centering translate and make the icon jump — preserve centering, keep the
+   glow on the blob as the hover feedback */
+.chart-isle:hover { transform: translate(-50%, -50%); }
+.chart-isle:active { transform: translate(-50%, -50%) scale(.96); }
 .chart-isle:not(.locked):hover .isle-blob { box-shadow: 0 0 22px rgba(255,211,77,.6); }
 
 /* ---- lesson overlay ---- */
