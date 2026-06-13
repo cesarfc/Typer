@@ -1187,7 +1187,8 @@ button:active { transform: translateY(1px) scale(.98); }
    trap is exactly what made pins "jump" when hovered.
    ============================================================ */
 .mnode, .map-grass, .map-fish, .map-roamer, .map-school, .map-city,
-.region-label, .map-marker, .map-poke, .map-decor, .map-smoke, .map-parcel {
+.region-label, .map-marker, .map-poke, .map-decor, .map-smoke, .map-parcel,
+.map-podium {
   transform: translate(-50%, -100%) rotateX(calc(-1 * var(--tilt)));
   transform-origin: 50% 100%;
   margin: 0;
