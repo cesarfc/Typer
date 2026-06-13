@@ -83,6 +83,7 @@ button:active { transform: translateY(1px) scale(.98); }
 #backup-panel { margin-top: 14px; }
 .backup-note { font-size: 13.5px; color: var(--dim); line-height: 1.5; margin-bottom: 12px; }
 .backup-note b { color: var(--text); }
+.ipad-hint { display: inline-block; margin-top: 4px; color: var(--info); }
 .backup-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
 
 .danger-btn {

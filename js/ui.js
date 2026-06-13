@@ -64,15 +64,45 @@ const UI = {
       .catch(() => { /* no backup file — that's fine */ });
   },
 
-  downloadBackup() {
+  async downloadBackup() {
     if (SAVE.state && SAVE.state.flags) {
       SAVE.state.flags.lastBackupXp = SAVE.state.xp;
       SAVE.save();
     }
-    const blob = new Blob([SAVE.exportData()], { type: "application/json" });
+    const data = SAVE.exportData();
+    const fname = "typequest-save.json";
+
+    // On an iPad/iPhone — and especially the installed home-screen app — a
+    // plain <a download> saves nothing (there's no Safari download tray), so
+    // the file just vanishes. The native share sheet works: it offers
+    // "Save to Files", AirDrop, Mail, etc. Use it on touch/standalone devices.
+    const standalone = navigator.standalone === true ||
+      matchMedia("(display-mode: standalone)").matches ||
+      matchMedia("(display-mode: fullscreen)").matches;
+    const iOS = /iP(hone|ad|od)/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    if ((iOS || standalone) && navigator.canShare) {
+      const file = new File([data], fname, { type: "application/json" });
+      if (navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: "TypeQuest backup" });
+          this.toast("💾 In the share sheet, tap <b>Save to Files</b> to keep your backup.", "gold");
+        } catch (e) {
+          if (e && e.name === "AbortError") return; // tapped cancel — fine
+          this.saveBackupLink(data, fname); // share failed — try the old way
+        }
+        return;
+      }
+    }
+    this.saveBackupLink(data, fname);
+  },
+
+  // classic browser download: a Blob behind a clicked <a download>
+  saveBackupLink(data, fname) {
+    const blob = new Blob([data], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "typequest-save.json";
+    a.download = fname;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     this.toast("💾 Backup downloaded! Move <b>typequest-save.json</b> into the game folder to keep it safe.", "gold");
