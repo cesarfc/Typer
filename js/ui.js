@@ -1096,24 +1096,124 @@ const UI = {
   },
 
   runSpotlight(steps, i) {
-    if (this._spotEl) { this._spotEl.classList.remove("spot-target"); this._spotEl = null; }
-    if (i >= steps.length) {
-      this.$("spotlight").classList.add("hidden");
-      this._spotNext = null;
-      return;
-    }
+    this._teardownStep();
+    clearTimeout(this._spotHideT); // a restart cancels any pending fade-out hide
+    if (i >= steps.length) { this._endSpotlight(); return; }
     const st = steps[i];
     if (st.nav) this.show(st.nav);
     if (st.tab) { this._museumTab = st.tab; this.renderTrophies(); }
-    this.$("spotlight").classList.remove("hidden");
-    this.$("spot-caption").innerHTML = `${st.text}<br><small>tap to continue</small>`;
+
+    const sp = this.$("spotlight");
+    sp.classList.remove("hidden");
+    setTimeout(() => sp.classList.add("show"), 10);
+
     const el = document.querySelector(st.sel);
-    if (el) {
-      el.classList.add("spot-target");
-      el.scrollIntoView({ block: "center" });
-      this._spotEl = el;
-    }
+    if (!el || !el.getClientRects().length) { this.runSpotlight(steps, i + 1); return; } // missing/hidden -> skip
+
+    el.classList.add("spot-target");
+    el.classList.toggle("spot-small", el.getBoundingClientRect().width < 60);
+    this._spotEl = el;
+    // topbar is its own z-index:50 stacking context — lift the whole bar
+    // above the overlay so a topbar icon (e.g. #band-btn) can actually light
+    const bar = el.closest("#topbar");
+    if (bar) { this._liftedBar = bar; bar.style.zIndex = "141"; el.style.pointerEvents = "none"; this._liftedEl = el; }
+
+    const total = steps.length;
+    this.$("spot-text").textContent = st.text;
+    const count = this.$("spot-count");
+    count.textContent = `${i + 1} of ${total}`;
+    count.classList.toggle("hidden", total < 2);
+    this.$("spot-next").textContent = i === total - 1 ? "Got it! ✓" : "Next ▶";
+
+    const tall = el.getBoundingClientRect().height > innerHeight - 120;
+    el.scrollIntoView({ block: tall ? "start" : "nearest", behavior: "auto" });
+
+    // place AFTER nav/tab/scroll layout settles (setTimeout, not rAF, so it
+    // still fires when frames are throttled — scrollIntoView is synchronous)
+    setTimeout(() => {
+      if (this._spotEl !== el) return;
+      this._placeCaption(el.getBoundingClientRect());
+      this.$("spot-caption").classList.add("spot-in");
+    }, 40);
+
+    this._spotReflow = () => { if (this._spotEl) this._placeCaption(this._spotEl.getBoundingClientRect()); };
+    addEventListener("resize", this._spotReflow);
+    addEventListener("scroll", this._spotReflow, true);
     this._spotNext = () => this.runSpotlight(steps, i + 1);
+  },
+
+  _placeCaption(r) {
+    const cap = this.$("spot-caption");
+    const vw = innerWidth, vh = innerHeight, GAP = 16, M = 12;
+    const cw = cap.offsetWidth, ch = cap.offsetHeight;
+    const spaceBelow = vh - r.bottom, spaceAbove = r.top;
+    let side, top, left;
+    if (r.bottom < vh * 0.45 && spaceBelow > ch + GAP + M) side = "below";
+    else if (r.top > vh * 0.55 && spaceAbove > ch + GAP + M) side = "above";
+    else if (spaceBelow >= spaceAbove && spaceBelow > ch + GAP + M) side = "below";
+    else if (spaceAbove > ch + GAP + M) side = "above";
+    else side = "beside";
+
+    if (side === "below") { top = r.bottom + GAP; left = r.left + r.width / 2 - cw / 2; }
+    else if (side === "above") { top = r.top - GAP - ch; left = r.left + r.width / 2 - cw / 2; }
+    else {
+      if (r.left > vw - r.right) { side = "left"; left = r.left - GAP - cw; }
+      else { side = "right"; left = r.right + GAP; }
+      top = Math.max(M, Math.min(r.top + r.height / 2 - ch / 2, vh - ch - M));
+    }
+    left = Math.max(M, Math.min(left, vw - cw - M));
+    top = Math.max(M, Math.min(top, vh - ch - M));
+    cap.style.top = `${Math.round(top)}px`;
+    cap.style.left = `${Math.round(left)}px`;
+    this._positionArrow(side, left, top, cw, ch, r.left + r.width / 2, r.top + r.height / 2);
+  },
+
+  _positionArrow(side, capLeft, capTop, cw, ch, tcx, tcy) {
+    const a = this.$("spot-arrow");
+    a.style.cssText = "";
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, hi));
+    if (side === "below") { a.style.top = "-8px"; a.style.left = `${clamp(tcx - capLeft, 14, cw - 14)}px`; a.dataset.dir = "up"; }
+    else if (side === "above") { a.style.bottom = "-8px"; a.style.left = `${clamp(tcx - capLeft, 14, cw - 14)}px`; a.dataset.dir = "down"; }
+    else if (side === "right") { a.style.left = "-8px"; a.style.top = `${clamp(tcy - capTop, 14, ch - 14)}px`; a.dataset.dir = "left"; }
+    else { a.style.right = "-8px"; a.style.top = `${clamp(tcy - capTop, 14, ch - 14)}px`; a.dataset.dir = "right"; }
+  },
+
+  _teardownStep() {
+    if (this._spotEl) { this._spotEl.classList.remove("spot-target", "spot-small"); this._spotEl = null; }
+    if (this._liftedBar) { this._liftedBar.style.zIndex = ""; this._liftedBar = null; }
+    if (this._liftedEl) { this._liftedEl.style.pointerEvents = ""; this._liftedEl = null; }
+    const cap = this.$("spot-caption");
+    cap.classList.remove("spot-in");
+    if (this._spotReflow) {
+      removeEventListener("resize", this._spotReflow);
+      removeEventListener("scroll", this._spotReflow, true);
+      this._spotReflow = null;
+    }
+  },
+
+  _endSpotlight() {
+    const sp = this.$("spotlight");
+    sp.classList.remove("show");
+    this._spotNext = null;
+    clearTimeout(this._spotHideT);
+    this._spotHideT = setTimeout(() => sp.classList.add("hidden"), 200);
+  },
+
+  // skip/escape: tear down the current step and close
+  endSpotlight() {
+    this._teardownStep();
+    this._endSpotlight();
+  },
+
+  spotlightOpen() {
+    return !this.$("spotlight").classList.contains("hidden");
+  },
+
+  // Enter/Space advance, Escape skips (routed from main.js so it never
+  // double-fires with the game/map key handlers)
+  spotlightKey(e) {
+    if (e.key === "Escape") { e.preventDefault(); this.endSpotlight(); }
+    else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (this._advanceSpot) this._advanceSpot(); }
   },
 
   museumShowMe(kind) {
@@ -3328,13 +3428,18 @@ const UI = {
       }
     });
     this.$("letter-next").addEventListener("click", () => this.letterNext());
-    this.$("spotlight").addEventListener("click", () => {
+    const advanceSpot = () => {
       if (!this._spotNext) return;
       SFX.click();
       const fn = this._spotNext;
       this._spotNext = null;
       fn();
-    });
+    };
+    this._advanceSpot = advanceSpot;
+    this.$("spot-next").addEventListener("click", e => { e.stopPropagation(); advanceSpot(); });
+    this.$("spot-skip").addEventListener("click", e => { e.stopPropagation(); SFX.click(); this.endSpotlight(); });
+    // tapping the dim area is a secondary accelerator; the button is primary
+    this.$("spotlight").addEventListener("click", e => { if (e.target.id === "spotlight") advanceSpot(); });
 
     this.$("band-btn").addEventListener("click", () => {
       const next = BAND_ORDER[(BAND_ORDER.indexOf(SAVE.state.band) + 1) % BAND_ORDER.length];

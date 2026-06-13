@@ -11,6 +11,11 @@ window.addEventListener("DOMContentLoaded", () => {
   // one routing point for keys, whether they arrive from a real keyboard
   // (keydown) or from a touch device's on-screen keyboard (beforeinput)
   const routeKey = e => {
+    // the spotlight coach-mark owns Enter/Space/Escape while open
+    if (UI.spotlightOpen && UI.spotlightOpen()) {
+      UI.spotlightKey(e);
+      return;
+    }
     // a concept lesson with a guided keypress owns the keyboard while open
     if (!document.getElementById("lesson-overlay").classList.contains("hidden")) {
       UI.lessonKey(e);

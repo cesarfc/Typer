@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192.png">
-<link rel="stylesheet" href="css/style.css?v=25">
+<link rel="stylesheet" href="css/style.css?v=26">
 </head>
 <body>
 <div id="app">
@@ -304,7 +304,17 @@
       <button id="letter-next" class="big-btn">Next ▶</button>
     </div>
   </div>
-  <div id="spotlight" class="hidden"><div id="spot-caption"></div></div>
+  <div id="spotlight" class="hidden">
+    <div id="spot-caption">
+      <div id="spot-arrow" aria-hidden="true"></div>
+      <button id="spot-skip" aria-label="Skip this tour">Skip ✕</button>
+      <p id="spot-text"></p>
+      <div class="spot-foot">
+        <span id="spot-count" class="spot-count"></span>
+        <button id="spot-next" class="spot-next">Next ▶</button>
+      </div>
+    </div>
+  </div>
 
   <div id="trophy-splash" class="hidden" aria-live="polite">
     <div class="ts-card">
@@ -327,13 +337,13 @@
   <div id="area-panel" class="hidden"></div>
 
 </div>
-<script src="js/data.js?v=25"></script>
-<script src="js/audio.js?v=25"></script>
-<script src="js/save.js?v=25"></script>
-<script src="js/engine.js?v=25"></script>
-<script src="js/sprites.js?v=25"></script>
-<script src="js/ui.js?v=25"></script>
-<script src="js/tutorial.js?v=25"></script>
-<script src="js/main.js?v=25"></script>
+<script src="js/data.js?v=26"></script>
+<script src="js/audio.js?v=26"></script>
+<script src="js/save.js?v=26"></script>
+<script src="js/engine.js?v=26"></script>
+<script src="js/sprites.js?v=26"></script>
+<script src="js/ui.js?v=26"></script>
+<script src="js/tutorial.js?v=26"></script>
+<script src="js/main.js?v=26"></script>
 </body>
 </html>

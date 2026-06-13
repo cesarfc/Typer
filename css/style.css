@@ -1595,24 +1595,96 @@ button, .screen, #topbar { touch-action: manipulation; }
   background: rgba(8, 10, 24, .78);
   z-index: 140;
   cursor: pointer;
+  opacity: 0;
+  transition: opacity .2s;
 }
-.spot-target { position: relative; z-index: 141; box-shadow: 0 0 0 4px var(--gold), 0 0 40px rgba(255, 211, 77, .5); border-radius: 14px; }
+#spotlight.show { opacity: 1; }
+.spot-target {
+  position: relative;
+  z-index: 141;
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 4px var(--gold),
+    0 0 0 10px rgba(8, 10, 24, .55),
+    0 0 34px 6px rgba(255, 211, 77, .55);
+  animation: spotPulse 1.6s ease-in-out infinite;
+}
+.spot-target.spot-small {
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 3px var(--gold),
+    0 0 0 7px rgba(8, 10, 24, .6),
+    0 0 24px 5px rgba(255, 211, 77, .6);
+}
+@keyframes spotPulse {
+  0%, 100% { box-shadow: 0 0 0 4px var(--gold), 0 0 0 10px rgba(8,10,24,.55), 0 0 26px 4px rgba(255,211,77,.45); }
+  50%      { box-shadow: 0 0 0 4px var(--gold), 0 0 0 10px rgba(8,10,24,.55), 0 0 40px 10px rgba(255,211,77,.7); }
+}
+
 #spot-caption {
   position: fixed;
-  bottom: 7vh;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 0;
+  left: 0;
+  max-width: min(340px, 86vw);
   background: var(--card);
   border: 2px solid var(--gold);
   border-radius: 14px;
-  padding: 12px 22px;
-  font-size: 15px;
-  font-weight: 700;
-  text-align: center;
-  max-width: 80vw;
+  padding: 14px 16px 12px;
+  font-family: var(--font);
+  color: var(--text);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
   z-index: 142;
+  opacity: 0;
 }
-#spot-caption small { color: var(--dim); font-weight: 600; }
+#spot-caption.spot-in { animation: spotIn .18s cubic-bezier(.2, 1.4, .4, 1) forwards; }
+@keyframes spotIn { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: scale(1); } }
+#spot-text { margin: 0 0 10px; padding-right: 30px; font-size: 15px; font-weight: 700; line-height: 1.45; }
+.spot-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.spot-count { font-size: 13px; font-weight: 800; color: var(--dim); }
+.spot-count.hidden { display: none; }
+.spot-next {
+  background: linear-gradient(180deg, #ffe28a, var(--gold));
+  color: #1a1404;
+  border: none;
+  border-radius: 999px;
+  font-family: var(--font);
+  font-weight: 900;
+  font-size: 15px;
+  padding: 11px 22px;
+  min-height: 44px;
+  cursor: pointer;
+}
+.spot-next:hover { filter: brightness(1.06); }
+#spot-skip {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+#spot-skip:hover { color: var(--text); }
+#spot-arrow {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: var(--card);
+  border: 2px solid var(--gold);
+  transform: rotate(45deg);
+}
+#spot-arrow[data-dir="up"]    { border-right: 0; border-bottom: 0; }
+#spot-arrow[data-dir="down"]  { border-left: 0;  border-top: 0; }
+#spot-arrow[data-dir="left"]  { border-right: 0; border-top: 0; }
+#spot-arrow[data-dir="right"] { border-left: 0;  border-bottom: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .spot-target { animation: none; }
+  #spot-caption.spot-in { animation: none; opacity: 1; }
+}
 
 /* ============ Phase 2-3: bands, Journal, Daily Drill, Elite, ceremony ============ */
 /* Daily Drill podium on the map (transform lives in the billboard block) */
