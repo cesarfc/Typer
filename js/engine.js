@@ -390,12 +390,24 @@ const Engine = {
     UI.showResults(res);
   },
 
+  // clear any Scholar-island answer/code prompt state so a name prompt
+  // (catch, etc.) never inherits a stale math question or code styling
+  plainPrompt(S) {
+    S.display = null;
+    S.answerMode = false;
+    S.codeMode = false;
+    S.swatch = null;
+    S.out = null;
+    S.awaitingKey = false;
+  },
+
   startCatch(creature, res) {
     const S = this.session;
     S.state = "reveal";
     S.pendingRes = res;
     S.catchCreature = creature;
     S.text = worldProperNames(S.w) ? creature.n : creature.n.toLowerCase();
+    this.plainPrompt(S); // a catch is always "type the name", never a math/code answer
     S.pos = 0;
     S.errorsThisPrompt = 0;
     // Pokemon names may use a few letters the player hasn't learned yet —
@@ -571,6 +583,7 @@ const Engine = {
     S.pendingRes = res;
     S.catchCreature = c;
     S.text = worldProperNames(c.w) ? c.n : c.n.toLowerCase();
+    this.plainPrompt(S); // a catch is always "type the name", never a math/code answer
     S.pos = 0;
     S.errorsThisPrompt = 0;
     const taught = taughtKeys(S.w);
