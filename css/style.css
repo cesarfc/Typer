@@ -1798,8 +1798,8 @@ button, .screen, #topbar { touch-action: manipulation; }
 /* locked wardrobe swatch */
 .swatch.locked-sw { position: relative; opacity: .5; font-size: 11px; display: flex; align-items: center; justify-content: center; cursor: not-allowed; }
 
-/* ---- level card (per-level band choice) ---- */
-#level-card, #day-card {
+/* ---- Today's Adventure card ---- */
+#day-card {
   position: fixed;
   inset: 0;
   background: rgba(8, 10, 24, .82);
@@ -1809,7 +1809,7 @@ button, .screen, #topbar { touch-action: manipulation; }
   justify-content: center;
   z-index: 110;
 }
-.lc-card, .dc-card {
+.dc-card {
   position: relative;
   background: var(--card);
   border: 2px solid var(--line);
@@ -1819,34 +1819,6 @@ button, .screen, #topbar { touch-action: manipulation; }
   text-align: center;
   animation: zoomIn .3s cubic-bezier(.2, 1.4, .4, 1);
 }
-.lc-card h3 { font-size: 20px; font-weight: 900; margin: 0 26px 4px 0; }
-.lc-stats { font-size: 13px; color: var(--dim); margin: 0 0 16px; }
-.lc-stars { color: var(--gold); font-size: 16px; }
-.lc-stars .off { color: var(--line); }
-#lc-close {
-  position: absolute; top: 12px; right: 12px;
-  background: var(--card2); border: 1px solid var(--line); border-radius: 10px;
-  color: var(--text); font-size: 15px; padding: 4px 10px; cursor: pointer;
-}
-.lc-bands { display: flex; gap: 10px; justify-content: center; margin-bottom: 18px; }
-.lc-band {
-  flex: 1;
-  background: var(--card2);
-  border: 2px solid var(--line);
-  border-radius: 14px;
-  padding: 12px 4px;
-  font-size: 26px;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
-.lc-band small { font-size: 11px; font-weight: 800; color: var(--dim); }
-.lc-band.sel { border-color: var(--gold); background: rgba(255, 211, 77, .12); }
-.lc-band.sel small { color: var(--gold); }
-
-/* ---- Today's Adventure card ---- */
 .dc-card { background: linear-gradient(180deg, #2d2545, #8a6d1d); }
 .dc-partner { position: relative; display: inline-block; margin-bottom: 4px; }
 .dc-img { height: 84px; }

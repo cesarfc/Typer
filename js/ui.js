@@ -1388,12 +1388,6 @@ const UI = {
       if (e.key === "Escape") { e.preventDefault(); this.closeAreaPanel(); }
       return;
     }
-    // the level card owns Enter (start) and Escape (close)
-    if (!this.$("level-card").classList.contains("hidden")) {
-      if (e.key === "Escape") { e.preventDefault(); this.closeLevelCard(); }
-      else if (e.key === "Enter") { e.preventDefault(); this.startFromLevelCard(); }
-      return;
-    }
     if (!this.$("day-card").classList.contains("hidden")) {
       if (e.key === "Escape" || e.key === "Enter") {
         e.preventDefault();
@@ -3159,42 +3153,6 @@ const UI = {
       ${hof.length ? `<p class="jr-note">📸 Hall of Fame entries: <b>${hof.length}</b></p>` : ""}`;
   },
 
-  // ---------- level card: per-level skill band choice ----------
-  openLevelCard(w, s) {
-    const world = WORLDS[w];
-    const isBoss = s === world.levels.length;
-    this._lc = { w, s, band: SAVE.state.band };
-    const stars = SAVE.stageStars(w, s);
-    const b = SAVE.state.stageBest[`${w}-${s}`] || {};
-    this.$("level-card").innerHTML = `<div class="lc-card">
-      <button id="lc-close" aria-label="Close">✕</button>
-      <h3>${world.emoji} ${this.esc(isBoss ? `BOSS: ${world.boss.name}` : world.levels[s].name)}</h3>
-      <p class="lc-stats">${stars
-        ? `<span class="lc-stars">${"★".repeat(stars)}<span class="off">${"★".repeat(3 - stars)}</span></span>`
-        : "not cleared yet"}${b.wpm ? ` · best ${b.wpm} wpm · ${Math.round((b.acc || 0) * 100)}%` : ""}${b.ninja ? " · 🥷" : ""}</p>
-      <div class="lc-bands">${BAND_ORDER.map(id => {
-        const bd = BANDS[id];
-        return `<button class="lc-band ${id === this._lc.band ? "sel" : ""}" data-band="${id}"
-          title="${this.esc(bd.desc)}">${bd.e}<small>${bd.label}</small></button>`;
-      }).join("")}</div>
-      <button id="lc-start" class="big-btn">▶ Start <small class="key-hint">Enter</small></button>
-    </div>`;
-    this.$("level-card").classList.remove("hidden");
-  },
-
-  closeLevelCard() {
-    this.$("level-card").classList.add("hidden");
-  },
-
-  startFromLevelCard() {
-    if (!this._lc) return;
-    const { w, s, band } = this._lc;
-    this.closeLevelCard();
-    // Scholar island levels teach the concept first (once)
-    if (WORLDS[w].island) this.startLevelWithLesson(w, s, { band });
-    else Engine.startStage(w, s, { band });
-  },
-
   // ---------- Today's Adventure: three stamps and a soft landing ----------
   maybeDayCard(force) {
     if (!SAVE.state) return;
@@ -3628,22 +3586,6 @@ const UI = {
     });
     this.$("lesson-next").addEventListener("click", () => this.lessonNext());
     this.$("lesson-skip").addEventListener("click", () => { SFX.click(); this.lessonFinish(true); });
-    this.$("level-card").addEventListener("click", e => {
-      if (e.target.id === "level-card" || e.target.closest("#lc-close")) {
-        SFX.click();
-        this.closeLevelCard();
-        return;
-      }
-      const bp = e.target.closest(".lc-band");
-      if (bp) {
-        SFX.click();
-        this._lc.band = bp.dataset.band;
-        this.$("level-card").querySelectorAll(".lc-band").forEach(x =>
-          x.classList.toggle("sel", x.dataset.band === this._lc.band));
-        return;
-      }
-      if (e.target.closest("#lc-start")) { SFX.click(); this.startFromLevelCard(); }
-    });
     this.$("day-card").addEventListener("click", e => {
       if (e.target.closest("#dc-done")) {
         SFX.click();
