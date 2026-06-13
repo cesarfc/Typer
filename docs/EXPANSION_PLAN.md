@@ -1,5 +1,7 @@
 # TypeQuest Expansion Plan — Endgame + The Scholar Archipelago
 
+**Status: Phases 0-6 all shipped (June 2026).** Endgame (medals, Museum, Daily Drill, Research, Elite Four, Hall of Fame), skill bands, feature onboarding, and all three Scholar islands (math/coding/CS) with concept lessons are live on the `typequest-game` branch.
+
 Synthesized from two specialist designs: a game-design pass (retention systems,
 learning-region mechanics, engine/save groundwork) and a UI/UX pass
 (celebration architecture, healthy-play guardrails, prompt/screen designs).

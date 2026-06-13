@@ -143,6 +143,25 @@ drag (or scroll) to explore towns, terrain and the winding route; your
 avatar stands at your next challenge, and wild Pokemon appear along the
 route (silhouettes until you catch them).
 
+### The Scholar Archipelago — learn math, coding & CS (the endgame)
+
+After becoming Champion, a **ferry** opens to three new islands (tap **🗺️ Sea
+Chart** on the map). Each teaches a real school subject through the same
+typing-battle, and opens new keyboard territory — and each starts with a short
+**concept lesson** that assumes you've never seen the subject before, so a kid
+can genuinely learn from zero:
+
+| Island | Teaches | New keys |
+|---|---|---|
+| 🪙 Gimmighoul Coast | counting, the number row, times tables, division, fractions | `1234567890 + - = /` |
+| 💾 Circuit Town | real code — `()`, camelCase, strings, variables, if/loops; lines that **run** | `( ) " { } < > ;` |
+| ⚡ Old Power Plant | hex colors, binary, logic gates, file paths, email addresses, ciphers | `# @ _ : [ ]` |
+
+These islands use a gentle **"the clock only runs while you type"** rule
+(thinking is free), a three-step help ladder that *teaches* instead of
+scolding, and never count toward your typing speed records. They add **48 more
+Pokemon** (144 total) and a new 🪙 Gold Coins currency.
+
 Wild Pokemon are matched to each world so their names mostly use the keys
 already learned; any not-yet-taught letter adds bonus catch time and lights
 up on the on-screen keyboard, so early catches double as a sneak preview.
