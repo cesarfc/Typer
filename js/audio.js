@@ -82,6 +82,12 @@ const SFX = {
     this.tone(1047, 0.5, { gain: 0.13, when: 0.5 });
     this.tone(784, 0.5, { gain: 0.08, when: 0.5 });
   },
+  medal() {
+    // a struck fifth — reads "gong", clearly distinct from the trophy arpeggio
+    this.noise(0.06, { gain: 0.12, freq: 1600 });
+    this.tone(392, 0.5, { gain: 0.12 });
+    this.tone(587.9, 0.7, { gain: 0.1, when: 0.06 });
+  },
   bossHit() {
     this.noise(0.18, { gain: 0.18, freq: 900 });
     this.tone(160, 0.18, { type: "square", gain: 0.1, slideTo: 60 });

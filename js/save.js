@@ -58,7 +58,13 @@ const SAVE = {
       settings: { sound: true, hints: true, difficulty: "normal" },
       streak: { last: null, count: 0 },
       stats: { keys: 0, correct: 0, bestWpm: 0, bestCombo: 0, history: [], perKey: {} },
+      stageBest: {},               // "w-s" -> { wpm, acc, ninja } personal bests
+      counters: {},                // lifetime tallies (hatches, wildCatches, ...)
     };
+  },
+
+  bump(counter, n = 1) {
+    this.state.counters[counter] = (this.state.counters[counter] || 0) + n;
   },
 
   load() {
@@ -153,7 +159,7 @@ const SAVE = {
     if (this.state.roamer.done) return null;
     let h = 0;
     for (const ch of wk) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-    const W6 = WORLDS.length - 1;
+    const W6 = HALL_W;
     const pool = CREATURES[W6].map((c, i) => ({ c, i })).filter(x => !x.c.evoOnly);
     const un = pool.filter(x => !this.state.dex[`${W6}-${x.i}`]);
     const list = un.length ? un : pool;
@@ -307,7 +313,10 @@ const SAVE = {
   },
 
   worldUnlocked(w) {
-    return w === 0 || this.stageStars(w - 1, WORLDS[w - 1].levels.length) > 0;
+    if (w === 0) return true;
+    // islands may unlock after an earlier world than their predecessor
+    const prev = WORLDS[w].unlockAfter === undefined ? w - 1 : WORLDS[w].unlockAfter;
+    return this.stageStars(prev, WORLDS[prev].levels.length) > 0;
   },
 
   stageUnlocked(w, s) {
@@ -352,7 +361,13 @@ const SAVE = {
       this._justAutoPartied = `${w}-${i}`;
     }
     this.award("first-catch", newTrophies);
-    if (shiny) this.award("shiny", newTrophies);
+    if (shiny) {
+      this.award("shiny", newTrophies);
+      const n = this.shinyCount();
+      if (n >= 10) this.award("shiny-10", newTrophies);
+      if (n >= 25) this.award("shiny-25", newTrophies);
+      if (n >= 50) this.award("shiny-50", newTrophies);
+    }
     this.collectTrophies(newTrophies);
     this.save();
     return newTrophies;
@@ -478,6 +493,7 @@ const SAVE = {
     const prev = st.practice[tierId] || {};
     const betterTime = !prev.time || timeMs < prev.time;
     const betterWpm = !prev.wpm || wpm > prev.wpm;
+    if (betterTime || betterWpm) this.bump("records");
     const result = { betterTime, betterWpm, prevTime: prev.time || null, prevWpm: prev.wpm || null };
     st.practice[tierId] = {
       time: betterTime ? timeMs : prev.time,
@@ -535,7 +551,8 @@ const SAVE = {
   },
 
   eggShinyChance() {
-    return Math.min(0.10 + (this.state.streak.count || 1) * 0.02, 0.25);
+    const cap = 0.25 + 0.02 * this.charmTier();
+    return Math.min(0.10 + (this.state.streak.count || 1) * 0.02, cap);
   },
 
   // ---- apply a finished level/boss result; returns {newTrophies, levelUps} ----
@@ -545,6 +562,7 @@ const SAVE = {
     const before = levelFromXp(st.xp);
 
     const key = `${res.w}-${res.s}`;
+    const medalBefore = this.worldMedal(res.w);
     st.stages[key] = Math.max(st.stages[key] || 0, res.stars);
     st.xp += res.xp;
 
@@ -552,6 +570,22 @@ const SAVE = {
     st.stats.bestCombo = Math.max(st.stats.bestCombo, res.bestCombo);
     st.stats.history.push({ d: new Date().toISOString().slice(0, 10), wpm: res.wpm, acc: res.acc });
     if (st.stats.history.length > 30) st.stats.history = st.stats.history.slice(-30);
+
+    // personal bests per stage — the raw material of mastery medals
+    const b = st.stageBest[key] || (st.stageBest[key] = {});
+    const best = {};
+    if (res.wpm > (b.wpm || 0)) { b.wpm = res.wpm; best.wpm = true; }
+    if (res.acc > (b.acc || 0)) { b.acc = res.acc; best.acc = true; }
+    if (res.ninja && res.acc >= 0.95 && !b.ninja) { b.ninja = true; best.ninja = true; }
+
+    if (res.acc >= 1 && res.errors === 0) this.bump("perfectLevels");
+    if (res.ninja) this.bump("ninjaClears");
+
+    const medalAfter = this.worldMedal(res.w);
+    const medalUp = medalAfter > medalBefore ? medalAfter : 0;
+    if (medalAfter >= 2) this.award("medal-silver-1", newTrophies);
+    if (medalAfter >= 3) this.award("medal-gold-1", newTrophies);
+    if (medalAfter >= 4) this.award("crown-1", newTrophies);
 
     this.award("first-level", newTrophies);
     if (res.bestCombo >= 10) this.award("combo-10", newTrophies);
@@ -583,7 +617,56 @@ const SAVE = {
     return {
       newTrophies,
       egg,
+      best,
+      medalUp,
       levelUps: after.level > before.level ? { from: before.level, to: after.level, title: titleForLevel(after.level) } : null,
+    };
+  },
+
+  // ---- World Mastery Medals (computed; tier 0..4 = none..crown) ----
+  // Does every stage of world w meet the requirement for `tier`?
+  medalStageOk(w, s, tier) {
+    const stars = this.stageStars(w, s);
+    const b = this.state.stageBest[`${w}-${s}`] || {};
+    if (tier === 1) return stars === 3;
+    if (tier === 2) return stars === 3 && (b.acc || 0) >= 0.95 && (b.wpm || 0) >= 15;
+    if (tier === 3) return stars === 3 && (b.acc || 0) >= 0.97 && (b.wpm || 0) >= 22;
+    if (tier === 4) return this.medalStageOk(w, s, 3) && !!b.ninja;
+    return false;
+  },
+
+  medalProgress(w, tier) {
+    const total = WORLDS[w].levels.length + 1;
+    let ok = 0;
+    for (let s = 0; s < total; s++) if (this.medalStageOk(w, s, tier)) ok++;
+    return { ok, total };
+  },
+
+  worldMedal(w) {
+    let tier = 0;
+    for (let t = 1; t <= 4; t++) {
+      const p = this.medalProgress(w, t);
+      if (p.ok === p.total) tier = t;
+      else break;
+    }
+    return tier;
+  },
+
+  // ---- Shiny Charm: more shinies caught -> better shiny odds everywhere ----
+  shinyCount() {
+    return Object.values(this.state.dex).filter(d => d.shiny).length;
+  },
+
+  charmTier() {
+    const n = this.shinyCount();
+    return n >= 50 ? 3 : n >= 25 ? 2 : n >= 10 ? 1 : 0;
+  },
+
+  shinyOdds() {
+    const t = this.charmTier();
+    return {
+      catch3: 0.25 + 0.04 * t,  // 3-star post-level catch
+      wild: 0.12 + 0.03 * t,    // grass / fishing / legendary
     };
   },
 };

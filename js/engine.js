@@ -292,6 +292,8 @@ const Engine = {
     res.trophies = applied.newTrophies;
     res.levelUp = applied.levelUps;
     res.egg = applied.egg;
+    res.best = applied.best;
+    res.medalUp = applied.medalUp;
 
     if (!S.isBoss && stars >= 1) {
       const c = SAVE.pickCatch(S.w, stars);
@@ -306,7 +308,7 @@ const Engine = {
     S.state = "reveal";
     S.pendingRes = res;
     S.catchCreature = creature;
-    S.text = S.w === WORLDS.length - 1 ? creature.n : creature.n.toLowerCase();
+    S.text = worldProperNames(S.w) ? creature.n : creature.n.toLowerCase();
     S.pos = 0;
     S.errorsThisPrompt = 0;
     // Pokemon names may use a few letters the player hasn't learned yet —
@@ -366,7 +368,8 @@ const Engine = {
       }
       more = SAVE.bumpCombo(S.bestCombo);
     } else {
-      const shiny = (res.wild ? Math.random() < 0.12 : res.stars === 3 && Math.random() < 0.25);
+      const odds = SAVE.shinyOdds();
+      const shiny = (res.wild ? Math.random() < odds.wild : res.stars === 3 && Math.random() < odds.catch3);
       res.caught = { ...c, shiny };
       more = SAVE.addCreature(c.w, c.i, shiny).concat(SAVE.bumpCombo(S.bestCombo));
       if (S.wild && S.wild.source === "legendary") SAVE.award("legend-1", more);
@@ -375,6 +378,7 @@ const Engine = {
     SFX.catchJingle();
     this.maybePartyToast();
     if (res.wild) {
+      SAVE.bump(S.wild.source === "fish" ? "fishCatches" : "wildCatches");
       SAVE.state.xp += 15;
       SAVE.save();
       UI.catchAnim(S, true, () => {
@@ -479,7 +483,7 @@ const Engine = {
     const res = { wild: true, stars: 0, bestCombo: S.bestCombo, trophies: [] };
     S.pendingRes = res;
     S.catchCreature = c;
-    S.text = c.w === WORLDS.length - 1 ? c.n : c.n.toLowerCase();
+    S.text = worldProperNames(c.w) ? c.n : c.n.toLowerCase();
     S.pos = 0;
     S.errorsThisPrompt = 0;
     const taught = taughtKeys(S.w);
@@ -541,7 +545,7 @@ const Engine = {
     const S = this.session = {
       w: pick.w, s: -3, world: WORLDS[pick.w], isBoss: false,
       prompts: [], idx: 0,
-      text: pick.w === WORLDS.length - 1 ? pick.n : pick.n.toLowerCase(),
+      text: worldProperNames(pick.w) ? pick.n : pick.n.toLowerCase(),
       pos: 0, score: 0, combo: 0, bestCombo: 0,
       hits: 0, errors: 0, errorsThisPrompt: 0, timeouts: 0, hearts: 3,
       typingMs: 0, promptStart: 0, timerMs: 0, timerRemaining: 0,
@@ -575,6 +579,8 @@ const Engine = {
     const S = this.session;
     S.state = "done";
     const { creature, shiny, candy, trophies } = S.hatch;
+    SAVE.bump("hatches");
+    SAVE.save();
     UI.confetti();
     SFX.fanfare();
     setTimeout(() => {
@@ -601,7 +607,7 @@ const Engine = {
     this.session = {
       w: bw, s: -1, world: WORLDS[bw], isBoss: false,
       prompts: [], idx: 0,
-      text: tw === WORLDS.length - 1 ? target.n : target.n.toLowerCase(),
+      text: worldProperNames(tw) ? target.n : target.n.toLowerCase(),
       pos: 0, score: 0, combo: 0, bestCombo: 0,
       hits: 0, errors: 0, errorsThisPrompt: 0, timeouts: 0, hearts: 3,
       typingMs: 0, promptStart: 0, timerMs: 0, timerRemaining: 0,

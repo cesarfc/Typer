@@ -272,6 +272,7 @@ const WORLDS = [
     name: "Hall of Fame",
     tagline: "Capital letters and full sentences. Become the Champion!",
     emoji: "👑",
+    properNames: true, // creature names keep their capital letters here
     gradient: ["#241a4f", "#8a6d1d"],
     accent: "#ffd34d",
     targets: ["👾", "🤖", "🛸"],
@@ -417,6 +418,67 @@ function spriteUrl(id, shiny) {
   return `img/pokemon/${shiny ? "shiny-" : ""}${id}.png`;
 }
 
+// The Hall of Fame's world index. New islands will be appended AFTER this,
+// so "the legendary world" must never be computed as WORLDS.length - 1.
+const HALL_W = 5;
+
+// worlds where Pokemon names keep capitals in catch prompts
+function worldProperNames(w) {
+  return !!(WORLDS[w] && WORLDS[w].properNames);
+}
+
+// ---- World Mastery Medals (computed from per-stage bests, never stored) ----
+// A strict ladder: each tier includes the one below.
+//   Bronze: every stage 3-starred
+//   Silver: + every stage's best ≥ 95% accuracy and ≥ 15 wpm
+//   Gold:   + every stage's best ≥ 97% accuracy and ≥ 22 wpm
+//   Crown:  + every stage cleared in Ninja Mode (guide hidden, ≥ 95% acc)
+const MEDAL_TIERS = [
+  { tier: 1, id: "bronze", e: "🥉", name: "Bronze" },
+  { tier: 2, id: "silver", e: "🥈", name: "Silver", acc: 0.95, wpm: 15 },
+  { tier: 3, id: "gold",   e: "🥇", name: "Gold",   acc: 0.97, wpm: 22 },
+  { tier: 4, id: "crown",  e: "👑", name: "Crown" },
+];
+const MEDAL_E = ["", "🥉", "🥈", "🥇", "👑"];
+
+// ---- Professor's Letters: features introduce themselves when they unlock.
+// when(SAVE) decides if the parcel appears; pages are the letter panels;
+// spotlight steps run after the letter (nav = screen to open first).
+const FEATURE_INTROS = [
+  {
+    id: "medals",
+    icon: "🎖",
+    title: "A parcel from Professor Oak!",
+    when: S => {
+      for (let w = 0; w < WORLDS.length; w++) if (S.worldMedal(w) >= 1) return true;
+      return S.stageStars(HALL_W, WORLDS[HALL_W].levels.length) > 0;
+    },
+    pages: [
+      "Incredible work, Trainer! My research shows your levels are getting close to <b>perfect</b>.",
+      "So I've sent you a <b>Medal Case</b>! Every region can earn a medal: 🥉 Bronze, 🥈 Silver, 🥇 Gold... and the legendary 👑 <b>Crown</b> — for clearing levels with the keyboard guide hidden!",
+      "Replay any level to push your best speed and accuracy. Your Medal Case lives in the <b>Museum</b>. Go take a look!",
+    ],
+    spotlight: [
+      { nav: "trophies", tab: "medals", sel: "#museum-tabs", text: "Your Trophy Room is now a Museum — with wings!" },
+      { sel: "#medal-wing", text: "The Medal Case: every region shows what to do for the next medal." },
+    ],
+  },
+  {
+    id: "shiny",
+    icon: "✨",
+    title: "Professor Oak's shiny research",
+    when: S => S.shinyCount() >= 3,
+    pages: [
+      "Astounding! You've found <b>several ✨ shiny Pokemon</b> — they're extraordinarily rare.",
+      "Keep collecting shinies and you'll earn the <b>Shiny Charm</b> (at 10, 25 and 50): each charm makes EVERY future shiny more likely!",
+      "Your shiny collection is on display in the Museum's <b>Gallery</b> wing. It's beautiful already.",
+    ],
+    spotlight: [
+      { nav: "trophies", tab: "gallery", sel: "#gallery-wing", text: "The Gallery: every shiny you find takes a pedestal. Fill the shelves!" },
+    ],
+  },
+];
+
 // dex keys of water Pokemon that can be hooked at fishing spots
 const WATER_POKEMON = ["0-0", "0-5", "3-0", "3-1", "3-2", "3-3", "4-2", "5-0"];
 
@@ -455,7 +517,7 @@ function spawnSources(w, i) {
     srcs.push({ icon: "🎣", label: "fishing", title: "Cast a line at any fishing spot" });
   }
   srcs.push({ icon: "🥚", label: "eggs", title: "Mystery Eggs can hatch it once this region is open" });
-  if (w === WORLDS.length - 1) {
+  if (w === HALL_W) {
     srcs.push({ icon: "🌟", label: "weekly visit", title: "Can appear as the once-a-week legendary visitor" });
   }
   // some wild Pokemon (Arcanine, Pikachu...) can ALSO be evolved into
@@ -505,6 +567,12 @@ const TROPHIES = [
   { id: "shiny", e: "✨", name: "Shiny Hunter", desc: "Catch a shiny Pokemon" },
   { id: "evolve-1", e: "🧬", name: "Evolver", desc: "Evolve a Pokemon for the first time" },
   { id: "evolve-5", e: "🔮", name: "Evolution Expert", desc: "Evolve 5 Pokemon" },
+  { id: "medal-silver-1", e: "🥈", name: "Silver Standard", desc: "Earn a Silver region medal" },
+  { id: "medal-gold-1", e: "🥇", name: "Golden Touch", desc: "Earn a Gold region medal" },
+  { id: "crown-1", e: "👑", name: "Crowned", desc: "Earn a Crown: master a region in Ninja Mode" },
+  { id: "shiny-10", e: "✨", name: "Shiny Charm", desc: "Collect 10 shiny Pokemon" },
+  { id: "shiny-25", e: "💫", name: "Shiny Charm II", desc: "Collect 25 shiny Pokemon" },
+  { id: "shiny-50", e: "🌈", name: "Shiny Charm III", desc: "Collect 50 shiny Pokemon" },
   { id: "hatch-1", e: "🐣", name: "Hatched!", desc: "Hatch a Mystery Egg" },
   { id: "party-6", e: "🎽", name: "Full Squad", desc: "Put 6 Pokemon in your party" },
   { id: "legend-1", e: "🌟", name: "Legend Catcher", desc: "Catch a roaming legendary" },

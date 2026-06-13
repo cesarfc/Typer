@@ -494,7 +494,7 @@ const UI = {
         if (SAVE.stageUnlocked(w, s) && SAVE.stageStars(w, s) === 0) return { w, s };
       }
     }
-    return { w: WORLDS.length - 1, s: WORLDS[WORLDS.length - 1].levels.length };
+    return { w: HALL_W, s: WORLDS[HALL_W].levels.length };
   },
 
   renderMap() {
@@ -569,9 +569,10 @@ const UI = {
       const unlocked = SAVE.worldUnlocked(wi);
       const maxStars = (w.levels.length + 1) * 3;
       const mid = ns[Math.floor(ns.length / 2)];
+      const medal = SAVE.worldMedal(wi);
       html += `<div class="region-label" data-rw="${wi}" role="button"
         title="Who lives in ${this.esc(w.name)}?" style="left:${mid.x}px;top:${mid.y - 138}px">
-        <b>${w.emoji} ${w.name}</b><span>★ ${SAVE.worldStars(wi)}/${maxStars}</span></div>`;
+        <b>${w.emoji} ${w.name}</b><span>★ ${SAVE.worldStars(wi)}/${maxStars}${medal ? ` ${MEDAL_E[medal]}` : ""}</span></div>`;
 
       // wild Pokemon living on the map: color when caught, silhouette when not
       [[0, 0, -90, -20], [2, 2, 95, 14], [4, 4, -105, 0], [6, 6, 100, 22], [7, 7, -100, 0]].forEach(([ci, ni, ox, oy]) => {
@@ -591,7 +592,7 @@ const UI = {
         const starsHtml = isBoss
           ? (st > 0 ? `<span class="mini-stars">🏆</span>` : "")
           : `<span class="mini-stars">${"★".repeat(st)}<span class="off">${"★".repeat(Math.max(0, 3 - st))}</span></span>`;
-        html += `<button class="mnode ${isBoss ? "boss" : ""} ${open ? "" : "locked"} ${next ? "next" : ""} ${st > 0 ? "done" : ""}"
+        html += `<button class="mnode ${isBoss ? "boss" : ""} ${open ? "" : "locked"} ${next ? "next" : ""} ${st > 0 ? "done" : ""} ${SAVE.medalStageOk(wi, s, 3) ? "gilded" : ""}"
           style="left:${p.x}px;top:${p.y}px" data-w="${wi}" data-s="${s}"
           title="${open ? (isBoss ? `BOSS: ${this.esc(w.boss.name)}` : this.esc(w.levels[s].name)) : "Locked"}">
           ${isBoss ? this.pokeHtml(w.boss.id, w.boss.emoji, { cls: "poke-img stage-img" }) : `<span>${s + 1}</span>`}${starsHtml}
@@ -613,6 +614,14 @@ const UI = {
     const egg = SAVE.state && SAVE.state.egg;
     html += `<div class="map-marker" style="left:${fp.x}px;top:${fp.y - 30}px">
       <span class="mk-bob">${this.avatarHtml(SAVE.state && SAVE.state.profile)}${egg ? `<span class="marker-egg">🥚</span>` : ""}</span><i>▼</i></div>`;
+
+    // a Professor's Letter waits when a new feature has unlocked
+    const intro = this.pendingIntro();
+    if (intro) {
+      html += `<button class="map-parcel" title="${this.esc(intro.title)}"
+        style="left:${fp.x + 84}px;top:${fp.y + 30}px"><span class="parcel-bob">📬</span></button>`;
+      this._hintedThisRender = true; // the letter is today's one teaching moment
+    }
 
     const eggChip = this.$("egg-chip");
     eggChip.classList.toggle("hidden", !egg);
@@ -710,6 +719,86 @@ const UI = {
 
   closeAreaPanel() {
     this.$("area-panel").classList.add("hidden");
+  },
+
+  // ---------- Professor's Letters: features introduce themselves ----------
+  pendingIntro() {
+    if (this._introDoneThisSession || !SAVE.state) return null;
+    const seen = SAVE.state.flags.intros || {};
+    return FEATURE_INTROS.find(f => !seen[f.id] && f.when(SAVE)) || null;
+  },
+
+  startIntro(intro, replay) {
+    this._intro = { def: intro, page: 0, replay: !!replay };
+    this.$("letter-icon").textContent = intro.icon;
+    this.$("letter-title").textContent = intro.title;
+    this.renderLetterPage();
+    this.$("letter-overlay").classList.remove("hidden");
+    SFX.word();
+  },
+
+  renderLetterPage() {
+    const it = this._intro;
+    this.$("letter-page").innerHTML = it.def.pages[it.page];
+    this.$("letter-dots").innerHTML = it.def.pages.map((_, i) =>
+      `<i class="${i === it.page ? "on" : ""}"></i>`).join("");
+    this.$("letter-next").textContent =
+      it.page < it.def.pages.length - 1 ? "Next ▶"
+        : (it.replay || !it.def.spotlight ? "✔ Done" : "Show me! ▶");
+  },
+
+  letterNext() {
+    const it = this._intro;
+    if (!it) return;
+    if (it.page < it.def.pages.length - 1) {
+      it.page++;
+      this.renderLetterPage();
+      SFX.click();
+      return;
+    }
+    this.$("letter-overlay").classList.add("hidden");
+    this._intro = null;
+    if (!it.replay) {
+      SAVE.state.flags.intros = SAVE.state.flags.intros || {};
+      SAVE.state.flags.intros[it.def.id] = true;
+      SAVE.save();
+      this._introDoneThisSession = true;
+      if (this.current === "map") this.renderMap(); // the parcel is collected
+      if (it.def.spotlight) this.runSpotlight(it.def.spotlight, 0);
+    }
+  },
+
+  runSpotlight(steps, i) {
+    if (this._spotEl) { this._spotEl.classList.remove("spot-target"); this._spotEl = null; }
+    if (i >= steps.length) {
+      this.$("spotlight").classList.add("hidden");
+      this._spotNext = null;
+      return;
+    }
+    const st = steps[i];
+    if (st.nav) this.show(st.nav);
+    if (st.tab) { this._museumTab = st.tab; this.renderTrophies(); }
+    this.$("spotlight").classList.remove("hidden");
+    this.$("spot-caption").innerHTML = `${st.text}<br><small>tap to continue</small>`;
+    const el = document.querySelector(st.sel);
+    if (el) {
+      el.classList.add("spot-target");
+      el.scrollIntoView({ block: "center" });
+      this._spotEl = el;
+    }
+    this._spotNext = () => this.runSpotlight(steps, i + 1);
+  },
+
+  museumShowMe(kind) {
+    if (kind !== "dex") return;
+    const worldsMissing = [];
+    for (let w = 0; w < WORLDS.length; w++) {
+      if (CREATURES[w].some((c, i) => !SAVE.state.dex[`${w}-${i}`])) worldsMissing.push(w);
+    }
+    if (!worldsMissing.length) return;
+    const w = worldsMissing.find(x => SAVE.worldUnlocked(x));
+    this.show("map");
+    this.openAreaPanel(w === undefined ? worldsMissing[0] : w);
   },
 
   // ---------- keyboard map navigation (arrows walk the route, Enter starts) ----------
@@ -873,6 +962,13 @@ const UI = {
         SFX.init();
         SFX.word();
         this.openAreaPanel(+rl.dataset.rw);
+        return;
+      }
+      const pc = e.target.closest(".map-parcel");
+      if (pc) {
+        SFX.init();
+        const f2 = this.pendingIntro();
+        if (f2) this.startIntro(f2, false);
       }
     });
 
@@ -1469,10 +1565,33 @@ const UI = {
       eggBox.innerHTML = "";
     }
 
+    // personal bests + the mastery-medal moment
+    const medalBox = this.$("results-medal");
+    medalBox.className = "hidden";
+    medalBox.innerHTML = "";
+    if (res.best && (res.best.wpm || res.best.acc || res.best.ninja)) {
+      const bits = [];
+      if (res.best.wpm) bits.push(`${res.wpm} wpm`);
+      if (res.best.acc) bits.push(`${Math.round(res.acc * 100)}% accuracy`);
+      if (res.best.ninja) bits.push("🥷 ninja clear");
+      medalBox.className = "best-only";
+      medalBox.innerHTML = `<span class="best-note">⭐ New personal best: <b>${bits.join(" · ")}</b>!</span>`;
+    }
+    if (res.medalUp) {
+      const m = MEDAL_TIERS[res.medalUp - 1];
+      setTimeout(() => {
+        medalBox.className = "medal-on";
+        medalBox.innerHTML = `<span class="medal-drop">${m.e}</span>
+          <span class="medal-text"><b>${WORLDS[res.w].name} — ${m.name.toUpperCase()} MEDAL!</b>
+          <i>Mastered. This region's medal is yours forever.</i></span>`;
+        SFX.medal();
+      }, 1600);
+    }
+
     // big moments
     if (res.isBoss && res.firstClear) {
       this.confetti();
-      if (res.w < WORLDS.length - 1) {
+      if (res.w < HALL_W) {
         setTimeout(() => this.toast(`🌍 New world unlocked: ${WORLDS[res.w + 1].emoji} ${WORLDS[res.w + 1].name}!`, "gold"), 800);
       } else {
         setTimeout(() => this.toast(`👑 YOU ARE THE KEY MASTER! You beat the whole game!`, "gold"), 800);
@@ -1484,12 +1603,13 @@ const UI = {
         this.toast(`⬆️ LEVEL UP! You are now Lv ${res.levelUp.to} — ${res.levelUp.title}!`, "gold");
       }, 1300);
     }
+    const trophyAt = res.medalUp ? 2600 : 1800; // a medal beat owns its moment
     (res.trophies || []).forEach((t, i) =>
-      setTimeout(() => this.trophyToast(t), 1800 + i * 900));
+      setTimeout(() => this.trophyToast(t), trophyAt + i * 900));
 
     // buttons
     const next = this.$("btn-next");
-    const lastWorld = WORLDS.length - 1;
+    const lastWorld = HALL_W;
     next.classList.remove("hidden");
     let nextLabel = null;
     if (!res.isBoss) nextLabel = res.s === WORLDS[res.w].levels.length - 1 ? "Boss Fight! 👊" : "Next Level ▶";
@@ -1508,6 +1628,7 @@ const UI = {
     this._practiceMode = false;
     this._resultsAt = performance.now();
     this.$("results-egg").className = "hidden";          // no stale egg note
+    this.$("results-medal").className = "hidden";        // no stale medal beat
     this.$("btn-replay").classList.add("hidden");        // same as Try Again
     this.$("btn-replay").textContent = "↻ Replay";
     const card = this.$("results-card");
@@ -1749,6 +1870,7 @@ const UI = {
     catchBox.className = "catch-result";
     catchBox.innerHTML = `<div class="record-note ${record ? "gold" : ""}">${lines.join("<br>")}</div>`;
     this.$("results-egg").className = "hidden";
+    this.$("results-medal").className = "hidden";
 
     this.$("xp-gained").textContent = `+${res.xp} XP`;
     const lv = levelFromXp(SAVE.state.xp);
@@ -1972,10 +2094,52 @@ const UI = {
   },
 
   // ---------- trophies ----------
+  _museumTab: "trophies",
+
   renderTrophies() {
     const got = SAVE.state.trophies;
     const fresh = (SAVE.state.flags && SAVE.state.flags.newTrophies) || {};
     this.$("trophy-count").textContent = `${Object.keys(got).length} / ${TROPHIES.length}`;
+
+    // ---- ledger: every long-term collection at a glance ----
+    const dexGot = SAVE.caughtCount(), dexAll = CREATURES.flat().length;
+    const shiny = SAVE.shinyCount();
+    let medals = 0;
+    WORLDS.forEach((w, wi) => { medals += SAVE.worldMedal(wi); });
+    const fams = EVOLUTIONS.filter(f => {
+      if (!SAVE.state.dex[f.base]) return false;
+      const links = f.chain || f.choices;
+      return f.choices ? links.some(k => SAVE.state.dex[k]) : links.every(k => SAVE.state.dex[k]);
+    }).length;
+    const rows = [
+      { e: "🏆", label: "Trophies", n: Object.keys(got).length, max: TROPHIES.length },
+      { e: "🎖", label: "Medals", n: medals, max: WORLDS.length * 4 },
+      { e: "📕", label: "Pokedex", n: dexGot, max: dexAll, link: "dex" },
+      { e: "✨", label: "Shinies", n: shiny, max: dexAll },
+      { e: "🧬", label: "Families", n: fams, max: EVOLUTIONS.length },
+    ];
+    this.$("museum-ledger").innerHTML = rows.map(r => {
+      const pct = r.n / r.max;
+      const segs = 20, fill = Math.round(pct * segs);
+      const closing = pct >= 0.9 && r.n < r.max;
+      return `<div class="ledger-row">
+        <span class="ledger-label">${r.e} ${r.label}</span>
+        <span class="ledger-meter">${Array.from({ length: segs }, (_, i) =>
+          `<i class="${i < fill ? "on" : ""}"></i>`).join("")}</span>
+        <span class="ledger-count ${closing ? "closing" : ""}">${closing
+          ? `${r.max - r.n} to find! ${r.link ? `<button class="ledger-link" data-link="${r.link}">show me</button>` : ""}`
+          : `${r.n} / ${r.max}`}</span>
+      </div>`;
+    }).join("");
+
+    // ---- tabs ----
+    document.querySelectorAll("#museum-tabs .mtab").forEach(b =>
+      b.classList.toggle("active", b.dataset.tab === this._museumTab));
+    this.$("trophy-grid").classList.toggle("hidden", this._museumTab !== "trophies");
+    this.$("medal-wing").classList.toggle("hidden", this._museumTab !== "medals");
+    this.$("gallery-wing").classList.toggle("hidden", this._museumTab !== "gallery");
+
+    // ---- trophies wing ----
     this.$("trophy-grid").innerHTML = TROPHIES.map(t => `
       <div class="trophy-card ${got[t.id] ? "on" : ""}">
         ${fresh[t.id] ? `<span class="new-chip">NEW</span>` : ""}
@@ -1983,10 +2147,53 @@ const UI = {
         <div class="trophy-name">${t.name}</div>
         <div class="trophy-desc">${t.desc}</div>
       </div>`).join("");
-    // visiting the room marks everything as seen
-    if (SAVE.state.flags && Object.keys(fresh).length) {
+    if (this._museumTab === "trophies" && SAVE.state.flags && Object.keys(fresh).length) {
       SAVE.state.flags.newTrophies = {};
       SAVE.save();
+    }
+
+    // ---- medal wing: per region, what the next medal needs ----
+    this.$("medal-wing").innerHTML = WORLDS.map((w, wi) => {
+      const tier = SAVE.worldMedal(wi);
+      const unlocked = SAVE.worldUnlocked(wi);
+      let nextLine = "";
+      if (!unlocked) nextLine = `<i class="medal-next dim">🔒 Reach this region first</i>`;
+      else if (tier >= 4) nextLine = `<i class="medal-next done">Fully mastered. Legendary work!</i>`;
+      else {
+        const t = MEDAL_TIERS[tier]; // the next tier up
+        const p = SAVE.medalProgress(wi, t.tier);
+        const req = t.tier === 1 ? "3-star every level"
+          : t.tier === 4 ? "clear every level in 🥷 Ninja Mode (95%+ accuracy)"
+          : `best ≥ ${Math.round(t.acc * 100)}% accuracy and ≥ ${t.wpm} wpm on every level`;
+        nextLine = `<i class="medal-next">${t.e} ${t.name}: <b>${p.ok}/${p.total}</b> levels — ${req}</i>`;
+      }
+      return `<div class="medal-card ${tier ? "has" : ""}">
+        <span class="medal-big">${tier ? MEDAL_E[tier] : "⚪"}</span>
+        <div class="medal-info"><b>${w.emoji} ${this.esc(w.name)}</b>${nextLine}</div>
+      </div>`;
+    }).join("");
+
+    // ---- gallery wing: shiny showcase, empty pedestals included ----
+    this.$("gallery-wing").innerHTML = WORLDS.map((w, wi) => {
+      const shelf = CREATURES[wi].map((c, ci) => {
+        const d = SAVE.state.dex[`${wi}-${ci}`];
+        return `<span class="pedestal ${d && d.shiny ? "lit" : ""}" title="${d && d.shiny ? `✨ ${this.esc(c.n)}` : "Still to shine..."}">
+          ${d && d.shiny ? this.pokeHtml(c.id, c.e, { shiny: true, cls: "poke-img shelf-img" }) : `<i>?</i>`}
+        </span>`;
+      }).join("");
+      const n = CREATURES[wi].filter((c, ci) => {
+        const d = SAVE.state.dex[`${wi}-${ci}`];
+        return d && d.shiny;
+      }).length;
+      return `<div class="shelf"><div class="shelf-title">${w.emoji} ${this.esc(w.name)} <span>✨ ${n}/${CREATURES[wi].length}</span></div>
+        <div class="shelf-row">${shelf}</div></div>`;
+    }).join("");
+
+    // received Professor's letters, replayable
+    const letters = FEATURE_INTROS.filter(f => SAVE.state.flags.intros && SAVE.state.flags.intros[f.id]);
+    if (letters.length) {
+      this.$("museum-ledger").innerHTML += `<div class="letters-row">📬 Letters:
+        ${letters.map(f => `<button class="letter-chip" data-letter="${f.id}">${f.icon} ${this.esc(f.title)}</button>`).join("")}</div>`;
     }
   },
 
@@ -2327,6 +2534,31 @@ const UI = {
         SFX.click();
         this.closeAreaPanel();
       }
+    });
+
+    this.$("museum-tabs").addEventListener("click", e => {
+      const b = e.target.closest(".mtab");
+      if (!b) return;
+      SFX.click();
+      this._museumTab = b.dataset.tab;
+      this.renderTrophies();
+    });
+    this.$("museum-ledger").addEventListener("click", e => {
+      const link = e.target.closest(".ledger-link");
+      if (link) { SFX.click(); this.museumShowMe(link.dataset.link); return; }
+      const chip = e.target.closest(".letter-chip");
+      if (chip) {
+        const f = FEATURE_INTROS.find(x => x.id === chip.dataset.letter);
+        if (f) { SFX.click(); this.startIntro(f, true); }
+      }
+    });
+    this.$("letter-next").addEventListener("click", () => this.letterNext());
+    this.$("spotlight").addEventListener("click", () => {
+      if (!this._spotNext) return;
+      SFX.click();
+      const fn = this._spotNext;
+      this._spotNext = null;
+      fn();
     });
 
     this.$("results-catch").addEventListener("click", e => {

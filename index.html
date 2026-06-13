@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192.png">
-<link rel="stylesheet" href="css/style.css?v=19">
+<link rel="stylesheet" href="css/style.css?v=20">
 </head>
 <body>
 <div id="app">
@@ -30,7 +30,7 @@
     <nav id="main-nav">
       <button class="navbtn active" data-nav="map">🗺️ Map</button>
       <button class="navbtn" data-nav="dex">📕 Dex</button>
-      <button class="navbtn" data-nav="trophies">🏆 Trophies</button>
+      <button class="navbtn" data-nav="trophies">🏛️ Museum</button>
       <button class="navbtn" data-nav="stats">📊 Stats</button>
     </nav>
     <div id="top-right">
@@ -179,6 +179,7 @@
       <div id="results-card">
         <h2 id="results-title">Level Complete!</h2>
         <div id="results-stars"><span class="star">★</span><span class="star">★</span><span class="star">★</span></div>
+        <div id="results-medal" class="hidden"></div>
         <div id="results-grid"></div>
         <div id="results-xp">
           <div class="xp-label"><span id="xp-gained"></span><span id="xp-level"></span></div>
@@ -200,10 +201,18 @@
       <div id="dex-list"></div>
     </section>
 
-    <!-- ============ TROPHIES ============ -->
+    <!-- ============ MUSEUM (trophies · medals · gallery) ============ -->
     <section id="screen-trophies" class="screen hidden">
-      <h2 class="screen-title">Trophy Room <span id="trophy-count"></span></h2>
+      <h2 class="screen-title">🏛️ Museum <span id="trophy-count"></span></h2>
+      <div id="museum-tabs">
+        <button class="mtab active" data-tab="trophies">🏆 Trophies</button>
+        <button class="mtab" data-tab="medals">🎖 Medals</button>
+        <button class="mtab" data-tab="gallery">✨ Gallery</button>
+      </div>
+      <div id="museum-ledger"></div>
       <div id="trophy-grid"></div>
+      <div id="medal-wing" class="hidden"></div>
+      <div id="gallery-wing" class="hidden"></div>
     </section>
 
     <!-- ============ STATS ============ -->
@@ -246,6 +255,16 @@
   <input id="kb-catcher" type="text" autocomplete="off" autocapitalize="none"
          autocorrect="off" spellcheck="false" aria-hidden="true" tabindex="-1">
 
+  <div id="letter-overlay" class="hidden">
+    <div class="letter-card">
+      <div class="letter-head"><span id="letter-icon">📬</span><b id="letter-title"></b></div>
+      <p id="letter-page"></p>
+      <div id="letter-dots"></div>
+      <button id="letter-next" class="big-btn">Next ▶</button>
+    </div>
+  </div>
+  <div id="spotlight" class="hidden"><div id="spot-caption"></div></div>
+
   <div id="trophy-splash" class="hidden" aria-live="polite">
     <div class="ts-card">
       <span id="ts-emoji">🏆</span>
@@ -267,13 +286,13 @@
   <div id="area-panel" class="hidden"></div>
 
 </div>
-<script src="js/data.js?v=19"></script>
-<script src="js/audio.js?v=19"></script>
-<script src="js/save.js?v=19"></script>
-<script src="js/engine.js?v=19"></script>
-<script src="js/sprites.js?v=19"></script>
-<script src="js/ui.js?v=19"></script>
-<script src="js/tutorial.js?v=19"></script>
-<script src="js/main.js?v=19"></script>
+<script src="js/data.js?v=20"></script>
+<script src="js/audio.js?v=20"></script>
+<script src="js/save.js?v=20"></script>
+<script src="js/engine.js?v=20"></script>
+<script src="js/sprites.js?v=20"></script>
+<script src="js/ui.js?v=20"></script>
+<script src="js/tutorial.js?v=20"></script>
+<script src="js/main.js?v=20"></script>
 </body>
 </html>
