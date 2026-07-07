@@ -143,32 +143,11 @@ drag (or scroll) to explore towns, terrain and the winding route; your
 avatar stands at your next challenge, and wild Pokemon appear along the
 route (silhouettes until you catch them).
 
-### The Scholar Archipelago — learn math, coding & CS (the endgame)
-
-After becoming Champion, a **ferry** opens to three new islands (tap **🗺️ Sea
-Chart** on the map). Each teaches a real school subject through the same
-typing-battle, and opens new keyboard territory — and each starts with a short
-**concept lesson** that assumes you've never seen the subject before, so a kid
-can genuinely learn from zero:
-
-| Island | Teaches | New keys |
-|---|---|---|
-| 🪙 Gimmighoul Coast | counting, the number row, times tables, division, fractions | `1234567890 + - = /` |
-| 💾 Circuit Town | real code — `()`, camelCase, strings, variables, if/loops; lines that **run** | `( ) " { } < > ;` |
-| ⚡ Old Power Plant | hex colors, binary, logic gates, file paths, email addresses, ciphers | `# @ _ : [ ]` |
-
-These islands use a gentle **"the clock only runs while you type"** rule
-(thinking is free), a three-step help ladder that *teaches* instead of
-scolding, and never count toward your typing speed records. They add **48 more
-Pokemon** (144 total) and a new 🪙 Gold Coins currency.
-
 Wild Pokemon are matched to each world so their names mostly use the keys
 already learned; any not-yet-taught letter adds bonus catch time and lights
 up on the on-screen keyboard, so early catches double as a sneak preview.
 Catch rounds open with a wobbling Pokeball that bursts open to reveal the
 mystery Pokemon — then the clock starts.
-
-Each world = 5 levels + a **boss fight**. Beating the boss unlocks the next world.
 
 ## What keeps kids coming back
 
@@ -184,7 +163,7 @@ Each world = 5 levels + a **boss fight**. Beating the boss unlocks the next worl
 - **Wild encounters on the map** — every day, 4 patches of 🌿 tall grass
   rustle somewhere in your unlocked regions: click one, weaken the wild
   Pokemon with two words, then type its name to catch it. 🎣 Fishing spots
-  (the Ferry Dock lake and more as you progress) give 2 casts a day — wait
+  (the Fishing Pier lake and more as you progress) give 3 casts a day — wait
   for the bite, type fast to reel, and see what's on the hook. Wild catches
   pay +15 XP and can be shiny.
 - **Mystery Eggs** — the first level you finish each day grants a 🥚.
@@ -204,11 +183,16 @@ Each world = 5 levels + a **boss fight**. Beating the boss unlocks the next worl
   attempt per week: three battle words at a faster pace, then its name.
   Catch it for the Legend Catcher trophy; a duplicate legendary turns
   your copy ✨ shiny.
-- **🏫 Trainer School (practice mode)** — a building on the map with **no
-  countdown at all**: a stopwatch counts up (only while you type) and you
-  race your own best time and best WPM. Four difficulties — Easy, Medium,
-  Hard, Expert — unlock alongside the story worlds and keep separate
-  records. New records pay bonus XP; relaxed practice, real progress.
+- **🏫 Trainer School (practice mode)** — tap the **🏫 Practice** chip on the
+  map to enter a building with **no countdown at all**: a stopwatch counts up
+  (only while you type) and you race your own best time and best WPM. Four
+  difficulties — Easy, Medium, Hard, Expert — unlock alongside the story worlds
+  and keep separate records. New records pay bonus XP; relaxed practice, real
+  progress.
+- **📖 Story Typing** — also inside the Trainer School, unlocked once you reach
+  the 👑 Hall of Fame (you'll need your capitals and punctuation). Type a whole
+  short story as flowing prose — four to choose from — with no countdown: the
+  stopwatch counts up while you type and you race your own best WPM.
 - **Create your own trainer** — pick skin tone, hair style and color, hat
   and shirt when making a player (🎲 randomizes). Your trainer appears in
   the top bar, standing on the map, and in every battle. Existing players
@@ -221,7 +205,7 @@ Each world = 5 levels + a **boss fight**. Beating the boss unlocks the next worl
   Kelvin Shadewing (via the Tuxemon project — see CREDITS.md).
 - **Combos** — 25 correct keys in a row triggers SUPER MODE.
 - **XP, levels and titles** — from Rookie all the way to Typing Legend.
-- **22 trophies**, daily play streaks, and a personal-best speed chart.
+- **36 trophies**, daily play streaks, and a personal-best speed chart.
 - **🥷 Ninja Mode** — hide the on-screen keyboard for 1.5× XP (this is the
   real goal: typing without looking!).
 
