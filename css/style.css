@@ -673,8 +673,23 @@ button:active { transform: translateY(1px) scale(.98); }
 #game-hud { display: flex; align-items: center; gap: 14px; padding: 4px 2px 10px; }
 #btn-pause { font-size: 17px; padding: 7px 13px; border-radius: 10px; }
 #hud-stage { font-weight: 900; font-size: 16px; white-space: nowrap; }
-#hud-progress { flex: 1; height: 10px; background: #10142c; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); }
-#hud-progress-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--info), var(--good)); transition: width .4s; }
+#hud-progress { flex: 1; position: relative; height: 10px; background: #10142c; border-radius: 6px; border: 1px solid var(--line); }
+#hud-progress-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--info), var(--good)); border-radius: 6px; transition: width .4s; }
+/* Practice Ghost racer — rides the bar, tints green while you're ahead */
+#ghost-marker {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translate(-50%, -50%);
+  font-size: 15px;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 2;
+  filter: grayscale(.45) brightness(1.15) drop-shadow(0 0 4px rgba(170, 180, 210, .7));
+  transition: left .25s linear, filter .2s;
+}
+#ghost-marker.ahead { filter: drop-shadow(0 0 6px rgba(126, 231, 135, .95)); }
+#ghost-marker.hidden { display: none; }
 #hud-right { display: flex; gap: 12px; align-items: center; font-weight: 900; font-size: 16px; }
 #hud-combo { color: var(--dim); transition: color .2s, transform .15s; }
 #hud-combo.hot { color: var(--gold); transform: scale(1.15); }

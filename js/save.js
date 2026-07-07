@@ -646,7 +646,7 @@ const SAVE = {
   },
 
   // ---- Trainer School practice: personal bests per tier ----
-  applyPractice(tierId, timeMs, wpm, acc, bestCombo) {
+  applyPractice(tierId, timeMs, wpm, acc, bestCombo, wordTimes) {
     const st = this.state;
     const prev = st.practice[tierId] || {};
     const betterTime = !prev.time || timeMs < prev.time;
@@ -654,10 +654,13 @@ const SAVE = {
     if (betterTime || betterWpm) this.bump("records");
     this.dayInfo().school = true;
     const result = { betterTime, betterWpm, prevTime: prev.time || null, prevWpm: prev.wpm || null };
+    // the ghost belongs to the best-TIME run — keep the old one otherwise
+    const ghost = betterTime && wordTimes && wordTimes.length ? wordTimes : (prev.ghost || null);
     st.practice[tierId] = {
       time: betterTime ? timeMs : prev.time,
       wpm: betterWpm ? wpm : prev.wpm,
     };
+    if (ghost) st.practice[tierId].ghost = ghost;
 
     const newTrophies = [];
     st.stats.bestWpm = Math.max(st.stats.bestWpm, wpm);

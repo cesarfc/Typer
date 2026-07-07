@@ -211,6 +211,8 @@ const Engine = {
     const S = this.session;
     this.stopTimer();
     S.typingMs += performance.now() - S.promptStart;
+    // Practice Ghost: snapshot cumulative typing time as each word lands
+    if (S.practice && S.wordTimes) S.wordTimes.push(S.typingMs);
 
     if (S.state === "welcome") { this.finishHatch(); return; }
     if (S.state === "evolve") { this.evolveSuccess(); return; }
@@ -256,6 +258,11 @@ const Engine = {
     while (prompts.length < tier.count) prompts = prompts.concat(shuffle([...pool]));
     prompts = prompts.slice(0, tier.count);
 
+    // Practice Ghost: race the per-word pace of your best-TIME run so far.
+    // Old saves (or a first attempt) simply have no ghost yet.
+    const rec = SAVE.state.practice[tierId] || {};
+    const ghost = rec.ghost && rec.ghost.length ? rec.ghost : null;
+
     this.paused = false;
     this.pendingNext = false;
     this.session = {
@@ -271,6 +278,7 @@ const Engine = {
       hits: 0, errors: 0, errorsThisPrompt: 0, timeouts: 0, hearts: 3,
       typingMs: 0, promptStart: 0, timerMs: 0, timerRemaining: 0,
       baseTime: 0, state: "play", practice: tier,
+      wordTimes: [], ghost, // cumulative ms per word; ghost = best run's snapshots
       partner: SAVE.leadCreature(), charge: 0, partnerReady: false, meterOn: false,
       ninjaEligible: false, pendingRes: null, catchCreature: null,
     };
@@ -314,9 +322,15 @@ const Engine = {
       const acc = total ? S.hits / total : 1;
       const timeMs = Math.round(Math.max(1000, S.typingMs));
       const wpm = Math.round((S.hits / 5) / (timeMs / 60000));
-      const applied = SAVE.applyPractice(S.practice.id, timeMs, wpm, acc, S.bestCombo);
+      // Practice Ghost: how did this run stack up against the ghost we raced?
+      let ghost = null;
+      if (S.ghost && S.ghost.length) {
+        const ghostFinal = S.ghost[S.ghost.length - 1];
+        ghost = { beat: timeMs < ghostFinal, deltaMs: Math.abs(timeMs - ghostFinal) };
+      }
+      const applied = SAVE.applyPractice(S.practice.id, timeMs, wpm, acc, S.bestCombo, S.wordTimes);
       UI.showPracticeResults({
-        tier: S.practice, timeMs, wpm, acc, bestCombo: S.bestCombo, ...applied,
+        tier: S.practice, timeMs, wpm, acc, bestCombo: S.bestCombo, ghost, ...applied,
       });
       return;
     }

@@ -1433,6 +1433,9 @@ const UI = {
     wrap.style.transform = "none";
     this.renderPromptText(S);
     this.$("hud-progress-fill").style.width = `${Math.round(100 * S.idx / S.prompts.length)}%`;
+    // the ghost racer only belongs to Trainer School drills
+    const gm = this.$("ghost-marker");
+    if (gm && !S.practice) gm.classList.add("hidden");
   },
 
   renderPromptText(S) {
@@ -2112,6 +2115,20 @@ const UI = {
     this.$("stopwatch-time").textContent = this.fmtTime(ms);
     const wpm = ms > 2000 ? Math.round((S.hits / 5) / (ms / 60000)) : 0;
     this.$("stopwatch-wpm").textContent = `${wpm} wpm`;
+    this.updateGhost(S, ms);
+  },
+
+  // Practice Ghost: slide the 👻 along the progress bar to where your best
+  // run had reached by this elapsed time; green glow while you're ahead of it.
+  updateGhost(S, ms) {
+    const marker = this.$("ghost-marker");
+    if (!marker) return;
+    if (!S.practice || !S.ghost || !S.ghost.length) { marker.classList.add("hidden"); return; }
+    marker.classList.remove("hidden");
+    let done = 0;
+    while (done < S.ghost.length && S.ghost[done] <= ms) done++;
+    marker.style.left = `${Math.min(100, 100 * done / S.prompts.length)}%`;
+    marker.classList.toggle("ahead", S.idx > done); // you've cleared more words than the ghost
   },
 
   practiceScene(S) {
@@ -2130,6 +2147,14 @@ const UI = {
     this.$("hud-hearts").classList.add("hidden");
     this.$("boss-bar").classList.add("hidden");
     this.$("player-avatar").innerHTML = this.avatarHtml(SAVE.state.profile);
+    // Practice Ghost marker (drills only — Story Typing never has a ghost)
+    const ghost = this.$("ghost-marker");
+    const hasGhost = !!(S.practice && S.ghost && S.ghost.length);
+    if (ghost) {
+      ghost.classList.toggle("hidden", !hasGhost);
+      ghost.classList.remove("ahead");
+      ghost.style.left = "0%";
+    }
     this.showPartner(S);
     this.partnerMeter(S);
     const arena = this.$("arena");
@@ -2153,6 +2178,10 @@ const UI = {
     this.$("stopwatch-time").textContent = "0.0s";
     this.$("stopwatch-wpm").textContent = "0 wpm";
     this.announce(`⏱ No countdown — beat your record!`, 1800);
+    // first drill of a tier: no ghost to race yet — invite them to make one
+    if (S.practice && !hasGhost) {
+      setTimeout(() => this.toast("👻 Set a record to unlock your ghost racer — then race it next time!", "gold"), 900);
+    }
   },
 
   renderPractice() {
@@ -2216,6 +2245,13 @@ const UI = {
     if (res.betterTime) lines.push(`⏱ <b>NEW BEST TIME!</b>${res.prevTime ? ` (was ${this.fmtTime(res.prevTime)})` : ""}`);
     if (res.betterWpm) lines.push(`⚡ <b>NEW BEST SPEED!</b>${res.prevWpm ? ` (was ${res.prevWpm} wpm)` : ""}`);
     if (!record) lines.push(`Your records: ⏱ ${this.fmtTime(res.prevTime)} · ⚡ ${res.prevWpm} wpm — so close!`);
+    // Practice Ghost verdict: did you out-race the ghost of your best run?
+    if (res.ghost) {
+      const secs = (res.ghost.deltaMs / 1000).toFixed(1);
+      lines.push(res.ghost.beat
+        ? `🏁 You beat your ghost by <b>${secs}s</b>!`
+        : `👻 Your ghost won by <b>${secs}s</b> — rematch?`);
+    }
     const catchBox = this.$("results-catch");
     catchBox.className = "catch-result";
     catchBox.innerHTML = `<div class="record-note ${record ? "gold" : ""}">${lines.join("<br>")}</div>`;
