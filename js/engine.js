@@ -50,8 +50,6 @@ const Engine = {
       baseTime: (isBoss ? world.boss.time : lvl.time) * BANDS[band].time,
       band,
       timeScale: opts.assist ? 1.45 : 1, // one-run "more time" rescue
-      scholar: !!world.island,           // think/type clock + helper ladder
-      statsLane: world.statsLane || "type",
       state: "play",
       ninjaEligible: UI.kbHidden,
       pendingRes: null,
@@ -77,29 +75,14 @@ const Engine = {
     S.errorsThisPrompt = 0;
     const p = S.prompts[S.idx];
     S.text = promptAnswer(p);
-    S.display = promptDisplay(p);        // the question (null for copy prompts)
-    S.think = promptThink(p);            // seconds of free thinking time
-    S.answerMode = !!S.display;          // display != typed -> hide the answer guide
-    S.codeMode = promptCode(p);          // monospace code prompt
-    S.out = promptOut(p);                // run result to print on completion
-    S.swatch = promptSwatch(p);          // hex color preview
     UI.showPrompt(S);
 
     if (S.practice || S.paragraph) { this.startTimer(Infinity); return; }
 
     // typing-only budget (the clock measures fluency, never thinking)
-    let ms = (S.baseTime + S.text.length * 0.6 + S.think) * this.difficulty().time * 1000 * (S.timeScale || 1);
+    let ms = (S.baseTime + S.text.length * 0.6) * this.difficulty().time * 1000 * (S.timeScale || 1);
     if (S.idx === 0 && isFinite(ms)) ms += 700; // reading time for the announce
 
-    // Answer prompts (math problems, predict-the-output): "the clock only
-    // runs while you type" — pause until the first keystroke so working out
-    // the answer never costs the clock. Copy prompts just type normally.
-    if (S.scholar && S.answerMode) {
-      S.awaitingKey = true;
-      UI.thinkPhase(S, true);
-      S.pendingMs = ms;
-      return;
-    }
     this.startTimer(ms);
   },
 
@@ -168,13 +151,6 @@ const Engine = {
     UI.capsCheck(e);
     if (!UI.kbHidden) S.ninjaEligible = false;
 
-    // first keystroke on a Scholar prompt wakes the typing clock
-    if (S.awaitingKey) {
-      S.awaitingKey = false;
-      UI.thinkPhase(S, false);
-      this.startTimer(S.pendingMs);
-    }
-
     const key = normalizeKey(e.key);
     const expected = S.text[S.pos];
     SAVE.recordKey(expected, key === expected);
@@ -198,38 +174,12 @@ const Engine = {
     } else {
       S.errors++;
       S.errorsThisPrompt++;
-      // arithmetic slips are thinking, not typing: the FIRST wrong attempt
-      // on a Scholar answer prompt doesn't break the combo
-      if (!(S.answerMode && S.errorsThisPrompt === 1)) {
-        S.combo = 0;
-        UI.superMode(false);
-      }
+      S.combo = 0;
+      UI.superMode(false);
       SFX.error();
       UI.charError(S);
-      // the helper card / hint ladder teaches instead of scolding
-      if (S.scholar) this.scholarHint(S);
     }
     UI.updateHud(S);
-  },
-
-  // three-step support ladder on Scholar prompts: self-correct chance ->
-  // helper card -> ghost-type the answer + silently re-queue
-  scholarHint(S) {
-    if (S.errorsThisPrompt === 2) {
-      UI.showHelper(S);          // trainer's notes (skip-count, fact triangle, ...)
-    } else if (S.errorsThisPrompt >= 3 && !S.ghosting) {
-      S.ghosting = true;
-      UI.ghostAnswer(S, () => {  // shows the answer in blue; kid echoes it once
-        S.ghosting = false;
-        // re-meet this exact prompt a few cards later (unless near the end)
-        if (S.answerMode && (S.requeuedHint || 0) < 3 && S.idx < S.prompts.length - 1) {
-          const insertAt = Math.min(S.prompts.length, S.idx + 3);
-          S.prompts.splice(insertAt, 0, S.prompts[S.idx]);
-          S.requeuedHint = (S.requeuedHint || 0) + 1;
-          S.requeuedIdx = insertAt;
-        }
-      });
-    }
   },
 
   addCharge(S, amt) {
@@ -259,18 +209,9 @@ const Engine = {
       S.prompts.push(S.text);
       S.requeued = (S.requeued || 0) + 1;
     }
-    // solving a re-queued "remembered" Scholar prompt is a small celebration
-    if (S.scholar && S.requeuedIdx === S.idx && perfect) {
-      S.score += 5;
-      UI.floatText("🧠 You remembered! +5");
-      S.requeuedIdx = -1;
-    }
     S.score += perfect ? 5 : 2;
     if (perfect) this.addCharge(S, 5); // flawless words charge the partner extra
     UI.updateHud(S);
-
-    // coding island: a finished line of code RUNS and prints its output
-    if (S.out) UI.runCode(S.out);
 
     if (S.isBoss) { UI.bossHit(S); SFX.bossHit(); }
     else { UI.targetHit(S); SFX.word(); }
@@ -391,11 +332,9 @@ const Engine = {
 
     const ninja = S.ninjaEligible && UI.kbHidden;
     const diff = this.difficulty();
-    const facts = S.statsLane === "facts";
     let xp = S.isBoss ? 50 + 15 * stars : 20 + 10 * stars;
     if (acc >= 1 && total > 0) xp += 10;
-    // facts islands earn from answers solved, not raw WPM (math answers are short)
-    xp += facts ? Math.min(20, S.hits) : Math.min(20, wpm);
+    xp += Math.min(20, wpm);
     if (ninja) xp = Math.round(xp * 1.5);
     if (diff.xp > 1) xp = Math.round(xp * diff.xp);
     xp = Math.round(xp * (BANDS[S.band] ? BANDS[S.band].xp : 1));
@@ -404,14 +343,9 @@ const Engine = {
       w: S.w, s: S.s, isBoss: S.isBoss, stars, acc, wpm, xp,
       score: S.score, bestCombo: S.bestCombo, errors: S.errors, timeouts: S.timeouts,
       ninja, turbo: diff.xp > 1, xpBefore: SAVE.state.xp,
-      band: S.band || "trainer", factsLane: facts,
+      band: S.band || "trainer",
       firstClear: SAVE.stageStars(S.w, S.s) === 0,
     };
-    // Gimmighoul Coast pays Gold Coins (= stars) toward Gholdengo
-    if (S.world.subject === "math" && stars > 0) {
-      SAVE.addCoins(stars);
-      res.coins = stars;
-    }
     const applied = SAVE.applyResult(res);
     res.trophies = applied.newTrophies;
     res.levelUp = applied.levelUps;
@@ -427,17 +361,6 @@ const Engine = {
     UI.showResults(res);
   },
 
-  // clear any Scholar-island answer/code prompt state so a name prompt
-  // (catch, etc.) never inherits a stale math question or code styling
-  plainPrompt(S) {
-    S.display = null;
-    S.answerMode = false;
-    S.codeMode = false;
-    S.swatch = null;
-    S.out = null;
-    S.awaitingKey = false;
-  },
-
   startCatch(creature, res) {
     const S = this.session;
     S.state = "reveal";
@@ -447,7 +370,6 @@ const Engine = {
     // sprite (and twinkle) live, instead of springing it on the results card
     S.catchShiny = !creature.duplicate && res.stars === 3 && Math.random() < SAVE.shinyOdds().catch3;
     S.text = worldProperNames(S.w) ? creature.n : creature.n.toLowerCase();
-    this.plainPrompt(S); // a catch is always "type the name", never a math/code answer
     S.pos = 0;
     S.errorsThisPrompt = 0;
     // Pokemon names may use a few letters the player hasn't learned yet —
@@ -628,7 +550,6 @@ const Engine = {
     S.pendingRes = res;
     S.catchCreature = c;
     S.text = worldProperNames(c.w) ? c.n : c.n.toLowerCase();
-    this.plainPrompt(S); // a catch is always "type the name", never a math/code answer
     S.pos = 0;
     S.errorsThisPrompt = 0;
     const taught = taughtKeys(S.w);

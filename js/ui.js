@@ -438,7 +438,7 @@ const UI = {
     const rng = () => { h = (h * 1664525 + 1013904223) >>> 0; return h / 4294967296; };
     const candidates = [];
     WORLDS.forEach((w, wi) => {
-      if (w.island || !this.GRASS_SPOTS[wi] || !SAVE.worldUnlocked(wi)) return;
+      if (!this.GRASS_SPOTS[wi] || !SAVE.worldUnlocked(wi)) return;
       this.GRASS_SPOTS[wi].forEach((p, k) => candidates.push({ id: `${wi}-${k}`, w: wi, ...p }));
     });
     const order = candidates.map((c, i) => ({ c, r: rng() })).sort((a, b) => a.r - b.r);
@@ -528,18 +528,10 @@ const UI = {
     return out;
   },
 
-  // the main island only holds the story worlds; Scholar islands (world.island)
-  // live on their own route screens reached via the Sea Chart
-  mainWorldCount() {
-    let n = 0;
-    while (WORLDS[n] && !WORLDS[n].island) n++;
-    return n;
-  },
-
   mapNodes() {
     if (this._mapNodes) return this._mapNodes;
     const A = this.mapAnchors;
-    this._mapNodes = WORLDS.slice(0, this.mainWorldCount()).map((w, wi) => {
+    this._mapNodes = WORLDS.map((w, wi) => {
       const [ax, ay] = A[wi], [bx, by] = A[wi + 1];
       const n = w.levels.length + 1;
       const dx = bx - ax, dy = by - ay;
@@ -556,7 +548,6 @@ const UI = {
 
   mapFrontier() {
     for (let w = 0; w < WORLDS.length; w++) {
-      if (WORLDS[w].island) continue; // the marker stays on the main island
       for (let s = 0; s <= WORLDS[w].levels.length; s++) {
         if (SAVE.stageUnlocked(w, s) && SAVE.stageStars(w, s) === 0) return { w, s };
       }
@@ -579,7 +570,7 @@ const UI = {
 
     // painted island terrain + per-region color tints
     let html = this.terrainSvg();
-    const blobs = WORLDS.slice(0, this.mainWorldCount()).map((w, i) => {
+    const blobs = WORLDS.map((w, i) => {
       const [ax, ay] = this.mapAnchors[i], [bx, by] = this.mapAnchors[i + 1];
       return `radial-gradient(740px 580px at ${Math.round((ax + bx) / 2)}px ${Math.round((ay + by) / 2)}px, ${w.gradient[1]}59, transparent 72%)`;
     }).join(",");
@@ -638,7 +629,6 @@ const UI = {
       <span class="${daily.done ? "" : "podium-glow"}">${daily.done ? "✅" : "📋"}</span><b>Daily Drill</b></button>`;
 
     WORLDS.forEach((w, wi) => {
-      if (w.island) return; // Scholar islands render on their own route screen
       const ns = nodes[wi];
       const unlocked = SAVE.worldUnlocked(wi);
       const maxStars = (w.levels.length + 1) * 3;
@@ -1000,7 +990,7 @@ const UI = {
     if (!keys.includes(e.key)) return;
     e.preventDefault();
     const flat = [];
-    WORLDS.forEach((w, wi) => { if (w.island) return; for (let s = 0; s <= w.levels.length; s++) flat.push({ w: wi, s }); });
+    WORLDS.forEach((w, wi) => { for (let s = 0; s <= w.levels.length; s++) flat.push({ w: wi, s }); });
     if (this._mapSel === null || this._mapSel === undefined) {
       const f = this.mapFrontier();
       this._mapSel = flat.findIndex(n => n.w === f.w && n.s === f.s);
@@ -1262,11 +1252,8 @@ const UI = {
     return m[base] || null;
   },
 
-  _kbLayout: "letters",
-
-  buildKeyboard(layoutId = "letters") {
-    this._kbLayout = layoutId;
-    const rows = KB_LAYOUTS[layoutId] || KB_ROWS;
+  buildKeyboard() {
+    const rows = KB_ROWS;
     const shiftRowIdx = rows.length - 2; // the row that gets the ⇧ keys
     let html = "";
     rows.forEach((row, ri) => {
@@ -1283,7 +1270,6 @@ const UI = {
       html += `</div>`;
     });
     html += `<div class="kb-row"><div class="key space f8" data-key=" ">space</div></div>`;
-    this.$("kb").classList.toggle("kb-full", layoutId === "full");
     // one keyboard + hands for the game screen, one set for the tutorial
     this.$("kb").innerHTML = html;
     this.$("tut-kb").innerHTML = html;
@@ -1349,14 +1335,6 @@ const UI = {
     const w = S.world;
     document.body.classList.remove("super-mode");
     this.$("capslock-warn").classList.add("hidden");
-    // Scholar islands need the number row / symbols; others keep the
-    // original letters board (and its tight small-screen height budget)
-    const layout = w.kb || "letters";
-    if (this._kbLayout !== layout) this.buildKeyboard(layout);
-    this.$("question-card").classList.add("hidden");
-    this.$("helper-card").classList.add("hidden");
-    this.$("think-pill").classList.add("hidden");
-    this.$("code-output").classList.add("hidden");
     this.applyKbVisibility();
     this.practiceTimerUI(false);
 
@@ -1450,29 +1428,12 @@ const UI = {
     }
     wrap.style.opacity = 1;
     wrap.style.transform = "none";
-    this.$("helper-card").classList.add("hidden"); // fresh prompt, fresh start
-    this.$("code-output").classList.add("hidden");
     this.renderPromptText(S);
     this.$("hud-progress-fill").style.width = `${Math.round(100 * S.idx / S.prompts.length)}%`;
   },
 
   renderPromptText(S) {
     const pw = this.$("prompt-word");
-    const qc = this.$("question-card");
-    // the question (math problem / code-output prompt) above the answer slots
-    if (S.display) {
-      qc.classList.remove("hidden");
-      qc.classList.toggle("long", S.display.length > 18);
-      qc.innerHTML = this.esc(S.display).replace(/❓|\?$/g, m => `<span class="q-mark">${m}</span>`);
-    } else if (S.swatch) {
-      // hex color prompt: show the live color the code paints
-      qc.classList.remove("hidden");
-      qc.classList.remove("long");
-      qc.innerHTML = `<span class="hex-swatch" style="background:${this.esc(S.swatch)}"></span>`;
-    } else {
-      qc.classList.add("hidden");
-      qc.innerHTML = "";
-    }
     // Story Typing: the whole paragraph as flowing prose — chars are grouped
     // into non-breaking words so lines wrap at spaces, never mid-word
     if (S.paragraphMode) {
@@ -1495,20 +1456,15 @@ const UI = {
       return;
     }
     pw.className = "";
-    pw.classList.toggle("code-prompt", !!S.codeMode);
     if (S.text.length > 30) pw.classList.add("xlong");
     else if (S.text.length > 16) pw.classList.add("long");
-    // answer-mode: untyped characters render as blank slots, not the answer
     pw.innerHTML = [...S.text].map((c, i) => {
       const typed = i < S.pos;
       const cur = i === S.pos;
-      const hideAnswer = S.answerMode && !typed;
-      const glyph = c === " " ? "·" : hideAnswer ? "_" : this.esc(c);
-      return `<span class="ch ${typed ? "done" : cur ? "cur" : ""} ${c === " " ? "sp" : ""} ${hideAnswer ? "mystery" : ""}">${glyph}</span>`;
+      const glyph = c === " " ? "·" : this.esc(c);
+      return `<span class="ch ${typed ? "done" : cur ? "cur" : ""} ${c === " " ? "sp" : ""}">${glyph}</span>`;
     }).join("");
-    // suppress the answer guide in answer-mode until 2 errors turn it into a rescue
-    if (S.answerMode && S.errorsThisPrompt < 2) this.highlightKey(null);
-    else this.highlightKey(S.text[S.pos]);
+    this.highlightKey(S.text[S.pos]);
   },
 
   charDone(S) {
@@ -1524,8 +1480,7 @@ const UI = {
       if (!S.paragraphMode) spans[S.pos - 1].textContent = c === " " ? "·" : c;
     }
     if (spans[S.pos]) spans[S.pos].classList.add("cur");
-    if (S.answerMode && S.errorsThisPrompt < 2) this.highlightKey(null);
-    else this.highlightKey(S.text[S.pos]);
+    this.highlightKey(S.text[S.pos]);
     if (S.paragraphMode) {
       // keep the cursor line in view as the story scrolls
       if (spans[S.pos]) spans[S.pos].scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -1533,109 +1488,6 @@ const UI = {
     }
     const r = pw.getBoundingClientRect();
     this.burst(r.left + r.width / 2, r.top, [S.world.accent], 3, 2.2);
-  },
-
-  // ---------- Scholar islands: think/type, helper cards, ghost answers ----------
-  thinkPhase(S, on) {
-    const pill = this.$("think-pill");
-    const bar = this.$("timer-bar");
-    if (on) {
-      pill.classList.remove("hidden");
-      pill.textContent = "🤔 think it through…";
-      bar.classList.add("thinking"); // dim, breathing — no countdown yet
-    } else {
-      pill.classList.remove("hidden");
-      pill.textContent = "⌨️ go!";
-      bar.classList.remove("thinking");
-      setTimeout(() => { if (this.$("think-pill").textContent === "⌨️ go!") this.$("think-pill").classList.add("hidden"); }, 600);
-    }
-  },
-
-  showHelper(S) {
-    const card = this.$("helper-card");
-    const html = this.helperContent(S);
-    if (!html) return;
-    card.innerHTML = `<div class="helper-inner"><span class="helper-tag">📝 trainer's notes</span>${html}</div>`;
-    card.classList.remove("hidden");
-  },
-
-  // pictorial scaffolds matched to the operation in the question
-  helperContent(S) {
-    const d = S.display || "";
-    let m;
-    if ((m = d.match(/(\d+)\s*×\s*(\d+)/))) {
-      const a = +m[1], b = +m[2];
-      const strip = Array.from({ length: a }, (_, i) => `<span>${b * (i + 1)}</span>`).join("<i>·</i>");
-      return `<div class="help-skip">count by ${b}s: ${strip}</div>`;
-    }
-    if ((m = d.match(/(\d+)\s*÷\s*(\d+)/))) {
-      const a = +m[1], b = +m[2];
-      return `<div class="help-triangle"><b>${a}</b><span>${b} × ❓ = ${a}</span></div>`;
-    }
-    if ((m = d.match(/1\/(\d+)\s*of\s*(\d+)/))) {
-      const parts = +m[1], whole = +m[2];
-      return `<div class="help-pie">split ${whole} into ${parts} equal parts: ${whole} ÷ ${parts}</div>`;
-    }
-    if ((m = d.match(/([01]{2,})/))) {
-      // binary: show the 8-4-2-1 place values lit up
-      const bits = m[1];
-      const vals = [8, 4, 2, 1].slice(-bits.length);
-      const cells = [...bits].map((b, i) =>
-        `<span class="bin-cell ${b === "1" ? "on" : ""}">${vals[i]}<i>${b}</i></span>`).join("");
-      const sum = [...bits].reduce((a, b, i) => a + (b === "1" ? vals[i] : 0), 0);
-      return `<div class="help-bin">${cells}<b>= ${sum}</b></div>`;
-    }
-    if (/AND|OR|NOT/.test(d)) {
-      return `<div class="help-line">AND needs <b>both</b> true · OR needs <b>one</b> true · NOT <b>flips</b> it</div>`;
-    }
-    if (/shift back/.test(d)) {
-      return `<div class="help-line">move each letter back: b→a, c→b, d→c… use the alphabet!</div>`;
-    }
-    if ((m = d.match(/(\d+)\s*([+\-])\s*(\d+)/))) {
-      return `<div class="help-line">work it out step by step — line up the ones, then the tens</div>`;
-    }
-    return `<div class="help-line">take your time — you've got this! 💪</div>`;
-  },
-
-  ghostAnswer(S, cb) {
-    // type the answer in blue, slot by slot — shown, not earned (stays
-    // a "mystery" reveal). Then the kid echoes it once to continue.
-    const spans = this.$("prompt-word").children;
-    let i = S.pos;
-    const step = () => {
-      if (i >= S.text.length) { if (cb) cb(); return; }
-      const el = spans[i];
-      if (el) { el.classList.add("ghost"); el.textContent = S.text[i] === " " ? "·" : S.text[i]; el.classList.remove("mystery"); }
-      i++;
-      setTimeout(step, 300);
-    };
-    this.$("finger-hint").innerHTML = "💡 Here's the answer — now type it once to go on!";
-    step();
-  },
-
-  floatText(text) {
-    const a = this.$("arena");
-    const el = document.createElement("div");
-    el.className = "float-text";
-    el.textContent = text;
-    a.appendChild(el);
-    setTimeout(() => el.remove(), 1400);
-  },
-
-  // the payoff on the coding island: a completed line of code runs and
-  // typewriters its output into a little console
-  runCode(out) {
-    const box = this.$("code-output");
-    box.classList.remove("hidden");
-    box.innerHTML = `<span class="co-prompt">&gt; </span><span class="co-text"></span><span class="co-cursor">▋</span>`;
-    const txt = box.querySelector(".co-text");
-    let i = 0;
-    const step = () => {
-      if (i >= out.length) { SFX.word(); return; }
-      txt.textContent += out[i++];
-      setTimeout(step, 38);
-    };
-    step();
   },
 
   charError(S) {
@@ -1649,13 +1501,6 @@ const UI = {
     pw.classList.remove("shake");
     void pw.offsetWidth;
     pw.classList.add("shake");
-    // first slip on a Scholar prompt: gentle nudge, no content hint yet;
-    // at 2 the guide wakes as a rescue
-    if (S.scholar) {
-      if (S.answerMode && S.errorsThisPrompt >= 2) this.highlightKey(S.text[S.pos]);
-      const hint = this.$("finger-hint");
-      if (S.errorsThisPrompt === 1) { hint.innerHTML = "Not quite — check it again! ✋"; }
-    }
   },
 
   setTimer(frac) {
@@ -2124,11 +1969,10 @@ const UI = {
         const candy = SAVE.state.candy[key] || 0;
         const fam = SAVE.familyFor(key);
         const targets = SAVE.evoTargetsFor(key);
-        const candyHtml = fam ? (fam.coins
-          ? `<div class="dex-candy">🪙 ${SAVE.state.coins || 0}/${fam.coins}</div>`
-          : `<div class="dex-candy">🍬 ${candy}/${CANDY_COST}${
+        const candyHtml = fam
+          ? `<div class="dex-candy">🍬 ${candy}/${CANDY_COST}${
               SAVE.state.vouchers > 0 ? ` <button class="btn-voucher" data-vbase="${key}" title="Spend a candy voucher here">🎟+1</button>` : ""
-            }</div>`) : "";
+            }</div>` : "";
         const evoBtn = targets.length
           ? `<button class="btn-evolve" data-base="${key}">EVOLVE!</button>` : "";
         const inParty = SAVE.state.party.includes(key);

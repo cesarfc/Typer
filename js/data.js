@@ -81,9 +81,9 @@ const FINGER_NAMES = [
   "right index", "right middle", "right ring", "right pinky", "thumb",
 ];
 
-// ---- extra finger assignments for the number row and symbols (Scholar
-// Archipelago). Standard touch-typing reaches: index fingers take two
-// columns, pinkies the far edges. ----
+// ---- extra finger assignments for the number row and symbols (used by the
+// Shift-key guide when a prompt types punctuation like "Pokemon!"). Standard
+// touch-typing reaches: index fingers take two columns, pinkies the far edges. ----
 Object.assign(KEY_FINGER, {
   "1": 0, "2": 1, "3": 2, "4": 3, "5": 3,
   "6": 4, "7": 4, "8": 5, "9": 6, "0": 7,
@@ -101,28 +101,9 @@ const SHIFT_MAP = {
   "!": "1", ":": ";",
 };
 
-// keyboard layouts a world can request (world.kb). "letters" keeps the
-// original 3-row board; "full" adds the number row for the math/CS islands.
-const KB_LAYOUTS = {
-  letters: KB_ROWS,
-  full: [
-    ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="],
-    ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "[", "]"],
-    ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";", "'"],
-    ["z", "x", "c", "v", "b", "n", "m", ",", ".", "/"],
-  ],
-};
-
-// ---- prompt objects: a prompt is either a plain string (display == typed)
-// or { d: question, a: answer, think: seconds } where the player reads `d`
-// and types `a`. These helpers let the whole engine treat both alike. ----
+// ---- prompt objects: a prompt is a plain string (display == typed). This
+// helper lets the engine read the text to type from a prompt uniformly. ----
 function promptAnswer(p) { return typeof p === "string" ? p : p.a; }
-function promptDisplay(p) { return typeof p === "string" ? null : (p.d || null); }
-function promptThink(p) { return typeof p === "string" ? 0 : (p.think || 0); }
-function promptLen(p) { return promptAnswer(p).length; }
-function promptOut(p) { return typeof p === "string" ? null : (p.out || null); }  // code run result
-function promptCode(p) { return typeof p === "object" && !!p.code; }              // monospace prompt
-function promptSwatch(p) { return typeof p === "string" ? null : (p.swatch || null); } // hex color preview
 
 // iOS "smart punctuation" can deliver curly quotes / long dashes through
 // the on-screen keyboard — fold them to the plain ASCII we validate against.

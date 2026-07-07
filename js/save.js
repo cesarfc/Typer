@@ -70,8 +70,6 @@ const SAVE = {
       day: null,                   // today's adventure stamps { date, levels, wild, school, shown }
       elite: null,                 // { bestRound, clears }
       hof: [],                     // Hall of Fame entries { date, party, wpm }
-      coins: 0,                    // 🪙 Gold Coins from Gimmighoul Coast (math)
-      scholar: {},                 // per-subject facts solved { math, code, cs }
     };
   },
 
@@ -604,22 +602,11 @@ const SAVE = {
     return EVOLUTIONS.find(f => f.base === baseKey) || null;
   },
 
-  // ---- Gold Coins (Gimmighoul Coast) -> Gholdengo evolution ----
-  addCoins(n) {
-    this.state.coins = (this.state.coins || 0) + n;
-    this.save();
-    return this.state.coins;
-  },
-
   // which evolutions this base can do right now (caught + enough candy);
   // chains unlock in order, choice families offer everything (uncaught first)
   evoTargetsFor(baseKey) {
     const fam = this.familyFor(baseKey);
     if (!fam || !this.state.dex[baseKey]) return [];
-    // Gimmighoul evolves with Gold Coins instead of candy (canon!)
-    if (fam.coins) {
-      return (this.state.coins || 0) >= fam.coins && !this.state.dex[fam.chain[0]] ? [fam.chain[0]] : [];
-    }
     if ((this.state.candy[baseKey] || 0) < CANDY_COST) return [];
     if (fam.choices) {
       const un = fam.choices.filter(k => !this.state.dex[k]);
@@ -632,9 +619,7 @@ const SAVE = {
   applyEvolution(baseKey, targetKey) {
     this.bump("evolutions");
     const newTrophies = [];
-    const fam = this.familyFor(baseKey);
-    if (fam && fam.coins) this.state.coins = Math.max(0, (this.state.coins || 0) - fam.coins);
-    else this.state.candy[baseKey] = Math.max(0, (this.state.candy[baseKey] || 0) - CANDY_COST);
+    this.state.candy[baseKey] = Math.max(0, (this.state.candy[baseKey] || 0) - CANDY_COST);
     const t = this.state.dex[targetKey];
     let outcome;
     if (!t) { this.state.dex[targetKey] = { shiny: false }; outcome = "new"; }
@@ -766,13 +751,9 @@ const SAVE = {
     st.xp += res.xp;
 
     st.stats.bestCombo = Math.max(st.stats.bestCombo, res.bestCombo);
-    // facts islands (math/code/cs) have tiny WPM by nature — keep them out
-    // of the speed chart and best-WPM so they never distort the typing stats
-    if (!res.factsLane) {
-      st.stats.bestWpm = Math.max(st.stats.bestWpm, res.wpm);
-      st.stats.history.push({ d: new Date().toISOString().slice(0, 10), wpm: res.wpm, acc: res.acc });
-      if (st.stats.history.length > 30) st.stats.history = st.stats.history.slice(-30);
-    }
+    st.stats.bestWpm = Math.max(st.stats.bestWpm, res.wpm);
+    st.stats.history.push({ d: new Date().toISOString().slice(0, 10), wpm: res.wpm, acc: res.acc });
+    if (st.stats.history.length > 30) st.stats.history = st.stats.history.slice(-30);
 
     // personal bests per stage — the raw material of mastery medals.
     // Explorer-band runs count for stars and Crown, but Silver/Gold speed
