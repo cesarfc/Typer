@@ -1758,6 +1758,37 @@ button, .screen, #topbar { touch-action: manipulation; }
 .jr-note b { color: var(--text); }
 .jr-muts { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .journal-panel .mid-btn { margin-top: 6px; }
+
+/* Gym Rematches */
+.rematch-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.rematch-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: #10142c;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.rematch-boss { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; font-size: 14px; }
+.rematch-boss b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rematch-img { width: 32px; height: 32px; flex: none; }
+.rematch-best { font-size: 13px; color: var(--dim); }
+.rematch-best b { color: var(--text); }
+.rematch-btns { display: flex; gap: 6px; flex: none; }
+.rematch-go {
+  font-size: 19px;
+  width: 40px; height: 40px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #171d3a;
+  cursor: pointer;
+  transition: transform .1s, background .15s, box-shadow .15s;
+}
+.rematch-go:hover { background: #202a52; transform: translateY(-1px); }
+.rematch-go.won { border-color: var(--gold); box-shadow: 0 0 8px rgba(255, 211, 77, .35); }
+
 .task-row {
   display: flex;
   align-items: center;

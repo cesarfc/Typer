@@ -61,8 +61,22 @@ const Engine = {
     this.session.charge = 0;
     this.session.partnerReady = false;
     this.session.meterOn = isBoss && !!this.session.partner;
+    // Gym Rematch: same boss, a tighter clock — stash the tier so finishStage
+    // routes to the medal path instead of normal progression
+    if (opts.rematch) {
+      this.session.rematch = opts.rematch;
+      this.session.baseTime *= opts.rematch.timeMul;
+    }
     UI.gameStart(this.session);
     this.nextPrompt();
+  },
+
+  // refight an already-beaten boss for a Silver/Gold rematch medal
+  startRematch(w, tierId) {
+    const tier = REMATCH_TIERS.find(t => t.id === tierId);
+    const bossS = WORLDS[w].levels.length;
+    if (!tier || SAVE.stageStars(w, bossS) <= 0) return; // only beaten bosses
+    this.startStage(w, bossS, { rematch: tier });
   },
 
   nextPrompt() {
@@ -330,6 +344,9 @@ const Engine = {
     if (S.isBoss) stars = S.hearts === 3 ? 3 : S.hearts === 2 ? 2 : 1;
     else stars = (S.timeouts === 0 && acc >= 0.95) ? 3 : (acc >= 0.85 && S.timeouts <= 1) ? 2 : 1;
 
+    // a rematch reuses the boss star rule but never rewrites progression
+    if (S.rematch) { this.finishRematch(S, stars, acc, wpm); return; }
+
     const ninja = S.ninjaEligible && UI.kbHidden;
     const diff = this.difficulty();
     let xp = S.isBoss ? 50 + 15 * stars : 20 + 10 * stars;
@@ -356,6 +373,34 @@ const Engine = {
     if (!S.isBoss && stars >= 1) {
       const c = SAVE.pickCatch(S.w, stars);
       if (c) { this.startCatch(c, res); return; }
+    }
+    UI.superMode(false);
+    UI.showResults(res);
+  },
+
+  // ---- Gym Rematch finish: grant XP + a medal, leave stars/medals/unlocks
+  // untouched. Losing (too few hearts) simply keeps the boss beaten. ----
+  finishRematch(S, stars, acc, wpm) {
+    S.state = "done";
+    const tier = S.rematch;
+    const diff = this.difficulty();
+    const xpBefore = SAVE.state.xp;
+    let xp = 40 + 15 * stars + Math.min(20, wpm);
+    if (diff.xp > 1) xp = Math.round(xp * diff.xp);
+    SAVE.state.xp += xp;
+    const res = {
+      w: S.w, s: S.s, isBoss: true, stars, acc, wpm, xp,
+      score: S.score, bestCombo: S.bestCombo, errors: S.errors, timeouts: S.timeouts,
+      ninja: false, turbo: diff.xp > 1, xpBefore,
+      band: S.band || "trainer", firstClear: false,
+      rematch: tier, trophies: [],
+    };
+    if (stars >= tier.needStars) {
+      const applied = SAVE.applyRematch(S.w, tier); // also persists the XP
+      res.rematchMedal = applied;
+      res.trophies = applied.newTrophies;
+    } else {
+      SAVE.save(); // no medal — still bank the XP
     }
     UI.superMode(false);
     UI.showResults(res);
@@ -790,6 +835,7 @@ const Engine = {
     // non-story sessions can't restart via startStage (negative stage idx)
     if (S.practice) { this.startPractice(S.practice.id); return; }
     if (S.paragraph) { this.startParagraph(S.paragraph.id); return; }
+    if (S.rematch) { this.startStage(S.w, S.s, { rematch: S.rematch }); return; }
     if (S.s >= 0) { this.startStage(S.w, S.s); return; }
     this.session = null;
     UI.show("map");

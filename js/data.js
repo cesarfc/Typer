@@ -689,6 +689,14 @@ const PRACTICE_TIERS = [
   { id: "expert", label: "Expert", e: "👑", desc: "Capitals & full sentences · Hall of Fame", worlds: [5], count: 6,  need: 5 },
 ];
 
+// Gym Rematches: refight an already-beaten boss with a faster clock for a
+// medal. Silver wants a comfy win (2+ hearts), Gold a flawless one (all 3).
+// `timeMul` shrinks the per-word budget; `needStars` reuses the boss star rule.
+const REMATCH_TIERS = [
+  { id: "silver", label: "Silver", e: "🥈", timeMul: 0.85, needStars: 2 },
+  { id: "gold",   label: "Gold",   e: "🥇", timeMul: 0.70, needStars: 3 },
+];
+
 // Story Typing: type a whole paragraph (no countdown — race your own wpm).
 // Uses capitals + punctuation, so it unlocks once world 6 (Hall of Fame) is
 // reached. `need` = world index that must be unlocked.
@@ -747,6 +755,8 @@ const TROPHIES = [
   { id: "boss-3", e: "🏆", name: "Dragon Tamer", desc: "Defeat Garchomp" },
   { id: "boss-4", e: "🏆", name: "Dream Defender", desc: "Defeat Darkrai" },
   { id: "boss-5", e: "🏆", name: "POKEMON MASTER", desc: "Defeat MissingNo and save the Pokedex" },
+  { id: "rematch-silver", e: "🥈", name: "Gym Rematcher", desc: "Win a Gym Rematch for a Silver medal" },
+  { id: "rematch-gold", e: "🥇", name: "Rematch Master", desc: "Win a Gym Rematch for a Gold medal" },
 ];
 
 const ENCOURAGE = [

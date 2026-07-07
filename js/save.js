@@ -52,7 +52,8 @@ const SAVE = {
       eggDate: null,               // last day an egg was granted (one per day)
       party: [],                   // up to 6 dex keys; first one is the lead partner
       roamer: null,                // { week, done } — weekly legendary attempt
-      practice: {},                // tier id -> { time: bestMs, wpm: best }
+      practice: {},                // tier id -> { time: bestMs, wpm: best, ghost: [ms...] }
+      rematch: {},                 // world index -> best rematch tier (1 silver, 2 gold)
       paragraphs: {},              // story id -> { wpm, acc } personal bests
       flags: {},                   // one-time hints / NEW badges bookkeeping
       trophies: {},                // id -> true
@@ -811,6 +812,26 @@ const SAVE = {
       medalUp,
       levelUps: after.level > before.level ? { from: before.level, to: after.level, title: titleForLevel(after.level) } : null,
     };
+  },
+
+  // ---- Gym Rematch: bank the best medal earned refighting a boss ----
+  // Only ever climbs (best-tier semantics): a Gold win banks Gold even if
+  // the trainer never took Silver first. Never touches stage stars or
+  // medals, so normal progression is left exactly as it was.
+  applyRematch(w, tier) {
+    const st = this.state;
+    if (!st.rematch) st.rematch = {};
+    const tierN = tier.id === "gold" ? 2 : 1;
+    const prev = st.rematch[w] || 0;
+    const upgraded = tierN > prev;
+    if (upgraded) st.rematch[w] = tierN;
+    const newTrophies = [];
+    // trophies stack like the region medals: a Gold also proves the Silver
+    if (st.rematch[w] >= 1) this.award("rematch-silver", newTrophies);
+    if (st.rematch[w] >= 2) this.award("rematch-gold", newTrophies);
+    this.bump("rematchWins");
+    this.save();
+    return { tier, newTrophies, upgraded, best: st.rematch[w] };
   },
 
   // ---- World Mastery Medals (computed; tier 0..4 = none..crown) ----

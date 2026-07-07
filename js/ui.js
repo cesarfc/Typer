@@ -653,8 +653,11 @@ const UI = {
         const st = SAVE.stageStars(wi, s);
         const open = SAVE.stageUnlocked(wi, s);
         const next = open && st === 0;
+        // a beaten boss also shows its best Gym Rematch medal, if any
+        const rmBest = (SAVE.state && SAVE.state.rematch && SAVE.state.rematch[wi]) || 0;
+        const rmGlyph = rmBest === 2 ? "🥇" : rmBest === 1 ? "🥈" : "";
         const starsHtml = isBoss
-          ? (st > 0 ? `<span class="mini-stars">🏆</span>` : "")
+          ? (st > 0 ? `<span class="mini-stars">🏆${rmGlyph}</span>` : "")
           : `<span class="mini-stars">${"★".repeat(st)}<span class="off">${"★".repeat(Math.max(0, 3 - st))}</span></span>`;
         html += `<button class="mnode ${isBoss ? "boss" : ""} ${open ? "" : "locked"} ${next ? "next" : ""} ${st > 0 ? "done" : ""} ${SAVE.medalStageOk(wi, s, 3) ? "gilded" : ""}"
           style="left:${p.x}px;top:${p.y}px" data-w="${wi}" data-s="${s}"
@@ -1727,9 +1730,10 @@ const UI = {
     this._lastStage = [res.w, res.s];
     this._practiceNext = null;
     this._paragraphNext = null;
+    this._rematchNext = res.rematch ? { w: res.w, tierId: res.rematch.id } : null;
     this._practiceMode = false;
     this._resultsAt = performance.now();
-    this.$("btn-replay").textContent = "↻ Replay";
+    this.$("btn-replay").textContent = res.rematch ? "↻ Try Again" : "↻ Replay";
     this.$("btn-replay").classList.remove("hidden");
     this.$("results-stars").classList.remove("hidden");
     const w = WORLDS[res.w];
@@ -1738,9 +1742,11 @@ const UI = {
     card.classList.remove("defeat");
     card.style.setProperty("--wa", w.accent);
 
-    title.textContent = res.isBoss
-      ? `${w.boss.emoji} BOSS DEFEATED!`
-      : `${w.emoji} ${res.s === 4 ? "Speed Run" : "Level"} Complete!`;
+    title.textContent = res.rematch
+      ? (res.rematchMedal ? `${res.rematchMedal.tier.e} REMATCH WON!` : `${w.boss.emoji} Rematch Complete`)
+      : res.isBoss
+        ? `${w.boss.emoji} BOSS DEFEATED!`
+        : `${w.emoji} ${res.s === 4 ? "Speed Run" : "Level"} Complete!`;
 
     // stars
     const stars = this.$("results-stars");
@@ -1863,6 +1869,22 @@ const UI = {
         SFX.medal();
       }, 1600);
     }
+    // Gym Rematch medal moment (reuses the mastery-medal card styling)
+    if (res.rematch) {
+      if (res.rematchMedal) {
+        const m = res.rematchMedal.tier;
+        medalBox.className = "medal-on";
+        medalBox.innerHTML = `<span class="medal-drop">${m.e}</span>
+          <span class="medal-text"><b>${this.esc(WORLDS[res.w].boss.name)} — ${m.label.toUpperCase()} REMATCH MEDAL!</b>
+          <i>${res.rematchMedal.upgraded ? "A new tier for your Journal!" : "You matched your best — still sharp!"}</i></span>`;
+        setTimeout(() => SFX.medal(), 500);
+        if (res.rematchMedal.upgraded) this.confetti();
+      } else {
+        const needHearts = res.rematch.needStars === 3 ? "all 3 hearts" : "2 or more hearts";
+        medalBox.className = "best-only";
+        medalBox.innerHTML = `<span class="best-note">${res.rematch.e} So close! Finish with <b>${needHearts}</b> to earn the ${res.rematch.label} medal.</span>`;
+      }
+    }
 
     // big moments
     if (res.isBoss && res.firstClear) {
@@ -1889,7 +1911,7 @@ const UI = {
     offer.className = "hidden";
     offer.innerHTML = "";
     const bi = BAND_ORDER.indexOf(res.band);
-    if (res.stars === 3 && res.acc >= 0.98 && bi >= 0 && bi < BAND_ORDER.length - 1) {
+    if (!res.rematch && res.stars === 3 && res.acc >= 0.98 && bi >= 0 && bi < BAND_ORDER.length - 1) {
       const up = BANDS[BAND_ORDER[bi + 1]];
       offer.className = "band-offer";
       offer.innerHTML = `<button id="btn-bandup" data-band="${BAND_ORDER[bi + 1]}">
@@ -1901,11 +1923,13 @@ const UI = {
     const lastWorld = HALL_W;
     next.classList.remove("hidden");
     let nextLabel = null;
-    if (!res.isBoss) nextLabel = res.s === WORLDS[res.w].levels.length - 1 ? "Boss Fight! 👊" : "Next Level ▶";
+    // a rematch has no "next" — you replay the tier or head back to the map
+    if (res.rematch) nextLabel = null;
+    else if (!res.isBoss) nextLabel = res.s === WORLDS[res.w].levels.length - 1 ? "Boss Fight! 👊" : "Next Level ▶";
     else if (res.w < lastWorld) nextLabel = `Next World: ${WORLDS[res.w + 1].emoji} ▶`;
     if (nextLabel) next.innerHTML = `${nextLabel} <small class="key-hint">Enter</small>`;
     else next.classList.add("hidden");
-    this._nextTarget = !res.isBoss ? [res.w, res.s + 1] : res.w < lastWorld ? [res.w + 1, 0] : null;
+    this._nextTarget = res.rematch ? null : !res.isBoss ? [res.w, res.s + 1] : res.w < lastWorld ? [res.w + 1, 0] : null;
     SFX.fanfare();
   },
 
@@ -1915,6 +1939,8 @@ const UI = {
     this._lastStage = [S.w, S.s];
     this._practiceNext = null;
     this._paragraphNext = null;
+    // a lost rematch retries the rematch, not a plain boss fight
+    this._rematchNext = S.rematch ? { w: S.w, tierId: S.rematch.id } : null;
     this._practiceMode = false;
     this._resultsAt = performance.now();
     this.$("results-egg").className = "hidden";          // no stale egg note
@@ -1946,7 +1972,7 @@ const UI = {
     const next = this.$("btn-next");
     next.classList.remove("hidden");
     next.innerHTML = `⚔️ Try Again! <small class="key-hint">Enter</small>`;
-    this._nextTarget = [S.w, S.s];
+    this._nextTarget = S.rematch ? null : [S.w, S.s];
   },
 
   // ---------- dex ----------
@@ -2168,6 +2194,7 @@ const UI = {
     this.renderTopbar();
     this._practiceNext = res.tier.id;
     this._paragraphNext = null;
+    this._rematchNext = null;
     this._practiceMode = true;
     this._nextTarget = null;
     this._lastStage = null;
@@ -2220,6 +2247,7 @@ const UI = {
     this.renderTopbar();
     this._paragraphNext = res.def.id;
     this._practiceNext = null;
+    this._rematchNext = null;
     this._practiceMode = true; // btn-replay returns to the Trainer School
     this._nextTarget = null;
     this._lastStage = null;
@@ -2748,6 +2776,34 @@ const UI = {
         : `<p class="jr-note">🔒 Opens when the story is complete and you hold
             <b>${ELITE_NEED_MEDALS} medal points</b> (you have <b>${pts}</b> — grow them in the Museum's Medal Case).</p>`}
       ${hof.length ? `<p class="jr-note">📸 Hall of Fame entries: <b>${hof.length}</b></p>` : ""}`;
+
+    // Gym Rematches: refight beaten bosses on a faster clock for medals
+    const rms = SAVE.state.rematch || {};
+    const beaten = [];
+    for (let w = 0; w <= HALL_W; w++) {
+      if (SAVE.stageStars(w, WORLDS[w].levels.length) > 0) beaten.push(w);
+    }
+    this.$("jr-rematch").innerHTML = `
+      <h3>🥊 Gym Rematches</h3>
+      ${beaten.length ? `
+        <p class="jr-note">Refight a boss you've beaten — the clock runs faster! Finish with
+          <b>2+ hearts</b> for 🥈 Silver, a <b>flawless 3</b> for 🥇 Gold.</p>
+        <div class="rematch-list">${beaten.map(w => {
+          const b = WORLDS[w].boss;
+          const best = rms[w] || 0;
+          const bestHtml = best === 2 ? "🥇 <b>Gold</b>"
+            : best === 1 ? "🥈 <b>Silver</b>"
+            : `<span class="dim">no medal yet</span>`;
+          return `<div class="rematch-row">
+            <span class="rematch-boss">${this.pokeHtml(b.id, b.emoji, { cls: "poke-img rematch-img" })}<b>${this.esc(b.name)}</b></span>
+            <span class="rematch-best">${bestHtml}</span>
+            <span class="rematch-btns">
+              <button class="rematch-go ${best >= 1 ? "won" : ""}" data-rw="${w}" data-tier="silver" title="Silver rematch — a faster clock">🥈</button>
+              <button class="rematch-go ${best >= 2 ? "won" : ""}" data-rw="${w}" data-tier="gold" title="Gold rematch — much faster!">🥇</button>
+            </span>
+          </div>`;
+        }).join("")}</div>`
+        : `<p class="jr-note">🔒 Beat a Gym boss first — then come back to refight them for shiny medals!</p>`}`;
   },
 
   // ---------- Today's Adventure: three stamps and a soft landing ----------
@@ -3041,7 +3097,8 @@ const UI = {
     });
 
     this.$("btn-next").addEventListener("click", () => {
-      if (this._paragraphNext) Engine.startParagraph(this._paragraphNext);
+      if (this._rematchNext) Engine.startRematch(this._rematchNext.w, this._rematchNext.tierId);
+      else if (this._paragraphNext) Engine.startParagraph(this._paragraphNext);
       else if (this._practiceNext) Engine.startPractice(this._practiceNext);
       else if (this._nextTarget) {
         const [w, s] = this._nextTarget;
@@ -3049,7 +3106,8 @@ const UI = {
       } else this.show("map");
     });
     this.$("btn-replay").addEventListener("click", () => {
-      if (this._practiceMode) this.show("practice");
+      if (this._rematchNext) Engine.startRematch(this._rematchNext.w, this._rematchNext.tierId);
+      else if (this._practiceMode) this.show("practice");
       else if (this._lastStage) {
         const [w, s] = this._lastStage;
         Engine.startStage(w, s);
@@ -3177,7 +3235,9 @@ const UI = {
         return;
       }
       if (e.target.closest("#btn-daily")) { SFX.click(); Engine.startDaily(); return; }
-      if (e.target.closest("#btn-elite")) { SFX.click(); Engine.startElite(); }
+      if (e.target.closest("#btn-elite")) { SFX.click(); Engine.startElite(); return; }
+      const rm = e.target.closest(".rematch-go");
+      if (rm) { SFX.init(); Engine.startRematch(+rm.dataset.rw, rm.dataset.tier); }
     });
     this.$("results-offer").addEventListener("click", e => {
       const up = e.target.closest("#btn-bandup");
