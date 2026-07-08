@@ -3106,6 +3106,57 @@ const UI = {
           </div>`;
         }).join("")}</div>`
         : `<p class="jr-note">🔒 Beat a Gym boss first — then come back to refight them for shiny medals!</p>`}`;
+
+    // Weekly Raid contribution board: who chipped the family boss, for how much
+    const raid = SAVE.raidNow();
+    if (!raid) {
+      this.$("jr-raid").innerHTML = `
+        <h3>⚔️ Weekly Raid</h3>
+        <p class="jr-note">🔒 Reach the ${WORLDS[3].emoji} ${WORLDS[3].name} to join the weekly family raid!</p>`;
+    } else {
+      const active = SAVE.root.active;
+      const myContrib = (active && raid.contrib[active]) || 0;
+      const claimedByMe = SAVE.raidClaimedByMe();
+      const rows = Object.keys(raid.contrib)
+        .map(pid => ({ pid, dmg: raid.contrib[pid] || 0 }))
+        .filter(r => r.dmg > 0)
+        .sort((a, b) => b.dmg - a.dmg);
+      const topDmg = rows.length ? rows[0].dmg : 0;
+      const nameOf = pid => {
+        const p = (SAVE.root.players || {})[pid];
+        return p && p.profile && p.profile.name ? p.profile.name : "A trainer";
+      };
+      const board = rows.length
+        ? `<div class="raid-board">${rows.map(r => {
+            const status = raid.defeated
+              ? (raid.claimed[r.pid]
+                  ? `<span class="raid-status claimed">✓ claimed</span>`
+                  : `<span class="raid-status waiting">🎁 prize waiting</span>`)
+              : "";
+            return `<div class="raid-row${r.pid === active ? " me" : ""}">
+              <span class="raid-who">${r.dmg === topDmg ? "👑 " : ""}${this.esc(nameOf(r.pid))}</span>
+              <span class="raid-dmg">${r.dmg} dmg</span>
+              ${status}
+            </div>`;
+          }).join("")}</div>`
+        : `<p class="jr-note">No hits yet this week — be the first! ⚔️</p>`;
+      const hpFrac = raid.maxHp ? Math.max(0, raid.hp) / raid.maxHp : 0;
+      const head = raid.defeated
+        ? `<div class="raid-head down">${this.pokeHtml(raid.id, raid.e, { cls: "poke-img rematch-img" })}
+             <b>${this.esc(raid.n)}</b><span class="raid-downtag">DOWN! 🎉</span></div>`
+        : `<div class="raid-head">${this.pokeHtml(raid.id, raid.e, { cls: "poke-img rematch-img" })}
+             <b>${this.esc(raid.n)}</b>
+             <div class="raid-hpbar jr-raid-hp"><div class="raid-hpfill" style="width:${hpFrac * 100}%"></div></div></div>`;
+      const canClaim = raid.defeated && myContrib > 0 && !claimedByMe;
+      const btn = !raid.defeated
+        ? `<button id="btn-raid" class="mid-btn">⚔️ To battle!</button>`
+        : canClaim ? `<button id="btn-raid" class="mid-btn">🎁 Claim your prize!</button>` : "";
+      this.$("jr-raid").innerHTML = `
+        <h3>⚔️ Weekly Raid <span class="jr-sub">the whole family fights together</span></h3>
+        ${head}
+        ${board}
+        ${btn}`;
+    }
   },
 
   // ---------- Today's Adventure: three stamps and a soft landing ----------
@@ -3550,6 +3601,8 @@ const UI = {
       }
       if (e.target.closest("#btn-daily")) { SFX.click(); Engine.startDaily(); return; }
       if (e.target.closest("#btn-elite")) { SFX.click(); Engine.startElite(); return; }
+      // one handler for attack and claim — startRaid routes to claim when down
+      if (e.target.closest("#btn-raid")) { SFX.init(); Engine.startRaid(); return; }
       const rm = e.target.closest(".rematch-go");
       if (rm) { SFX.init(); Engine.startRematch(+rm.dataset.rw, rm.dataset.tier); }
     });
