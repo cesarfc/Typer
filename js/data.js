@@ -697,6 +697,14 @@ const REMATCH_TIERS = [
   { id: "gold",   label: "Gold",   e: "🥇", timeMul: 0.70, needStars: 3 },
 ];
 
+// Weekly Raid Boss: a giant legendary the WHOLE family chips away at together.
+// Its HP lives on the shared save (root.raid), not on any one player — every
+// attempt banks its damage into the same bar. `RAID_HP` is about 80 words of
+// letters (damage = letters typed of each finished word). `RAID_WORDS` is one
+// attempt's worth of battle words; a defeated player still banks what they dealt.
+const RAID_HP = 400;
+const RAID_WORDS = 9;
+
 // Story Typing: type a whole paragraph (no countdown — race your own wpm).
 // Uses capitals + punctuation, so it unlocks once world 6 (Hall of Fame) is
 // reached. `need` = world index that must be unlocked.
@@ -747,6 +755,7 @@ const TROPHIES = [
   { id: "hatch-1", e: "🐣", name: "Hatched!", desc: "Hatch a Mystery Egg" },
   { id: "party-6", e: "🎽", name: "Full Squad", desc: "Put 6 Pokemon in your party" },
   { id: "legend-1", e: "🌟", name: "Legend Catcher", desc: "Catch a roaming legendary" },
+  { id: "raid-1", e: "⚔️", name: "Raid Champion", desc: "Help the family defeat a Weekly Raid Boss" },
   { id: "streak-3", e: "📅", name: "Three in a Row", desc: "Play 3 days in a row" },
   { id: "streak-7", e: "🗓️", name: "Legend Week", desc: "Play 7 days in a row" },
   { id: "boss-0", e: "🏆", name: "Rise and Shine", desc: "Wake the giant Snorlax" },

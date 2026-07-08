@@ -105,6 +105,9 @@ const SAVE = {
     this.normalizePlayers();
     this.save();
     this.state = this.root.active ? this.root.players[this.root.active] || null : null;
+    // Weekly Raid Boss lives on the shared root (not per-player) so the whole
+    // family chips the same bar. Spin it up / reset it for the current week.
+    if (this.state && this.worldUnlocked(3)) this.raidNow();
     return this.state;
   },
 
@@ -183,6 +186,85 @@ const SAVE = {
       this.state.roamer.done = true;
       this.save();
     }
+  },
+
+  // ---- Weekly Raid Boss: one giant legendary the whole family fights ----
+  // The HP pool lives on root.raid (shared), so every player's attempts chip
+  // the same bar. A new week resets it with a fresh boss.
+  raidNow() {
+    if (!this.worldUnlocked(3)) return null; // opens once Dragon's Den is reached
+    const wk = this.weekKey();
+    let R = this.root.raid;
+    if (!R || R.week !== wk) {
+      R = this.root.raid = {
+        week: wk, ci: this.raidPick(wk), hp: RAID_HP, maxHp: RAID_HP,
+        defeated: false, contrib: {}, claimed: {},
+      };
+      this.save();
+    }
+    const c = CREATURES[HALL_W][R.ci];
+    return {
+      ...c, w: HALL_W, i: R.ci,
+      week: R.week, hp: R.hp, maxHp: R.maxHp, defeated: R.defeated,
+      contrib: R.contrib, claimed: R.claimed,
+    };
+  },
+
+  // deterministic weekly pick, offset from the roamer's hash so the raid boss
+  // and the roaming legendary are (almost) never the same creature in a week
+  raidPick(wk) {
+    const pool = CREATURES[HALL_W].map((c, i) => ({ c, i })).filter(x => !x.c.evoOnly);
+    if (!pool.length) return 0;
+    let h = 0;
+    for (const ch of wk) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    const roamerBase = h % pool.length;      // roamerNow starts from this bucket
+    let idx = (h + 5) % pool.length;         // shift so the raid usually differs
+    if (pool.length > 1 && idx === roamerBase) idx = (idx + 1) % pool.length;
+    return pool[idx].i;
+  },
+
+  // bank damage dealt this attempt into the shared bar; record the active
+  // player's contribution; mark defeated at 0. A losing player still banks.
+  raidDamage(dmg) {
+    const raid = this.raidNow();
+    const R = this.root.raid;
+    if (!raid || !R) return { defeated: false, remaining: 0, maxHp: 0, dealt: 0, justDefeated: false };
+    const d = Math.max(0, Math.round(dmg) || 0);
+    const before = R.hp;
+    R.hp = Math.max(0, R.hp - d);
+    const pid = this.root.active;
+    if (pid && d > 0) R.contrib[pid] = (R.contrib[pid] || 0) + d;
+    const justDefeated = !R.defeated && R.hp <= 0;
+    if (R.hp <= 0) R.defeated = true;
+    this.save();
+    return {
+      defeated: R.defeated, justDefeated, remaining: R.hp, maxHp: R.maxHp,
+      dealt: before - R.hp,
+      canClaim: R.defeated && !!pid && (R.contrib[pid] || 0) > 0 && !R.claimed[pid],
+    };
+  },
+
+  // once the boss is down, each contributor may claim their prize a single
+  // time. Records the win (counter + trophy); the catch itself is in engine.
+  claimRaid() {
+    const R = this.root.raid;
+    const pid = this.root.active;
+    if (!R || !R.defeated) return { ok: false, reason: "alive" };
+    if (!pid || !(R.contrib[pid] > 0)) return { ok: false, reason: "nocontrib" };
+    if (R.claimed[pid]) return { ok: false, reason: "claimed" };
+    R.claimed[pid] = true;
+    this.bump("raidWins");
+    const newTrophies = [];
+    this.award("raid-1", newTrophies);
+    this.save();
+    return { ok: true, newTrophies, contrib: R.contrib[pid] };
+  },
+
+  // has the active player already claimed this week's raid?
+  raidClaimedByMe() {
+    const R = this.root.raid;
+    const pid = this.root.active;
+    return !!(R && pid && R.claimed[pid]);
   },
 
   // ---- backup file (typequest-save.json): keep it in the game folder

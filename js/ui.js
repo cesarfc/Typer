@@ -715,6 +715,24 @@ const UI = {
       </button>`;
     }
 
+    // the Weekly Raid Boss den — a shared legendary the whole family chips at
+    const raid = SAVE.raidNow();
+    if (raid) {
+      const hpFrac = raid.maxHp ? Math.max(0, raid.hp) / raid.maxHp : 0;
+      const myContrib = (SAVE.root.active && raid.contrib[SAVE.root.active]) || 0;
+      const claimedByMe = SAVE.raidClaimedByMe();
+      let state, label;
+      if (!raid.defeated) { state = "alive"; label = `⚔️ Raid: ${this.esc(raid.n)}`; }
+      else if (myContrib > 0 && !claimedByMe) { state = "claim"; label = "🎁 Claim your prize!"; }
+      else { state = "resting"; label = "😴 Resting till next week"; }
+      html += `<button class="map-raid ${state}" style="left:1520px;top:990px"
+        title="Weekly Raid Boss — the whole family fights together!">
+        <span class="raid-aura"></span>${this.pokeHtml(raid.id, raid.e, { cls: "poke-img raid-img" })}
+        <span class="raid-mark">${raid.defeated ? (state === "claim" ? "🎁" : "😴") : "⚔️"}</span>
+        <div class="raid-hpbar"><div class="raid-hpfill" style="width:${hpFrac * 100}%"></div></div>
+        <b>${label}</b></button>`;
+    }
+
     map.innerHTML = html;
     this.renderPartyBar();
     this._mapSel = null; // keyboard nav selection resets with the map
@@ -1111,6 +1129,22 @@ const UI = {
         Engine.startLegendary();
         return;
       }
+      const rd = e.target.closest(".map-raid");
+      if (rd) {
+        SFX.init();
+        const raid = SAVE.raidNow();
+        if (!raid) return;
+        if (!raid.defeated) { Engine.startRaid(); return; } // any trainer can attack
+        const myContrib = (SAVE.root.active && raid.contrib[SAVE.root.active]) || 0;
+        if (SAVE.raidClaimedByMe()) {
+          this.toast("✅ You've claimed this week's raid reward. A fresh boss appears next week!");
+        } else if (myContrib > 0) {
+          Engine.startRaidClaim();
+        } else {
+          this.toast("💪 This boss is already down — but only trainers who fought it can claim the prize!");
+        }
+        return;
+      }
       const sc = e.target.closest(".map-school");
       if (sc) {
         SFX.init();
@@ -1405,7 +1439,11 @@ const UI = {
   showPrompt(S) {
     const target = this.$("target");
     const wrap = this.$("target-wrap");
-    if (S.isBoss) {
+    if (S.raid) {
+      // the raid legendary looms for the whole attempt
+      target.innerHTML = this.pokeHtml(S.raid.id, S.raid.e);
+      target.className = "boss-size";
+    } else if (S.isBoss) {
       if (S.elite && S.elite.def.champion) {
         // the Champion is the player's own rival — their trainer, mirrored
         target.innerHTML = `<span class="rival">${this.avatarHtml(SAVE.state.profile)}</span>`;
@@ -1734,6 +1772,7 @@ const UI = {
     this._practiceNext = null;
     this._paragraphNext = null;
     this._rematchNext = res.rematch ? { w: res.w, tierId: res.rematch.id } : null;
+    this._raidNext = null;
     this._practiceMode = false;
     this._resultsAt = performance.now();
     this.$("btn-replay").textContent = res.rematch ? "↻ Try Again" : "↻ Replay";
@@ -1944,6 +1983,7 @@ const UI = {
     this._paragraphNext = null;
     // a lost rematch retries the rematch, not a plain boss fight
     this._rematchNext = S.rematch ? { w: S.w, tierId: S.rematch.id } : null;
+    this._raidNext = null;
     this._practiceMode = false;
     this._resultsAt = performance.now();
     this.$("results-egg").className = "hidden";          // no stale egg note
@@ -2224,6 +2264,7 @@ const UI = {
     this._practiceNext = res.tier.id;
     this._paragraphNext = null;
     this._rematchNext = null;
+    this._raidNext = null;
     this._practiceMode = true;
     this._nextTarget = null;
     this._lastStage = null;
@@ -2284,6 +2325,7 @@ const UI = {
     this._paragraphNext = res.def.id;
     this._practiceNext = null;
     this._rematchNext = null;
+    this._raidNext = null;
     this._practiceMode = true; // btn-replay returns to the Trainer School
     this._nextTarget = null;
     this._lastStage = null;
@@ -2322,6 +2364,182 @@ const UI = {
     (res.newTrophies || []).forEach((t, i) => setTimeout(() => this.trophyToast(t), 900 + i * 800));
     if (record) { this.confetti(); SFX.fanfare(); }
     else SFX.word();
+  },
+
+  // ---- Raid attempt results: how much the family chipped, what's left, and
+  // whether the boss is down (claim!) or still standing (attack again) ----
+  showRaidResults(S, info) {
+    this.show("results");
+    this.renderTopbar();
+    this._practiceNext = null;
+    this._paragraphNext = null;
+    this._rematchNext = null;
+    this._practiceMode = false;
+    this._nextTarget = null;
+    this._lastStage = null;
+    this._resultsAt = performance.now();
+    const down = !!info.defeated;
+    const canClaim = !!info.canClaim; // this player contributed and hasn't claimed
+    // btn-next drives the raid: claim the prize, or launch another attempt
+    this._raidNext = down ? (canClaim ? "claim" : null) : "attack";
+    const card = this.$("results-card");
+    card.classList.remove("defeat");
+    card.style.setProperty("--wa", "#ff5ec7");
+    this.$("results-title").textContent = down
+      ? (info.justDefeated ? "🌟 RAID BOSS DOWN!" : "⚔️ Raid Boss defeated!")
+      : "⚔️ Raid Attack!";
+    this.$("results-stars").classList.add("hidden");
+    const remaining = Math.max(0, info.remaining);
+    this.$("results-grid").innerHTML = `
+      <div class="rstat"><div class="rstat-v">${info.dealt}</div><div class="rstat-l">damage dealt</div></div>
+      <div class="rstat"><div class="rstat-v">${remaining}</div><div class="rstat-l">boss HP left</div></div>
+      <div class="rstat"><div class="rstat-v">${info.maxHp}</div><div class="rstat-l">total HP</div></div>`;
+
+    const lines = [];
+    if (info.lostHearts) lines.push(`💔 You ran out of hearts — but your <b>${info.dealt}</b> damage still counts!`);
+    if (down) {
+      lines.push(canClaim
+        ? `🎁 The boss is down! <b>Claim your prize</b> — a guaranteed catch and big XP!`
+        : (this.raidClaimedMsg()));
+    } else {
+      lines.push(`The family has knocked off <b>${info.maxHp - remaining}/${info.maxHp}</b> HP. Keep attacking to finish it!`);
+    }
+    const catchBox = this.$("results-catch");
+    catchBox.className = "catch-result";
+    catchBox.innerHTML = `<div class="record-note ${down ? "gold" : ""}">${lines.join("<br>")}</div>`;
+    this.$("results-egg").className = "hidden";
+    this.$("results-medal").className = "hidden";
+    this.$("results-offer").className = "hidden";
+
+    this.$("xp-gained").textContent = `+${info.xp} XP`;
+    const lv = levelFromXp(SAVE.state.xp);
+    this.$("xp-level").textContent = `Lv ${lv.level} · ${titleForLevel(lv.level)}`;
+    this.$("results-xpfill").style.width = `${100 * lv.into / lv.need}%`;
+
+    const next = this.$("btn-next");
+    if (this._raidNext === "claim") {
+      next.classList.remove("hidden");
+      next.innerHTML = `🎁 Claim Prize! <small class="key-hint">Enter</small>`;
+    } else if (this._raidNext === "attack") {
+      next.classList.remove("hidden");
+      next.innerHTML = `⚔️ Attack Again <small class="key-hint">Enter</small>`;
+    } else {
+      next.classList.add("hidden");
+    }
+    this.$("btn-replay").classList.add("hidden");
+    (info.newTrophies || []).forEach((t, i) => setTimeout(() => this.trophyToast(t), 900 + i * 800));
+    if (info.justDefeated) { this.confetti(); SFX.fanfare(); }
+    else SFX.word();
+  },
+
+  raidClaimedMsg() {
+    return SAVE.raidClaimedByMe()
+      ? `✅ You've claimed this raid. A new boss appears next week!`
+      : `🌟 The boss is down! Only trainers who landed a hit can claim the prize.`;
+  },
+
+  // ---------- Weekly Raid Boss scene ----------
+  // a boss-style arena, but the HP bar shows the family's SHARED raid HP and
+  // each finished word chips it with a floating damage number
+  raidScene(S) {
+    this.show("game");
+    this.$("screen-game").classList.remove("paragraph-mode");
+    const raid = S.raid;
+    document.body.classList.remove("super-mode");
+    this.$("capslock-warn").classList.add("hidden");
+    this.applyKbVisibility();
+    this.practiceTimerUI(false);
+    this.$("hud-stage").textContent = "⚔️ RAID BATTLE!";
+    this.$("hud-progress").classList.add("hidden"); // the boss HP bar is the meter
+    this.$("player-avatar").innerHTML = this.avatarHtml(SAVE.state.profile);
+    const arena = this.$("arena");
+    arena.style.background = "linear-gradient(160deg, #2a0d33, #7d1d5a)";
+    arena.style.setProperty("--wa", "#ff5ec7");
+    const scene = this.$("scene-emojis");
+    scene.innerHTML = "";
+    ["🌟", "💥", "✨", "⚔️"].forEach((e2, i) => {
+      const sp = document.createElement("span");
+      sp.textContent = e2;
+      sp.style.left = `${10 + i * 24 + Math.random() * 8}%`;
+      sp.style.top = `${15 + Math.random() * 65}%`;
+      sp.style.fontSize = `${16 + Math.random() * 18}px`;
+      scene.appendChild(sp);
+    });
+    this.showPartner(S);
+    this.partnerMeter(S);
+    this.$("hud-hearts").classList.remove("hidden");
+    this.renderHearts(S);
+    const bossBar = this.$("boss-bar");
+    bossBar.classList.remove("hidden");
+    this.$("boss-bar-name").textContent = `🌟 ${raid.n} · Raid`;
+    this.updateRaidBar(S);
+    const target = this.$("target");
+    const wrap = this.$("target-wrap");
+    target.className = "boss-size";
+    target.innerHTML = this.pokeHtml(raid.id, raid.e);
+    wrap.style.opacity = 1;
+    wrap.style.transform = "none";
+    wrap.classList.remove("enter", "hit", "flee", "wobble");
+    this.$("target-label").classList.add("hidden");
+    this.updateHud(S);
+    this.announce(`🌟 The whole family is fighting ${raid.n}!`, 2000);
+    this.speech("Only your teamwork can wear me down!", 2600);
+  },
+
+  // paint the shared raid HP bar from how much has been dealt this attempt
+  updateRaidBar(S) {
+    const remaining = Math.max(0, S.raid.hp - (S.raidDealt || 0));
+    const frac = S.raid.maxHp ? remaining / S.raid.maxHp : 0;
+    this.$("boss-hp-fill").style.width = `${frac * 100}%`;
+    this.$("target").classList.toggle("angry", frac <= 0.5 && frac > 0);
+  },
+
+  // a finished word lands on the raid boss: projectile, damage number, HP chip
+  raidHit(S, dmg) {
+    const wrap = this.$("target-wrap");
+    const target = this.$("target");
+    this.projectile(this.projHtml(S), () => {
+      const r = target.getBoundingClientRect();
+      this.burst(r.left + r.width / 2, r.top + r.height / 2, ["#fff", "#ffd34d", "#ff5ec7"], 22, 6);
+      this.floatText(`-${dmg}`, wrap, "big");
+      wrap.classList.remove("boss-flash");
+      void wrap.offsetWidth;
+      wrap.classList.add("boss-flash");
+      this.updateRaidBar(S);
+    });
+  },
+
+  // a celebration arena for claiming the raid legendary (a guaranteed catch)
+  raidClaimScene(S) {
+    this.show("game");
+    this.$("screen-game").classList.remove("paragraph-mode");
+    document.body.classList.remove("super-mode");
+    this.$("capslock-warn").classList.add("hidden");
+    this.applyKbVisibility();
+    this.practiceTimerUI(false);
+    this.$("hud-stage").textContent = "⚔️ RAID REWARD!";
+    this.$("hud-progress").classList.remove("hidden");
+    this.$("hud-progress-fill").style.width = "100%";
+    this.$("hud-hearts").classList.add("hidden");
+    this.$("boss-bar").classList.add("hidden");
+    this.$("player-avatar").innerHTML = this.avatarHtml(SAVE.state.profile);
+    this.showPartner(S);
+    this.partnerMeter(S);
+    const arena = this.$("arena");
+    arena.style.background = "linear-gradient(160deg, #1c1030, #8a6d1d)";
+    arena.style.setProperty("--wa", "#ffd34d");
+    const scene = this.$("scene-emojis");
+    scene.innerHTML = "";
+    ["🌟", "✨", "🎉", "🌟"].forEach((e2, i) => {
+      const sp = document.createElement("span");
+      sp.textContent = e2;
+      sp.style.left = `${10 + i * 24 + Math.random() * 8}%`;
+      sp.style.top = `${15 + Math.random() * 65}%`;
+      sp.style.fontSize = `${16 + Math.random() * 18}px`;
+      scene.appendChild(sp);
+    });
+    this.$("target-label").classList.add("hidden");
+    this.updateHud(S);
   },
 
   // ---------- wild encounter scene (grass + fishing + legendary) ----------
@@ -3133,7 +3351,9 @@ const UI = {
     });
 
     this.$("btn-next").addEventListener("click", () => {
-      if (this._rematchNext) Engine.startRematch(this._rematchNext.w, this._rematchNext.tierId);
+      if (this._raidNext === "claim") Engine.startRaidClaim();
+      else if (this._raidNext === "attack") Engine.startRaid();
+      else if (this._rematchNext) Engine.startRematch(this._rematchNext.w, this._rematchNext.tierId);
       else if (this._paragraphNext) Engine.startParagraph(this._paragraphNext);
       else if (this._practiceNext) Engine.startPractice(this._practiceNext);
       else if (this._nextTarget) {

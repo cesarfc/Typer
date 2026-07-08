@@ -82,6 +82,8 @@ const Engine = {
   nextPrompt() {
     const S = this.session;
     if (!S || S.state === "done") return;
+    // a raid attempt ends the instant the family drops the boss to 0 HP
+    if (S.raid && S.raidDealt >= S.raid.hp) { this.finishStage(); return; }
     S.idx++;
     if (S.idx >= S.prompts.length) { this.finishStage(); return; }
     S.state = "play";
@@ -229,6 +231,17 @@ const Engine = {
     if (perfect) this.addCharge(S, 5); // flawless words charge the partner extra
     UI.updateHud(S);
 
+    // Weekly Raid: each finished word deals its letters as damage to the
+    // shared boss. Show the number, chip the bar, and end the moment it drops.
+    if (S.raid) {
+      const dmg = S.text.length;
+      S.raidDealt = (S.raidDealt || 0) + dmg;
+      UI.raidHit(S, dmg);
+      SFX.bossHit();
+      setTimeout(() => { this.paused ? this.pendingNext = true : this.nextPrompt(); }, 850);
+      return;
+    }
+
     if (S.isBoss) { UI.bossHit(S); SFX.bossHit(); }
     else { UI.targetHit(S); SFX.word(); }
 
@@ -316,6 +329,7 @@ const Engine = {
   finishStage() {
     const S = this.session;
     this.stopTimer();
+    if (S.raid) { this.finishRaid(false); return; }
     if (S.practice) {
       S.state = "done";
       const total = S.hits + S.errors;
@@ -499,7 +513,8 @@ const Engine = {
     SFX.catchJingle();
     this.maybePartyToast();
     if (res.wild) {
-      SAVE.bump(S.wild.source === "fish" ? "fishCatches" : "wildCatches");
+      const raidClaim = S.wild.source === "raid";
+      SAVE.bump(S.wild.source === "fish" ? "fishCatches" : raidClaim ? "raidClaims" : "wildCatches");
       SAVE.state.xp += 15;
       SAVE.save();
       UI.catchAnim(S, true, () => {
@@ -508,15 +523,22 @@ const Engine = {
         UI.show("map");
         UI.renderTopbar();
         const legendary = S.wild.source === "legendary";
-        const msg = res.legendShiny
-          ? `🌟 Your ${res.legendShiny.n} turned <b>✨ SHINY</b>! +15 XP`
-          : res.caught
-            ? `${legendary ? "🌟 LEGENDARY!" : "🎉"} Caught a wild${res.caught.shiny ? " ✨ SHINY" : ""} <b>${res.caught.n}</b>! +15 XP`
-            : res.candy
-              ? `🍬 Wild ${res.candy.creature.n} gave +1 candy (${res.candy.count}/${CANDY_COST})! +15 XP`
-              : `✨ +${res.dupXp ? res.dupXp.xp + 15 : 15} XP!`;
+        const raidXp = raidClaim ? (S.raidClaim.bonusXp + 15) : 15;
+        const msg = raidClaim
+          ? (res.caught
+              ? `⚔️ RAID REWARD! You caught${res.caught.shiny ? " a ✨ SHINY" : ""} <b>${res.caught.n}</b>! +${raidXp} XP`
+              : res.candy
+                ? `⚔️ Raid reward! Another ${res.candy.creature.n} shared 🍬 +1 candy (${res.candy.count}/${CANDY_COST})! +${raidXp} XP`
+                : `⚔️ Raid reward claimed! +${raidXp} XP`)
+          : res.legendShiny
+            ? `🌟 Your ${res.legendShiny.n} turned <b>✨ SHINY</b>! +15 XP`
+            : res.caught
+              ? `${legendary ? "🌟 LEGENDARY!" : "🎉"} Caught a wild${res.caught.shiny ? " ✨ SHINY" : ""} <b>${res.caught.n}</b>! +15 XP`
+              : res.candy
+                ? `🍬 Wild ${res.candy.creature.n} gave +1 candy (${res.candy.count}/${CANDY_COST})! +15 XP`
+                : `✨ +${res.dupXp ? res.dupXp.xp + 15 : 15} XP!`;
         UI.toast(msg, "gold");
-        if (legendary && res.caught) UI.confetti();
+        if ((legendary && res.caught) || raidClaim) UI.confetti();
         res.trophies.forEach((t, i) => setTimeout(() => UI.trophyToast(t), 700 + i * 800));
       });
       return;
@@ -581,6 +603,93 @@ const Engine = {
     const S = this.wildSession(w, this.battleWords(w, 2), { creature: pick, source: "grass" });
     UI.wildScene(S);
     this.nextPrompt();
+  },
+
+  // ---- Weekly Raid Boss: an attempt is a wave of battle words; each finished
+  // word deals its letters as damage to the family's shared HP bar ----
+  startRaid() {
+    const raid = SAVE.raidNow();
+    if (!raid) return;
+    if (raid.defeated) { this.startRaidClaim(); return; } // already down — go claim
+    let wMax = 0;
+    for (let w = 0; w < WORLDS.length; w++) if (SAVE.worldUnlocked(w)) wMax = w;
+    this.paused = false;
+    this.pendingNext = false;
+    const S = this.session = {
+      w: raid.w, s: -5, world: WORLDS[raid.w], isBoss: true, raid,
+      prompts: this.battleWords(wMax, RAID_WORDS), idx: -1, text: "", pos: 0,
+      score: 0, combo: 0, bestCombo: 0,
+      hits: 0, errors: 0, errorsThisPrompt: 0, timeouts: 0, hearts: 3,
+      typingMs: 0, promptStart: 0, timerMs: 0, timerRemaining: 0,
+      baseTime: 5, state: "play", raidDealt: 0,
+      ninjaEligible: false, pendingRes: null, catchCreature: null,
+      partner: SAVE.leadCreature(), charge: 0, partnerReady: false, meterOn: false,
+    };
+    UI.raidScene(S);
+    this.nextPrompt();
+  },
+
+  // ---- Raid finish: bank the damage dealt (win or run out of hearts). When
+  // the family drops the boss, contributors get a claim prize back on the map ----
+  finishRaid(lostHearts) {
+    const S = this.session;
+    this.stopTimer();
+    S.state = "done";
+    const dealt = S.raidDealt || 0;
+    const xp = 10 + dealt;                 // a little XP for every attempt
+    SAVE.state.xp += xp;
+    const info = SAVE.raidDamage(dealt);   // subtract from the shared bar (also saves)
+    UI.superMode(false);
+    UI.showRaidResults(S, { ...info, dealt, xp, lostHearts });
+  },
+
+  // ---- Raid claim: a contributor's reward once the boss is down — big XP and
+  // a guaranteed, generous-timer catch of the raid legendary (boosted shiny) ----
+  startRaidClaim() {
+    const claim = SAVE.claimRaid();
+    if (!claim.ok) {
+      if (claim.reason === "nocontrib") {
+        UI.toast("💪 Land at least one hit on the raid boss first — then claim your prize!", "gold");
+      } else if (claim.reason === "claimed") {
+        UI.toast("✅ You already claimed this week's raid reward. A new boss appears next week!");
+      } else {
+        UI.toast("The raid boss is still standing — chip away at it first!");
+      }
+      UI.show("map");
+      return;
+    }
+    const raid = SAVE.raidNow();
+    const c = { ...CREATURES[HALL_W][raid.i], w: HALL_W, i: raid.i,
+      duplicate: !!SAVE.state.dex[`${HALL_W}-${raid.i}`] };
+    const bonusXp = 100;
+    SAVE.state.xp += bonusXp;              // big XP for finishing the raid
+    SAVE.save();
+    // boosted shiny odds for a brand-new raid legendary
+    const shiny = !c.duplicate && Math.random() < (SAVE.shinyOdds().wild + 0.15);
+    this.paused = false;
+    this.pendingNext = false;
+    const res = { wild: true, stars: 0, bestCombo: 0, raidClaim: true,
+      trophies: (claim.newTrophies || []).slice() };
+    const S = this.session = {
+      w: HALL_W, s: -6, world: WORLDS[HALL_W], isBoss: false,
+      wild: { creature: c, source: "raid", shiny },
+      raidClaim: { bonusXp, contrib: claim.contrib },
+      prompts: [], idx: 0, text: "", pos: 0,
+      score: 0, combo: 0, bestCombo: 0,
+      hits: 0, errors: 0, errorsThisPrompt: 0, timeouts: 0, hearts: 3,
+      typingMs: 0, promptStart: 0, timerMs: 0, timerRemaining: 0,
+      baseTime: 0, state: "reveal", relaxedCatch: true, // guaranteed reward — no clock
+      pendingRes: res, catchCreature: c, ninjaEligible: false,
+      partner: SAVE.leadCreature(), charge: 0, partnerReady: false, meterOn: false,
+    };
+    S.text = worldProperNames(HALL_W) ? c.n : c.n.toLowerCase();
+    UI.raidClaimScene(S);
+    UI.catchReveal(S, c, () => {
+      if (this.session !== S || S.state !== "reveal") return;
+      S.state = "catch";
+      UI.showCatch(S, c);
+      UI.announce("🎉 Type its name to add it to your Pokedex!", 2000);
+    });
   },
 
   startFishing() {
@@ -802,6 +911,9 @@ const Engine = {
   defeat() {
     const S = this.session;
     if (S && S.elite) { this.eliteDefeat(); return; }
+    // a raid attempt that runs out of hearts still banks the damage it dealt —
+    // the family's effort is never wasted
+    if (S && S.raid) { this.finishRaid(true); return; }
     this.stopTimer();
     S.state = "done";
     SAVE.state.xp += 8; // consolation "training XP"
@@ -849,6 +961,7 @@ const Engine = {
     // non-story sessions can't restart via startStage (negative stage idx)
     if (S.practice) { this.startPractice(S.practice.id); return; }
     if (S.paragraph) { this.startParagraph(S.paragraph.id); return; }
+    if (S.raid || S.raidClaim) { this.startRaid(); return; }
     if (S.rematch) { this.startStage(S.w, S.s, { rematch: S.rematch }); return; }
     if (S.s >= 0) { this.startStage(S.w, S.s); return; }
     this.session = null;

@@ -467,6 +467,31 @@ button:active { transform: translateY(1px) scale(.98); }
 }
 .roamer-mark { position: absolute; top: -2px; right: 2px; font-size: 17px; animation: twinkle 1.2s ease-in-out infinite alternate; }
 
+/* Weekly Raid Boss den — a shared legendary with a persistent HP bar */
+.map-raid {
+  position: absolute; transform: translate(-50%, -50%);
+  background: none; border: none; z-index: 6; padding: 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.raid-img { height: 74px; filter: drop-shadow(0 0 16px rgba(255, 94, 199, .9)); animation: bob 2.2s ease-in-out infinite; }
+.map-raid.resting .raid-img { filter: grayscale(.7) brightness(.7) drop-shadow(0 0 6px rgba(120,120,140,.5)); animation: none; }
+.raid-aura {
+  position: absolute; inset: 4px 4px auto 4px; height: 84px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 94, 199, .45), transparent 70%);
+  animation: twinkle 1.4s ease-in-out infinite alternate; pointer-events: none;
+}
+.map-raid.resting .raid-aura { display: none; }
+.raid-mark { position: absolute; top: 0; right: 4px; font-size: 18px; animation: twinkle 1.1s ease-in-out infinite alternate; }
+.raid-hpbar { width: 80px; height: 8px; background: #10142c; border: 1px solid #5e2438; border-radius: 6px; overflow: hidden; margin-top: 2px; }
+.raid-hpfill { height: 100%; background: linear-gradient(90deg, #ff5e7a, #c41d44); border-radius: 6px; transition: width .4s; }
+.map-raid.claim .raid-hpbar { display: none; }
+.map-raid b {
+  font-size: 12px; background: rgba(10,13,30,.82); padding: 3px 9px; border-radius: 999px;
+  border: 1px solid #ff5ec7; white-space: nowrap; color: #ff9ede;
+}
+.map-raid.claim b { border-color: var(--gold); color: var(--gold); animation: pulseGlow 1.4s ease-in-out infinite; }
+.map-raid.resting b { border-color: var(--line); color: var(--dim); }
+
 /* ---- DS-style tilted camera: the ground plane leans back and all
    pins/sprites stand upright on it (billboards), like Diamond/Pearl ---- */
 :root { --tilt: 34deg; }
