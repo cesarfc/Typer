@@ -735,6 +735,18 @@ const PARAGRAPHS = [
     text: "The road to the Pokemon League is long and full of surprises. You will cross tall grass, climb rocky caves, and sail across the bright blue sea. Every gym leader you meet will test your skill, but with practice you grow stronger each day." },
   { id: "p4", title: "Welcome, Trainer", e: "📜", need: 5,
     text: "Dear Trainer, welcome to the wonderful world of Pokemon! There are hundreds of creatures waiting to become your friends. Some live in deep forests, some hide in dark caves, and a few only appear under a full moon. Catch them, train them, and care for them. The journey is yours to write." },
+  { id: "p5", title: "A Sleepy Roadblock", e: "😴", need: 5,
+    text: "A huge Snorlax lay right across the narrow road. It yawned once, rolled over, and began to snore. No trainer could pass until it woke up." },
+  { id: "p6", title: "A Flash of Color", e: "✨", need: 5,
+    text: "Deep in the tall grass a wild Pokemon shimmered with a strange new color. A shiny! Your heart pounded as you slowly reached for a Poke Ball." },
+  { id: "p7", title: "Rain Over Eterna", e: "🌧️", need: 5,
+    text: "Rain fell softly over Eterna City while the street lamps glowed a warm gold. A young trainer pulled her hood down low and hurried past the old stone tower. Somewhere in the dark a lonely Murkrow called out, and she smiled and walked a little faster." },
+  { id: "p8", title: "The Egg Hatches", e: "🐣", need: 5,
+    text: "The little egg wobbled all morning and would not sit still. Then a tiny crack ran across the shell like a thin river. Two bright eyes peeked out at the world, a cheerful cry rang through the room, and a brand new friend tumbled into your happy arms at last!" },
+  { id: "p9", title: "The Elite Four Hall", e: "⚔️", need: 5,
+    text: "The tall doors of the great hall swung open without a single sound. One by one the Elite Four waited in rooms of ice, of shadow, of fire, and of steel. Each master was calm and kind, yet fierce once the battle began. You climbed higher with every win, your brave team growing stronger at your side. At the very top a quiet champion turned to face you and smiled." },
+  { id: "p10", title: "A Letter From Your Rival", e: "✉️", need: 5,
+    text: "Dear friend, I have traveled so far since we last shook hands at the little lab. My team is stronger now, and so is my heart, but I still remember every race we ran as kids. I am waiting at the cold mountain gate, where the wind is sharp and the view is wide. Bring your best Pokemon and your bravest smile. I know you will not keep me waiting for very long!" },
 ];
 
 const RARITY = {
