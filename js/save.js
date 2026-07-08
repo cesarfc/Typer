@@ -795,14 +795,17 @@ const SAVE = {
   },
 
   // ---- Story Typing: personal bests per paragraph ----
-  applyParagraph(id, timeMs, wpm, acc) {
+  applyParagraph(id, timeMs, wpm, acc, wordTimes) {
     const st = this.state;
     const prev = st.paragraphs[id] || {};
     const betterWpm = !prev.wpm || wpm > prev.wpm;
     const betterAcc = prev.acc === undefined || acc > prev.acc;
     if (betterWpm || betterAcc) this.bump("records");
     this.dayInfo().school = true;
+    // the Story Ghost belongs to the best-WPM run — keep the old one otherwise
+    const ghost = betterWpm && wordTimes && wordTimes.length ? wordTimes : (prev.ghost || null);
     st.paragraphs[id] = { wpm: Math.max(wpm, prev.wpm || 0), acc: Math.max(acc, prev.acc || 0) };
+    if (ghost) st.paragraphs[id].ghost = ghost;
 
     const newTrophies = [];
     this.award("storyteller", newTrophies);

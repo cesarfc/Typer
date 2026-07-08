@@ -1498,9 +1498,11 @@ const UI = {
     wrap.style.transform = "none";
     this.renderPromptText(S);
     this.$("hud-progress-fill").style.width = `${Math.round(100 * S.idx / S.prompts.length)}%`;
-    // the ghost racer only belongs to Trainer School drills
+    // the ghost racer belongs to any run that loaded one (drills or Story
+    // Typing); updateGhost re-shows it each stopwatch frame, so only hide it
+    // up front when this run has no ghost to race
     const gm = this.$("ghost-marker");
-    if (gm && !S.practice) gm.classList.add("hidden");
+    if (gm && !(S.ghost && S.ghost.length)) gm.classList.add("hidden");
   },
 
   renderPromptText(S) {
@@ -2192,12 +2194,22 @@ const UI = {
   updateGhost(S, ms) {
     const marker = this.$("ghost-marker");
     if (!marker) return;
-    if (!S.practice || !S.ghost || !S.ghost.length) { marker.classList.add("hidden"); return; }
+    if (!S.ghost || !S.ghost.length) { marker.classList.add("hidden"); return; }
     marker.classList.remove("hidden");
     let done = 0;
     while (done < S.ghost.length && S.ghost[done] <= ms) done++;
-    marker.style.left = `${Math.min(100, 100 * done / S.prompts.length)}%`;
-    marker.classList.toggle("ahead", S.idx > done); // you've cleared more words than the ghost
+    if (S.paragraphMode) {
+      // one long prompt: units are words. Player progress = spaces already
+      // passed (words fully typed); ghost progress = word times <= elapsed.
+      const total = S.text.trim().split(/\s+/).length || 1;
+      let typed = 0;
+      for (let i = 0; i < S.pos; i++) if (S.text[i] === " ") typed++;
+      marker.style.left = `${Math.min(100, 100 * done / total)}%`;
+      marker.classList.toggle("ahead", typed > done);
+    } else {
+      marker.style.left = `${Math.min(100, 100 * done / S.prompts.length)}%`;
+      marker.classList.toggle("ahead", S.idx > done); // you've cleared more words than the ghost
+    }
   },
 
   practiceScene(S) {
@@ -2216,9 +2228,9 @@ const UI = {
     this.$("hud-hearts").classList.add("hidden");
     this.$("boss-bar").classList.add("hidden");
     this.$("player-avatar").innerHTML = this.avatarHtml(SAVE.state.profile);
-    // Practice Ghost marker (drills only — Story Typing never has a ghost)
+    // Practice Ghost marker — drills AND Story Typing race their best run
     const ghost = this.$("ghost-marker");
-    const hasGhost = !!(S.practice && S.ghost && S.ghost.length);
+    const hasGhost = !!(S.ghost && S.ghost.length);
     if (ghost) {
       ghost.classList.toggle("hidden", !hasGhost);
       ghost.classList.remove("ahead");
@@ -2247,8 +2259,8 @@ const UI = {
     this.$("stopwatch-time").textContent = "0.0s";
     this.$("stopwatch-wpm").textContent = "0 wpm";
     this.announce(`⏱ No countdown — beat your record!`, 1800);
-    // first drill of a tier: no ghost to race yet — invite them to make one
-    if (S.practice && !hasGhost) {
+    // no ghost to race yet (first drill / first read) — invite them to make one
+    if (!hasGhost) {
       setTimeout(() => this.toast("👻 Set a record to unlock your ghost racer — then race it next time!", "gold"), 900);
     }
   },
@@ -2373,6 +2385,13 @@ const UI = {
     const lines = [];
     if (res.betterWpm) lines.push(`⚡ <b>NEW BEST SPEED!</b>${res.prevWpm ? ` (was ${res.prevWpm} wpm)` : ""}`);
     else lines.push(`Your best: ⚡ ${res.prevWpm} wpm — read it again to beat it!`);
+    // Story Ghost verdict: did you out-read the ghost of your best run?
+    if (res.ghost) {
+      const secs = (res.ghost.deltaMs / 1000).toFixed(1);
+      lines.push(res.ghost.beat
+        ? `🏁 You beat your ghost by <b>${secs}s</b>!`
+        : `👻 Your ghost won by <b>${secs}s</b> — rematch?`);
+    }
     const catchBox = this.$("results-catch");
     catchBox.className = "catch-result";
     catchBox.innerHTML = `<div class="record-note ${record ? "gold" : ""}">${lines.join("<br>")}</div>`;
