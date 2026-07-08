@@ -235,8 +235,21 @@ const UI = {
         <rect x="27" y="25" width="46" height="3" rx="1.5" fill="#fff" opacity=".3"/>`;
     }
 
+    // Champion's cape: a flowing red drape with gold trim and a gold clasp,
+    // drawn BEHIND the body/arms so it flares out past the shoulders. Old
+    // saves have no `cape` key, so treat a missing value as "none".
+    let capeSvg = "";
+    if ((t.cape || 0) === 1) {
+      capeSvg = `<path d="M33 55 Q15 78 15 104 Q24 98 32 104 Q41 98 50 104 Q59 98 68 104 Q76 98 85 104 Q85 78 67 55 Q50 61 33 55 Z"
+          fill="#c62828" stroke="#f5c518" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M33 55 Q15 78 15 104 Q23 99 31 103 L42 57 Z" fill="#9c1616" opacity=".5"/>
+        <rect x="41" y="53" width="18" height="5" rx="2.5" fill="#f5c518"/>
+        <circle cx="50" cy="55.5" r="3.1" fill="#ffd34d" stroke="#b8901f" stroke-width="1"/>`;
+    }
+
     return `<svg class="${cls}" viewBox="0 0 100 118" aria-hidden="true">
       ${hairBack}
+      ${capeSvg}
       <rect x="38" y="88" width="9" height="21" rx="4" fill="#27314f"/>
       <rect x="53" y="88" width="9" height="21" rx="4" fill="#27314f"/>
       <ellipse cx="42" cy="111" rx="8" ry="4.5" fill="#1b2142"/>
@@ -320,7 +333,9 @@ const UI = {
         return `<button class="swatch hair-sw locked-sw" data-lk="${this.esc(lk.label)}" title="🔒 ${this.esc(lk.label)}">🔒</button>`;
       }
       const inner = h === "none" ? "✖" : this.trainerSvg({ ...t, ...mods(i) }, "trainer-svg mini");
-      return `<button class="swatch hair-sw ${t[key] === i ? "sel" : ""}" data-k="${key}" data-i="${i}">${inner}</button>`;
+      // (t[key] || 0) so a save missing this part (e.g. old saves without a
+      // cape) still shows the "none" option as selected
+      return `<button class="swatch hair-sw ${(t[key] || 0) === i ? "sel" : ""}" data-k="${key}" data-i="${i}">${inner}</button>`;
     }).join("");
     let html = row("Skin", colorSw("skin", TRAINER_OPTS.skin));
     html += row("Hair", shapeSw("hair", i => ({ hair: i, hat: 0 })));
@@ -328,6 +343,7 @@ const UI = {
     html += row("Hat", shapeSw("hat", i => ({ hat: i })));
     if (TRAINER_OPTS.hat[t.hat] !== "none") html += row("Hat color", colorSw("hatColor", TRAINER_OPTS.hatColor));
     html += row("Shirt", colorSw("shirt", TRAINER_OPTS.shirt));
+    html += row("Cape", shapeSw("cape", i => ({ cape: i })));
     this.$("trainer-opts").innerHTML = html;
   },
 
@@ -3377,7 +3393,7 @@ const UI = {
         SFX.click();
         const p = SAVE.players().find(x => x.id === ed.dataset.editt);
         this._editTrainer = ed.dataset.editt;
-        this.builder = p && p.trainer ? { ...p.trainer } : defaultTrainer();
+        this.builder = p && p.trainer ? { cape: 0, ...p.trainer } : defaultTrainer();
         this.renderBuilder();
         this.$("player-select").classList.add("hidden");
         const form = this.$("title-new");

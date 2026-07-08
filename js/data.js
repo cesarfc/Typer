@@ -19,6 +19,7 @@ const TRAINER_OPTS = {
   hat: ["none", "cap", "beanie", "crown", "visor"],
   hatColor: ["#e3350d", "#2a6df0", "#2eaf5b", "#f5c518", "#8e44ad", "#ffd34d"],
   shirt: ["#e3350d", "#2a6df0", "#2eaf5b", "#f5c518", "#8e44ad", "#16a2b8", "#ffd34d", "#1a1d2e", "#ff5ec7"],
+  cape: ["none", "cape"],
 };
 
 // wardrobe pieces earned through play ("part:index" -> requirement).
@@ -32,10 +33,11 @@ const TRAINER_LOCKS = {
   "shirt:6": { need: "champion", label: "Become the Champion" },
   "shirt:7": { need: "stamps", n: 3, label: "Earn 3 research stamps" },
   "shirt:8": { need: "shinies", n: 10, label: "Catch 10 shiny Pokemon" },
+  "cape:1": { need: "champion", label: "Become the Champion" },
 };
 
 function defaultTrainer() {
-  return { skin: 0, hair: 0, hairColor: 0, hat: 1, hatColor: 0, shirt: 1 };
+  return { skin: 0, hair: 0, hairColor: 0, hat: 1, hatColor: 0, shirt: 1, cape: 0 };
 }
 
 // 🎲 must never land on a locked piece, for ANY part — only roll among the
@@ -58,6 +60,7 @@ function randomTrainer() {
     hat: pick("hat"),
     hatColor: pick("hatColor"),
     shirt: pick("shirt"),
+    cape: pick("cape"),
   };
 }
 
