@@ -191,7 +191,7 @@ mystery Pokemon — then the clock starts.
   progress.
 - **📖 Story Typing** — also inside the Trainer School, unlocked once you reach
   the 👑 Hall of Fame (you'll need your capitals and punctuation). Type a whole
-  short story as flowing prose — four to choose from — with no countdown: the
+  short story as flowing prose — ten to choose from — with no countdown: the
   stopwatch counts up while you type and you race your own best WPM.
 - **Create your own trainer** — pick skin tone, hair style and color, hat
   and shirt when making a player (🎲 randomizes). Your trainer appears in

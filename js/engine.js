@@ -186,6 +186,13 @@ const Engine = {
       if (S.combo === 10) { UI.announce("Combo x10! 🔥"); SFX.combo(); }
       if (S.combo === 25) { UI.announce("SUPER MODE! ⚡"); SFX.combo(); UI.superMode(true); }
       if (S.combo === 50) { UI.announce("UNSTOPPABLE! 🌟"); SFX.combo(); }
+      // Story Typing ghost: a paragraph is one long prompt, so we can't wait
+      // for promptComplete — snapshot the cumulative typing time each time a
+      // word lands (the char just typed was a space) and once at the very end.
+      // typingMs + this prompt's elapsed stays correct across pause()/resume().
+      if (S.paragraphMode && S.wordTimes && (expected === " " || S.pos >= S.text.length)) {
+        S.wordTimes.push(S.typingMs + (performance.now() - S.promptStart));
+      }
       if (S.pos >= S.text.length) this.promptComplete();
     } else {
       S.errors++;
@@ -303,6 +310,9 @@ const Engine = {
   startParagraph(id) {
     const def = PARAGRAPHS.find(p => p.id === id);
     if (!def || !SAVE.worldUnlocked(def.need)) return;
+    // Story Ghost: race the per-word pace of your best-WPM run (guard old saves)
+    const rec = (SAVE.state.paragraphs || {})[id] || {};
+    const ghost = rec.ghost && rec.ghost.length ? rec.ghost : null;
     this.paused = false;
     this.pendingNext = false;
     this.session = {
@@ -319,6 +329,7 @@ const Engine = {
       hits: 0, errors: 0, errorsThisPrompt: 0, timeouts: 0, hearts: 3,
       typingMs: 0, promptStart: 0, timerMs: 0, timerRemaining: 0,
       baseTime: 0, state: "play",
+      wordTimes: [], ghost, // cumulative ms per word; ghost = best run's snapshots
       partner: SAVE.leadCreature(), charge: 0, partnerReady: false, meterOn: false,
       ninjaEligible: false, pendingRes: null, catchCreature: null,
     };
@@ -354,8 +365,14 @@ const Engine = {
       const acc = total ? S.hits / total : 1;
       const timeMs = Math.round(Math.max(1000, S.typingMs));
       const wpm = Math.round((S.hits / 5) / (timeMs / 60000));
-      const applied = SAVE.applyParagraph(S.paragraph.id, timeMs, wpm, acc);
-      UI.showParagraphResults({ def: S.paragraph.def, timeMs, wpm, acc, ...applied });
+      // Story Ghost verdict: did you out-race the ghost of your best run?
+      let ghost = null;
+      if (S.ghost && S.ghost.length) {
+        const ghostFinal = S.ghost[S.ghost.length - 1];
+        ghost = { beat: timeMs < ghostFinal, deltaMs: Math.abs(timeMs - ghostFinal) };
+      }
+      const applied = SAVE.applyParagraph(S.paragraph.id, timeMs, wpm, acc, S.wordTimes);
+      UI.showParagraphResults({ def: S.paragraph.def, timeMs, wpm, acc, ghost, ...applied });
       return;
     }
     if (S.daily) { this.finishDaily(); return; }

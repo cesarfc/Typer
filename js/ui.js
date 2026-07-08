@@ -235,8 +235,21 @@ const UI = {
         <rect x="27" y="25" width="46" height="3" rx="1.5" fill="#fff" opacity=".3"/>`;
     }
 
+    // Champion's cape: a flowing red drape with gold trim and a gold clasp,
+    // drawn BEHIND the body/arms so it flares out past the shoulders. Old
+    // saves have no `cape` key, so treat a missing value as "none".
+    let capeSvg = "";
+    if ((t.cape || 0) === 1) {
+      capeSvg = `<path d="M33 55 Q15 78 15 104 Q24 98 32 104 Q41 98 50 104 Q59 98 68 104 Q76 98 85 104 Q85 78 67 55 Q50 61 33 55 Z"
+          fill="#c62828" stroke="#f5c518" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M33 55 Q15 78 15 104 Q23 99 31 103 L42 57 Z" fill="#9c1616" opacity=".5"/>
+        <rect x="41" y="53" width="18" height="5" rx="2.5" fill="#f5c518"/>
+        <circle cx="50" cy="55.5" r="3.1" fill="#ffd34d" stroke="#b8901f" stroke-width="1"/>`;
+    }
+
     return `<svg class="${cls}" viewBox="0 0 100 118" aria-hidden="true">
       ${hairBack}
+      ${capeSvg}
       <rect x="38" y="88" width="9" height="21" rx="4" fill="#27314f"/>
       <rect x="53" y="88" width="9" height="21" rx="4" fill="#27314f"/>
       <ellipse cx="42" cy="111" rx="8" ry="4.5" fill="#1b2142"/>
@@ -320,7 +333,9 @@ const UI = {
         return `<button class="swatch hair-sw locked-sw" data-lk="${this.esc(lk.label)}" title="🔒 ${this.esc(lk.label)}">🔒</button>`;
       }
       const inner = h === "none" ? "✖" : this.trainerSvg({ ...t, ...mods(i) }, "trainer-svg mini");
-      return `<button class="swatch hair-sw ${t[key] === i ? "sel" : ""}" data-k="${key}" data-i="${i}">${inner}</button>`;
+      // (t[key] || 0) so a save missing this part (e.g. old saves without a
+      // cape) still shows the "none" option as selected
+      return `<button class="swatch hair-sw ${(t[key] || 0) === i ? "sel" : ""}" data-k="${key}" data-i="${i}">${inner}</button>`;
     }).join("");
     let html = row("Skin", colorSw("skin", TRAINER_OPTS.skin));
     html += row("Hair", shapeSw("hair", i => ({ hair: i, hat: 0 })));
@@ -328,6 +343,7 @@ const UI = {
     html += row("Hat", shapeSw("hat", i => ({ hat: i })));
     if (TRAINER_OPTS.hat[t.hat] !== "none") html += row("Hat color", colorSw("hatColor", TRAINER_OPTS.hatColor));
     html += row("Shirt", colorSw("shirt", TRAINER_OPTS.shirt));
+    html += row("Cape", shapeSw("cape", i => ({ cape: i })));
     this.$("trainer-opts").innerHTML = html;
   },
 
@@ -1498,9 +1514,11 @@ const UI = {
     wrap.style.transform = "none";
     this.renderPromptText(S);
     this.$("hud-progress-fill").style.width = `${Math.round(100 * S.idx / S.prompts.length)}%`;
-    // the ghost racer only belongs to Trainer School drills
+    // the ghost racer belongs to any run that loaded one (drills or Story
+    // Typing); updateGhost re-shows it each stopwatch frame, so only hide it
+    // up front when this run has no ghost to race
     const gm = this.$("ghost-marker");
-    if (gm && !S.practice) gm.classList.add("hidden");
+    if (gm && !(S.ghost && S.ghost.length)) gm.classList.add("hidden");
   },
 
   renderPromptText(S) {
@@ -2192,12 +2210,22 @@ const UI = {
   updateGhost(S, ms) {
     const marker = this.$("ghost-marker");
     if (!marker) return;
-    if (!S.practice || !S.ghost || !S.ghost.length) { marker.classList.add("hidden"); return; }
+    if (!S.ghost || !S.ghost.length) { marker.classList.add("hidden"); return; }
     marker.classList.remove("hidden");
     let done = 0;
     while (done < S.ghost.length && S.ghost[done] <= ms) done++;
-    marker.style.left = `${Math.min(100, 100 * done / S.prompts.length)}%`;
-    marker.classList.toggle("ahead", S.idx > done); // you've cleared more words than the ghost
+    if (S.paragraphMode) {
+      // one long prompt: units are words. Player progress = spaces already
+      // passed (words fully typed); ghost progress = word times <= elapsed.
+      const total = S.text.trim().split(/\s+/).length || 1;
+      let typed = 0;
+      for (let i = 0; i < S.pos; i++) if (S.text[i] === " ") typed++;
+      marker.style.left = `${Math.min(100, 100 * done / total)}%`;
+      marker.classList.toggle("ahead", typed > done);
+    } else {
+      marker.style.left = `${Math.min(100, 100 * done / S.prompts.length)}%`;
+      marker.classList.toggle("ahead", S.idx > done); // you've cleared more words than the ghost
+    }
   },
 
   practiceScene(S) {
@@ -2216,9 +2244,9 @@ const UI = {
     this.$("hud-hearts").classList.add("hidden");
     this.$("boss-bar").classList.add("hidden");
     this.$("player-avatar").innerHTML = this.avatarHtml(SAVE.state.profile);
-    // Practice Ghost marker (drills only — Story Typing never has a ghost)
+    // Practice Ghost marker — drills AND Story Typing race their best run
     const ghost = this.$("ghost-marker");
-    const hasGhost = !!(S.practice && S.ghost && S.ghost.length);
+    const hasGhost = !!(S.ghost && S.ghost.length);
     if (ghost) {
       ghost.classList.toggle("hidden", !hasGhost);
       ghost.classList.remove("ahead");
@@ -2247,8 +2275,8 @@ const UI = {
     this.$("stopwatch-time").textContent = "0.0s";
     this.$("stopwatch-wpm").textContent = "0 wpm";
     this.announce(`⏱ No countdown — beat your record!`, 1800);
-    // first drill of a tier: no ghost to race yet — invite them to make one
-    if (S.practice && !hasGhost) {
+    // no ghost to race yet (first drill / first read) — invite them to make one
+    if (!hasGhost) {
       setTimeout(() => this.toast("👻 Set a record to unlock your ghost racer — then race it next time!", "gold"), 900);
     }
   },
@@ -2373,6 +2401,13 @@ const UI = {
     const lines = [];
     if (res.betterWpm) lines.push(`⚡ <b>NEW BEST SPEED!</b>${res.prevWpm ? ` (was ${res.prevWpm} wpm)` : ""}`);
     else lines.push(`Your best: ⚡ ${res.prevWpm} wpm — read it again to beat it!`);
+    // Story Ghost verdict: did you out-read the ghost of your best run?
+    if (res.ghost) {
+      const secs = (res.ghost.deltaMs / 1000).toFixed(1);
+      lines.push(res.ghost.beat
+        ? `🏁 You beat your ghost by <b>${secs}s</b>!`
+        : `👻 Your ghost won by <b>${secs}s</b> — rematch?`);
+    }
     const catchBox = this.$("results-catch");
     catchBox.className = "catch-result";
     catchBox.innerHTML = `<div class="record-note ${record ? "gold" : ""}">${lines.join("<br>")}</div>`;
@@ -3087,6 +3122,57 @@ const UI = {
           </div>`;
         }).join("")}</div>`
         : `<p class="jr-note">🔒 Beat a Gym boss first — then come back to refight them for shiny medals!</p>`}`;
+
+    // Weekly Raid contribution board: who chipped the family boss, for how much
+    const raid = SAVE.raidNow();
+    if (!raid) {
+      this.$("jr-raid").innerHTML = `
+        <h3>⚔️ Weekly Raid</h3>
+        <p class="jr-note">🔒 Reach the ${WORLDS[3].emoji} ${WORLDS[3].name} to join the weekly family raid!</p>`;
+    } else {
+      const active = SAVE.root.active;
+      const myContrib = (active && raid.contrib[active]) || 0;
+      const claimedByMe = SAVE.raidClaimedByMe();
+      const rows = Object.keys(raid.contrib)
+        .map(pid => ({ pid, dmg: raid.contrib[pid] || 0 }))
+        .filter(r => r.dmg > 0)
+        .sort((a, b) => b.dmg - a.dmg);
+      const topDmg = rows.length ? rows[0].dmg : 0;
+      const nameOf = pid => {
+        const p = (SAVE.root.players || {})[pid];
+        return p && p.profile && p.profile.name ? p.profile.name : "A trainer";
+      };
+      const board = rows.length
+        ? `<div class="raid-board">${rows.map(r => {
+            const status = raid.defeated
+              ? (raid.claimed[r.pid]
+                  ? `<span class="raid-status claimed">✓ claimed</span>`
+                  : `<span class="raid-status waiting">🎁 prize waiting</span>`)
+              : "";
+            return `<div class="raid-row${r.pid === active ? " me" : ""}">
+              <span class="raid-who">${r.dmg === topDmg ? "👑 " : ""}${this.esc(nameOf(r.pid))}</span>
+              <span class="raid-dmg">${r.dmg} dmg</span>
+              ${status}
+            </div>`;
+          }).join("")}</div>`
+        : `<p class="jr-note">No hits yet this week — be the first! ⚔️</p>`;
+      const hpFrac = raid.maxHp ? Math.max(0, raid.hp) / raid.maxHp : 0;
+      const head = raid.defeated
+        ? `<div class="raid-head down">${this.pokeHtml(raid.id, raid.e, { cls: "poke-img rematch-img" })}
+             <b>${this.esc(raid.n)}</b><span class="raid-downtag">DOWN! 🎉</span></div>`
+        : `<div class="raid-head">${this.pokeHtml(raid.id, raid.e, { cls: "poke-img rematch-img" })}
+             <b>${this.esc(raid.n)}</b>
+             <div class="raid-hpbar jr-raid-hp"><div class="raid-hpfill" style="width:${hpFrac * 100}%"></div></div></div>`;
+      const canClaim = raid.defeated && myContrib > 0 && !claimedByMe;
+      const btn = !raid.defeated
+        ? `<button id="btn-raid" class="mid-btn">⚔️ To battle!</button>`
+        : canClaim ? `<button id="btn-raid" class="mid-btn">🎁 Claim your prize!</button>` : "";
+      this.$("jr-raid").innerHTML = `
+        <h3>⚔️ Weekly Raid <span class="jr-sub">the whole family fights together</span></h3>
+        ${head}
+        ${board}
+        ${btn}`;
+    }
   },
 
   // ---------- Today's Adventure: three stamps and a soft landing ----------
@@ -3307,7 +3393,7 @@ const UI = {
         SFX.click();
         const p = SAVE.players().find(x => x.id === ed.dataset.editt);
         this._editTrainer = ed.dataset.editt;
-        this.builder = p && p.trainer ? { ...p.trainer } : defaultTrainer();
+        this.builder = p && p.trainer ? { cape: 0, ...p.trainer } : defaultTrainer();
         this.renderBuilder();
         this.$("player-select").classList.add("hidden");
         const form = this.$("title-new");
@@ -3531,6 +3617,8 @@ const UI = {
       }
       if (e.target.closest("#btn-daily")) { SFX.click(); Engine.startDaily(); return; }
       if (e.target.closest("#btn-elite")) { SFX.click(); Engine.startElite(); return; }
+      // one handler for attack and claim — startRaid routes to claim when down
+      if (e.target.closest("#btn-raid")) { SFX.init(); Engine.startRaid(); return; }
       const rm = e.target.closest(".rematch-go");
       if (rm) { SFX.init(); Engine.startRematch(+rm.dataset.rw, rm.dataset.tier); }
     });
