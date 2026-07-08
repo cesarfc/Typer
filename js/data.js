@@ -435,6 +435,11 @@ const CREATURES = [
     { n: "Marshtomp", e: "🦎", id: 259, r: 2, evoOnly: true }, { n: "Swampert", e: "🐊", id: 260, r: 3, evoOnly: true },
     { n: "Pichu", e: "⚡", id: 172, r: 1 }, { n: "Bagon", e: "🐲", id: 371, r: 2 },
     { n: "Shelgon", e: "🛡️", id: 372, r: 2, evoOnly: true }, { n: "Salamence", e: "🐉", id: 373, r: 3, evoOnly: true },
+    // ---- Puzzle Lab math rewards (append-only; caught ONLY by solving a math stage) ----
+    { n: "Deino", e: "🐲", id: 633, r: 1, puzzle: true },       // 3-16 · m1-1
+    { n: "Goomy", e: "🐌", id: 704, r: 1, puzzle: true },       // 3-17 · m1-2
+    { n: "Axew", e: "🐉", id: 610, r: 2, puzzle: true },        // 3-18 · m1-3
+    { n: "Hydreigon", e: "🐲", id: 635, r: 3, puzzle: true },   // 3-19 · m1-4 capstone
   ],
   [
     { n: "Bulbasaur", e: "🌱", id: 1, r: 1 }, { n: "Charmander", e: "🕯️", id: 4, r: 1 }, { n: "Squirtle", e: "🐢", id: 7, r: 1 },
@@ -444,6 +449,11 @@ const CREATURES = [
     { n: "Charmeleon", e: "🔥", id: 5, r: 2, evoOnly: true }, { n: "Wartortle", e: "🐢", id: 8, r: 2, evoOnly: true },
     { n: "Blastoise", e: "💦", id: 9, r: 3, evoOnly: true }, { n: "Ninetales", e: "🦊", id: 38, r: 2, evoOnly: true },
     { n: "Shroomish", e: "🍄", id: 285, r: 1 }, { n: "Breloom", e: "🥊", id: 286, r: 2, evoOnly: true },
+    // ---- Puzzle Lab math rewards (append-only; caught ONLY by solving a math stage) ----
+    { n: "Grookey", e: "🐵", id: 810, r: 1, puzzle: true },     // 4-16 · m2-1
+    { n: "Applin", e: "🍎", id: 840, r: 1, puzzle: true },      // 4-17 · m2-2
+    { n: "Phantump", e: "🎃", id: 708, r: 2, puzzle: true },    // 4-18 · m2-3
+    { n: "Decidueye", e: "🏹", id: 724, r: 3, puzzle: true },   // 4-19 · m2-4 capstone
   ],
   [
     { n: "Suicune", e: "💠", id: 245, r: 2 }, { n: "Zacian", e: "⚔️", id: 888, r: 2 }, { n: "Zekrom", e: "🌩️", id: 644, r: 2 },
@@ -453,6 +463,13 @@ const CREATURES = [
     { n: "Celebi", e: "🍃", id: 251, r: 3 }, { n: "Jirachi", e: "⭐", id: 385, r: 3 },
     { n: "Victini", e: "🔥", id: 494, r: 3 }, { n: "Zamazenta", e: "🛡️", id: 889, r: 3 },
     { n: "Miraidon", e: "🐉", id: 1008, r: 3 }, { n: "Eternatus", e: "🌌", id: 890, r: 3 },
+    // ---- Puzzle Lab math rewards (append-only; caught ONLY by solving a math stage).
+    // World 5 keeps capital letters (worldProperNames), so their catch prompts type
+    // "Gholdengo", "Terapagos", etc. These stay OUT of the roamer/raid pools via catchable(). ----
+    { n: "Gholdengo", e: "🪙", id: 1000, r: 3, puzzle: true },  // 5-16 · m3-1
+    { n: "Kingambit", e: "⚔️", id: 983, r: 3, puzzle: true },   // 5-17 · m3-2
+    { n: "Ogerpon", e: "🎭", id: 1017, r: 3, puzzle: true },    // 5-18 · m3-3 capstone
+    { n: "Terapagos", e: "🐢", id: 1024, r: 4, puzzle: true },  // 5-19 · m4-3 final capstone
   ],
 ];
 
@@ -759,6 +776,10 @@ const PUZZLE_BLOCKS = {
                node: { t: "if", cond: { sensor: "pathAhead" }, body: [] } },
   ifElse:    { e: "🔀", label: "if / else",   cat: "logic",   c: "#f76d8e", nest: true, hasCond: true, hasElse: true,
                node: { t: "ifElse", cond: { sensor: "pathAhead" }, body: [], else: [] } },
+  // ---- Phase 3: number-line hop (signed). The palette offers one button per
+  // value in a stage's `hops:[…]`; this base def only carries the card colour /
+  // category (the actual +N / −N lives on the node).
+  hop:       { e: "🦶", label: "hop",         cat: "math",    c: "#ffd34d", signed: true, node: { t: "hop", v: 1 } },
 };
 
 // Sensors the executor honestly supports (see Puzzle.sensorTrue). The picker
@@ -770,6 +791,10 @@ const PUZZLE_SENSORS = {
   berryAhead: { label: "berry ahead", e: "🍒" },
   waterAhead: { label: "water ahead", e: "💧" },
   onBerry:    { label: "on berry",    e: "🍒" },
+  // ---- Phase 3: how many berries have been collected so far. `compare` opens a
+  // symbol + number stepper in the picker (berries ≥ / > / < / = N) so a branch
+  // can steer on the running count. Only stages with `compare` offer it.
+  berries:    { label: "berries",     e: "🍒", compare: true },
 };
 
 // which palette key a saved node corresponds to (renderer looks the card up)
@@ -780,6 +805,7 @@ function puzzleBlockKey(node) {
   if (node.t === "repeat") return "repeat";
   if (node.t === "if") return "if";
   if (node.t === "ifElse") return "ifElse";
+  if (node.t === "hop") return "hop";
   return null;
 }
 
@@ -1078,6 +1104,224 @@ const PUZZLE_STAGES = [
       "🔁 { ❓(wall OR water){ ↱ } 🍒 👣 } conquers the Grand Maze. Chase that 3rd ⭐!",
     ],
   },
+
+  // ============================================================
+  // MATH WING — the number puzzles. Math is never typed: it EMERGES from the
+  // blocks. Counting & adding are collect-counters; times tables are loops of
+  // collects; add/subtract are signed hops on a number line; and comparisons
+  // steer a branch by the running berry count. The wing opens once the coding
+  // Loops chapter (ch.2) is finished.
+  // ============================================================
+
+  // ---- Chapter 1 · Counting — a live 🍒 counter (A) and the number line (B) ----
+  {
+    id: "m1-1", pack: "math", chapter: 1, name: "Counting Berries", concept: "count them up",
+    grid: ["S***o"],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "collect", need: 3,
+    blocks: ["walk", "collect"],
+    optimal: 7, budget: 10,
+    reward: { catch: "3-16" }, // Deino
+    hints: [
+      "Three 🍒 berries in a row! Walk onto each one and collect it — watch the counter climb.",
+      "Stand ON a berry, then tap 🍒 collect. Then 👣 walk to the next one.",
+      "Try 👣 🍒 👣 🍒 👣 🍒 👣 — the counter goes 1, 2, 3, then the flag!",
+    ],
+  },
+  {
+    id: "m1-2", pack: "math", chapter: 1, name: "Three More", concept: "add with a loop",
+    grid: ["S.*.*.*o"],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "collect", need: 3,
+    blocks: ["walk", "collect", "repeat"],
+    optimal: 5, budget: 8,
+    reward: { catch: "3-17" }, // Goomy
+    hints: [
+      "The berries are spread out — two steps apart. But every berry is the same little trip: walk, walk, collect.",
+      "Wrap that trip in a 🔁 repeat so it happens for all three berries.",
+      "🔁3 { 👣 👣 🍒 } then one more 👣 to the flag. The counter adds 1, then 2, then 3!",
+    ],
+  },
+  {
+    id: "m1-3", pack: "math", chapter: 1, name: "Hop Along", concept: "add on the number line",
+    line: 10, start: { x: 0, y: 0, dir: "right" },
+    goal: "target", need: 8,
+    hops: [2, 3], blocks: [],
+    optimal: 3, budget: 5,
+    reward: { catch: "3-18" }, // Axew
+    hints: [
+      "This is a number line! Your Pokemon hops along it. Land EXACTLY on the 8 flag 🏁.",
+      "Each 🦶 hop moves you by its number. Watch the total at the top change with every hop.",
+      "3 + 3 + 2 = 8. Try 🦶+3, 🦶+3, 🦶+2 — right onto the 8!",
+    ],
+  },
+  {
+    id: "m1-4", pack: "math", chapter: 1, name: "Land on Ten", concept: "loops on the number line",
+    capstone: true,
+    line: 12, start: { x: 0, y: 0, dir: "right" },
+    goal: "target", need: 10,
+    hops: [2, 3], blocks: ["repeat"],
+    optimal: 3, budget: 6,
+    reward: { catch: "3-19" }, // Hydreigon
+    hints: [
+      "Land exactly on 10. You could hop lots of times… or let a loop do the counting!",
+      "Notice 2 + 3 makes 5, and you need two of those to reach 10.",
+      "🔁2 { 🦶+2, 🦶+3 } hops 2, 5, 7, 10 — perfect landing in three blocks!",
+    ],
+  },
+
+  // ---- Chapter 2 · Times — multiplication is a loop of collects (A). Each
+  // pass grabs the same number of berries, so the win banner reads the fact
+  // right off your program: "4 groups of 3 = 12!" ----
+  {
+    id: "m2-1", pack: "math", chapter: 2, name: "Groups of Two", concept: "equal groups",
+    grid: ["S**.**.**o"],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "collect", need: 6,
+    blocks: ["walk", "collect", "repeat"],
+    optimal: 6, budget: 9,
+    reward: { catch: "4-16" }, // Grookey
+    hints: [
+      "The berries come in little groups of TWO. Three groups, two berries each.",
+      "One group is the same every time: walk, collect, walk, collect, then step to the next group.",
+      "🔁3 { 👣 🍒 👣 🍒 👣 } grabs 2, then 4, then 6 — three groups of two!",
+    ],
+  },
+  {
+    id: "m2-2", pack: "math", chapter: 2, name: "Four Threes", concept: "4 × 3 = 12",
+    grid: ["o***.", "*###*", "*###*", "*###*", ".***."],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "collect", need: 12,
+    blocks: ["walk", "turnRight", "collect", "repeat"],
+    optimal: 9, budget: 13,
+    reward: { catch: "4-17" }, // Applin
+    hints: [
+      "A square field with THREE 🍒 berries along every side — and four sides. Start on the flag and loop all the way back!",
+      "Each side is the same dance: walk-collect three times, one more walk to the corner, then ↱ turn.",
+      "🔁4 { 👣 🍒 👣 🍒 👣 🍒 👣 ↱ } collects 3, 6, 9, 12 and lands back on the flag. Four groups of three!",
+    ],
+  },
+  {
+    id: "m2-3", pack: "math", chapter: 2, name: "Berry Fields", concept: "4 × 2 = 8",
+    grid: ["o**.", "*##*", "*##*", ".**."],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "collect", need: 8,
+    blocks: ["walk", "turnRight", "collect", "repeat"],
+    optimal: 7, budget: 10,
+    reward: { catch: "4-18" }, // Phantump
+    hints: [
+      "A smaller field: TWO 🍒 berries per side, four sides. Same loop idea as before.",
+      "Per side: walk-collect twice, one walk to the corner, then ↱ turn.",
+      "🔁4 { 👣 🍒 👣 🍒 👣 ↱ } sweeps 2, 4, 6, 8 — four groups of two, back to the flag!",
+    ],
+  },
+  {
+    id: "m2-4", pack: "math", chapter: 2, name: "Times Table Trail", concept: "a loop inside a loop",
+    capstone: true,
+    grid: ["o***.", "*###*", "*###*", "*###*", ".***."],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "collect", need: 12,
+    blocks: ["walk", "turnRight", "collect", "repeat"],
+    optimal: 6, budget: 12,
+    reward: { catch: "4-19" }, // Decidueye
+    hints: [
+      "Same field as Four Threes — but now make it TINY. A loop can go inside another loop!",
+      "The inner 🔁 grabs the three berries on a side; the outer 🔁 does that for all four sides.",
+      "🔁4 { 🔁3 { 👣 🍒 } 👣 ↱ } — six blocks, still 4 groups of 3 = 12!",
+    ],
+  },
+
+  // ---- Chapter 3 · Plus & Minus — signed hops on the number line (B). Now
+  // hops can go BACKWARD, so a plan overshoots on purpose and steps back to
+  // land exactly right; loops still compose. ----
+  {
+    id: "m3-1", pack: "math", chapter: 3, name: "Back and Forth", concept: "add, then subtract",
+    line: 10, start: { x: 0, y: 0, dir: "right" },
+    goal: "target", need: 6,
+    hops: [4, -2], blocks: [],
+    optimal: 3, budget: 5,
+    reward: { catch: "5-16" }, // Gholdengo
+    hints: [
+      "Land on 6 — but your only hops are +4 and −2. You'll go too far, then come back!",
+      "Two big hops forward overshoot the flag. A −2 hop steps you back.",
+      "4 + 4 = 8, then 8 − 2 = 6. Try 🦶+4, 🦶+4, 🦶−2!",
+    ],
+  },
+  {
+    id: "m3-2", pack: "math", chapter: 3, name: "Exactly Right", concept: "loop forward, hop back",
+    line: 10, start: { x: 0, y: 0, dir: "right" },
+    goal: "target", need: 7,
+    hops: [3, -2], blocks: ["repeat"],
+    optimal: 3, budget: 5,
+    reward: { catch: "5-17" }, // Kingambit
+    hints: [
+      "Land exactly on 7 using +3 and −2 hops. A loop can do the forward hops for you.",
+      "Three +3 hops reach 9 — just past 7. One −2 hop fixes it.",
+      "🔁3 { 🦶+3 } lands on 9, then 🦶−2 drops you onto 7. Three blocks!",
+    ],
+  },
+  {
+    id: "m3-3", pack: "math", chapter: 3, name: "The Number Path", concept: "mixed hops in a loop",
+    capstone: true,
+    line: 15, start: { x: 0, y: 0, dir: "right" },
+    goal: "target", need: 12,
+    hops: [3, 2, -1], blocks: ["repeat"],
+    optimal: 4, budget: 7,
+    reward: { catch: "5-18" }, // Ogerpon
+    hints: [
+      "The long number path — land on 12. Each little journey is +3, +2, then −1.",
+      "That journey adds up to +4. How many of those get you to 12?",
+      "🔁3 { 🦶+3, 🦶+2, 🦶−1 } walks the path 4, 8, 12 — right on the flag!",
+    ],
+  },
+
+  // ---- Chapter 4 · Compare — a branch that reads the running count (C). Set
+  // the berries ≥ / > / < / = comparison so the RIGHT door opens; the wrong
+  // one bonks kindly. The finale combines counting, loops and comparing. ----
+  {
+    id: "m4-1", pack: "math", chapter: 4, name: "Big or Small", concept: "a door that checks",
+    grid: ["S**", "..o"],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "collect", need: 2,
+    blocks: ["walk", "collect", "turnRight", "ifElse"],
+    compare: true,
+    optimal: 7, budget: 9,
+    hints: [
+      "The flag is one step DOWN — but a door guards it. The door only opens if you've collected enough 🍒.",
+      "Collect both berries, then use a 🔀 if / else that checks: if berries ≥ 2, turn down and walk.",
+      "👣 🍒 👣 🍒, then 🔀( berries ≥ 2 ){ ↱ 👣 }. Two berries opens the door!",
+    ],
+  },
+  {
+    id: "m4-2", pack: "math", chapter: 4, name: "Sorting Gate", concept: "compare to choose a path",
+    grid: ["..o", "S**", "..#"],
+    start: { x: 0, y: 1, dir: "right" },
+    goal: "collect", need: 2,
+    blocks: ["walk", "collect", "turnLeft", "turnRight", "ifElse"],
+    compare: true,
+    optimal: 7, budget: 10,
+    hints: [
+      "A sorting gate! One way leads up to the flag 🏁, the other way bonks into a 🌳 wall. Your berry count picks the way.",
+      "Collect both berries, then a 🔀 if / else: if berries ≥ 2, turn LEFT (up) to the flag — else turn RIGHT into the wall.",
+      "👣 🍒 👣 🍒, then 🔀( berries ≥ 2 ){ ↰ 👣 } else { ↱ 👣 }. Set it wrong and your Pokemon bonks — set it right and it sails through!",
+    ],
+  },
+  {
+    id: "m4-3", pack: "math", chapter: 4, name: "The Grand Total", concept: "count, then compare",
+    capstone: true,
+    grid: ["S******#", "......o.", "......#."],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "collect", need: 6,
+    blocks: ["walk", "collect", "turnRight", "repeat", "ifElse"],
+    compare: true,
+    optimal: 6, budget: 9,
+    reward: { catch: "5-19" }, // Terapagos
+    hints: [
+      "The grand finale! Collect the whole row of 🍒, then a gate checks your grand total before the flag.",
+      "A 🔁 loop grabs all six berries. Then a 🔀 if / else: if berries ≥ 6, turn down and walk to the flag.",
+      "🔁6 { 👣 🍒 }, then 🔀( berries ≥ 6 ){ ↱ 👣 }. Six berries opens the last gate!",
+    ],
+  },
 ];
 
 // Gym Rematches: refight an already-beaten boss with a faster clock for a
@@ -1171,6 +1415,7 @@ const TROPHIES = [
   { id: "rematch-gold", e: "🥇", name: "Rematch Master", desc: "Win a Gym Rematch for a Gold medal" },
   { id: "puzzle-1", e: "🧩", name: "Junior Coder", desc: "Solve your first Puzzle Lab stage" },
   { id: "puzzle-code", e: "💻", name: "Master Coder", desc: "Earn a star on every coding stage in the Puzzle Lab" },
+  { id: "puzzle-math", e: "🔢", name: "Number Wizard", desc: "Earn a star on every math stage in the Puzzle Lab" },
 ];
 
 const ENCOURAGE = [

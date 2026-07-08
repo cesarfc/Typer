@@ -2353,6 +2353,60 @@ button, .screen, #topbar { touch-action: manipulation; }
 .pz-win-btns { display: flex; flex-direction: column; gap: 8px; align-items: stretch; max-width: 320px; margin: 10px auto 0; }
 .pz-win-btns .big-btn { width: 100%; }
 
+/* ============ Puzzle Lab — Math Wing (Phase 3) ============ */
+.pz-wing.math { background: linear-gradient(135deg, #16324a, #103a52); border-color: #2f8fc0; }
+.pz-wing.math.locked { border-color: #2f6a8e; }
+
+/* ---- live HUD: berry counter (A) or number-line total (B) ---- */
+#puzzle-hud.hidden { display: none; }
+.pz-hud {
+  width: min(680px, 100%); margin: 0 auto; display: flex; align-items: center; justify-content: center;
+  gap: 10px; padding: 7px 16px; border-radius: 14px; font-weight: 800;
+  background: #10142c; border: 2px solid var(--line);
+}
+.pz-hud-lbl { font-size: 13px; color: var(--dim); text-transform: uppercase; letter-spacing: .5px; }
+.pz-hud-num { font-size: 26px; color: var(--info); font-variant-numeric: tabular-nums; min-width: 28px; text-align: center; transition: color .2s; }
+.pz-hud-sep { font-size: 14px; color: var(--dim); }
+.pz-hud-goal { font-size: 19px; color: var(--gold); font-variant-numeric: tabular-nums; }
+.pz-hud.berries.full { border-color: var(--good); }
+.pz-hud.berries.full .pz-hud-num { color: var(--good); }
+.pz-hud.line .pz-hud-num { color: var(--gold); }
+
+/* ---- number line (mechanic B): one row of numbered cells ---- */
+#puzzle-grid.line {
+  --cell: min(46px, calc((min(680px, 92vw) - 20px) / var(--cols)));
+  background: linear-gradient(160deg, #1a2450, #10173a);
+  border-color: #0c1330;
+}
+.pcell {
+  width: var(--cell); height: var(--cell); box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border-radius: 9px; border: 1.5px solid rgba(255,255,255,.10);
+  background: linear-gradient(180deg, #26305e, #1a2246); position: relative;
+}
+.pcell-num { font-size: calc(var(--cell) * .44); font-weight: 900; color: #cdd6ff; line-height: 1; }
+.pcell.target { border-color: var(--gold); background: linear-gradient(180deg, #3a3418, #29260f); box-shadow: inset 0 0 0 1px rgba(255,211,77,.4); }
+.pcell.target .pcell-num { color: var(--gold); }
+.pcell-flag { position: absolute; top: -1px; font-size: calc(var(--cell) * .4); line-height: 1; }
+
+/* ---- berries comparison row in the condition picker (≥ > < = + stepper) ---- */
+.pz-cp-compare { display: flex; flex-direction: column; gap: 12px; align-items: center; margin-top: 2px; }
+.pz-cp-syms { display: flex; gap: 8px; }
+.pz-cp-sym {
+  width: 50px; height: 50px; border-radius: 12px; font-size: 23px; font-weight: 900; color: #fff;
+  background: var(--card2); border: 2px solid var(--line);
+}
+.pz-cp-sym.on { border-color: var(--info); background: rgba(77,195,255,.18); color: var(--info); }
+.pz-cp-stepper { display: flex; align-items: center; gap: 14px; }
+.pz-cp-stepper .pz-step { width: 40px; height: 40px; font-size: 22px; }
+.pz-cp-val { font-size: 28px; font-weight: 900; min-width: 46px; text-align: center; color: var(--gold); font-variant-numeric: tabular-nums; }
+
+/* ---- multiplication / landing celebration on the win card ---- */
+.pz-win-math {
+  font-size: 22px; font-weight: 900; color: var(--gold); margin: 4px 0 2px;
+  text-shadow: 0 0 14px rgba(255,211,77,.45);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pz-caret, .pz-caret.on, .pz-bodyslot.on, .pz-msg.win, .pz-reward.new { animation: none !important; }
   .pz-sprite { transition: none; }

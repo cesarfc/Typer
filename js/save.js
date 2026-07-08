@@ -847,6 +847,7 @@ const SAVE = {
     const newTrophies = [];
     this.award("puzzle-1", newTrophies);                                  // 🧩 first solve ever
     if (this.allCodingStagesSolved()) this.award("puzzle-code", newTrophies); // 💻 all 18 coding stages
+    if (this.allMathStagesSolved()) this.award("puzzle-math", newTrophies);   // 🔢 all 14 math stages
     this.collectTrophies(newTrophies); // harmless now; catches add the real dex growth
     this.save();
     return { xp, newTrophies, firstClear, record: rec };
@@ -864,6 +865,13 @@ const SAVE = {
   // Master Coder: a star on all 18 coding stages
   allCodingStagesSolved() {
     return PUZZLE_STAGES.filter(s => s.pack === "code").every(s => {
+      const r = this.state.puzzle[s.id];
+      return !!(r && r.stars > 0);
+    });
+  },
+  // Number Wizard: a star on all 14 math stages
+  allMathStagesSolved() {
+    return PUZZLE_STAGES.filter(s => s.pack === "math").every(s => {
       const r = this.state.puzzle[s.id];
       return !!(r && r.stars > 0);
     });
