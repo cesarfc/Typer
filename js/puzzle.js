@@ -19,6 +19,7 @@ const Puzzle = {
   hintIdx: 0,        // which escalating hint to show next
   playing: false,    // a run is animating
   _timer: null,      // active playback timeout
+  _step: null,       // an in-progress Step-through: { sim, k }
   _bonkIdx: 0,       // rotate the kind wall messages
   condPicker: null,  // the tap-only condition overlay element
   _condPath: null,   // which if/else card the picker is editing
@@ -31,6 +32,14 @@ const Puzzle = {
   CW:  { up: "right", right: "down", down: "left", left: "up" },
   CCW: { up: "left", left: "down", down: "right", right: "up" },
   DEG: { up: 0, right: 90, down: 180, left: 270 },
+
+  // playback speeds for ▶ Run and ⏭ Step (per-step delay in ms). The chosen
+  // index persists per player under SAVE.state.puzzle._speed.
+  SPEEDS: [
+    { e: "🐢", ms: 520, name: "slow" },
+    { e: "🐇", ms: 320, name: "medium" },
+    { e: "⚡", ms: 160, name: "fast" },
+  ],
 
   WALL_MSGS: [
     "Oof — a wall! 🌳 Which way should your Pokemon turn?",
@@ -64,7 +73,9 @@ const Puzzle = {
     });
 
     this.$("puzzle-run").addEventListener("click", () => { if (!this.playing) { SFX.init(); this.run(); } });
+    this.$("puzzle-step").addEventListener("click", () => { if (!this.playing) { SFX.init(); this.stepOnce(); } });
     this.$("puzzle-reset").addEventListener("click", () => { if (!this.playing) { SFX.click(); this.resetRun(); } });
+    this.$("puzzle-speed").addEventListener("click", () => { SFX.click(); this.cycleSpeed(); });
     this.$("puzzle-hint").addEventListener("click", () => { SFX.click(); this.showHint(); });
     this.$("puzzle-back").addEventListener("click", () => { SFX.click(); this.stopPlayback(); this.closeCondPicker(); UI.show("lab"); });
 
@@ -213,9 +224,11 @@ const Puzzle = {
     this.caret = { cont: "", idx: 0 };
     this.hintIdx = 0;
     this.playing = false;
+    this._step = null;
     this._bonkIdx = 0;
     this.closeCondPicker();
     UI.show("puzzle");
+    this.renderSpeed();
     const goalText = this.goalText(stage);
     this.$("puzzle-title").innerHTML = `<b>${UI.esc(stage.name)}</b><i>${goalText}</i>`;
     this.$("puzzle-goal").textContent = goalText;
@@ -401,6 +414,7 @@ const Puzzle = {
     if (this.countBlocks(this.program) >= 40) { UI.toast("That's a very long plan! Try removing a few blocks."); return; }
     // on comparison stages, if/ifElse default to a "berries ≥ 1" question
     if (node.cond && this.stage.compare) node.cond = { sensor: "berries", cmp: ">=", val: 1 };
+    this.clearStep(); // the plan changed — drop any in-progress step-through
     const arr = this.getContainer(this.caret.cont);
     arr.splice(this.caret.idx, 0, node);
     this.caret = { cont: this.caret.cont, idx: this.caret.idx + 1 };
@@ -413,6 +427,7 @@ const Puzzle = {
     const arr = this.getContainer(cont);
     if (idx < 0 || idx >= arr.length) return;
     if (this._condPath !== null) this.closeCondPicker();
+    this.clearStep();
     arr.splice(idx, 1);
     this.caret = { cont, idx }; // drop the caret where the block used to be
     this.hideMsg();
@@ -423,6 +438,7 @@ const Puzzle = {
     const node = this.nodeAt(path);
     if (!node || node.t !== "repeat") return;
     node.n = Math.max(2, Math.min(10, (node.n || 2) + (dir === "inc" ? 1 : -1)));
+    this.clearStep();
     this.renderProgram();
   },
 
@@ -579,6 +595,7 @@ const Puzzle = {
   applyCond() {
     const node = this.nodeAt(this._condPath);
     if (node) node.cond = this.buildCond(this._cond);
+    this._step = null; // the condition changed — any step-through trace is stale
     this.renderCondPicker();
     this.renderProgram();
   },
@@ -794,6 +811,7 @@ const Puzzle = {
 
   run() {
     if (this.playing || !this.stage) return;
+    this._step = null; // a full run supersedes any in-progress step-through
     this.closeCondPicker();
     const sim = this.simulate();
     if (!sim.frames.length) { this.showHintMsg("Add some blocks first, then press ▶ Run!"); return; }
@@ -801,7 +819,7 @@ const Puzzle = {
     this.$("screen-puzzle").classList.add("playing");
     this.hideMsg();
     this.resetSpriteToStart();
-    const STEP = 460;
+    const STEP = this.stepMs();
     let k = 0;
     const step = () => {
       const f = sim.frames[k];
@@ -814,6 +832,109 @@ const Puzzle = {
       this._timer = setTimeout(step, STEP);
     };
     this._timer = setTimeout(step, 220);
+  },
+
+  // ---------- Step: run one block at a time so kids can debug their plan ----------
+  // The trace is built once when stepping starts; each press advances the
+  // highlight + sprite by a single frame. Editing the plan (or Run/Reset)
+  // drops the trace so it can never go stale. setTimeout is only used for the
+  // short "result" beat, so reduced-motion players still read discrete steps.
+  stepOnce() {
+    if (this.playing || !this.stage) return;
+    this.closeCondPicker();
+    if (!this._step) {
+      const sim = this.simulate();
+      if (!sim.frames.length) { this.showHintMsg("Add some blocks first, then press ⏭ Step to walk through them!"); return; }
+      this.hideMsg();
+      this.resetSpriteToStart();
+      this._step = { sim, k: 0 };
+    }
+    const s = this._step;
+    const f = s.sim.frames[s.k];
+    this.highlightBlock(f.path);
+    this.applyFrame(f);
+    s.k++;
+    const terminal = !!f.win || f.type === "bonk" || f.type === "bounce";
+    if (terminal || s.k >= s.sim.frames.length) {
+      const sim = s.sim, endF = terminal ? f : null;
+      this._step = null;
+      this.playing = true; // lock the controls for the short result beat
+      this.$("screen-puzzle").classList.add("playing");
+      this._timer = setTimeout(() => this.endRun(sim, endF), 420);
+    }
+  },
+
+  // drop any in-progress step-through; optionally snap the guide back to start
+  clearStep(resetSprite = true) {
+    const was = !!this._step;
+    this._step = null;
+    if (was && resetSprite && this.stage) { this.resetSpriteToStart(); this.resetHud(); }
+  },
+
+  // ---------- playback speed (🐢/🐇/⚡) ----------
+  stepMs() { return this.SPEEDS[SAVE.puzzleSpeed()].ms; },
+  renderSpeed() {
+    const b = this.$("puzzle-speed");
+    if (b) {
+      const sp = this.SPEEDS[SAVE.puzzleSpeed()];
+      b.textContent = sp.e;
+      b.title = `Speed: ${sp.name} — tap to change`;
+    }
+  },
+  cycleSpeed() {
+    const next = (SAVE.puzzleSpeed() + 1) % this.SPEEDS.length;
+    SAVE.setPuzzleSpeed(next);
+    this.renderSpeed();
+    const sp = this.SPEEDS[next];
+    UI.toast(`${sp.e} Speed: ${sp.name}`);
+  },
+
+  // ---------- "Watch a bit": ghost-demo the start of a stored solution ----------
+  // Only the 5 chapter-1 coding stages carry a `solution`. We replay at most a
+  // few blocks — and never the whole thing — as a translucent ghost, without
+  // touching the kid's own plan and without ever awarding. A coaching nudge,
+  // not an auto-solver.
+  watchABit() {
+    if (this.playing || !this.stage || !this.stage.solution) return;
+    const sol = this.stage.solution;
+    const take = Math.min(3, Math.max(1, sol.length - 1)); // always leave the last step for them
+    const demo = sol.slice(0, take).map(n => JSON.parse(JSON.stringify(n)));
+    const saved = this.program;
+    this.program = demo;
+    const sim = this.simulate();
+    this.program = saved; // we only needed the frames; the kid's plan is untouched
+    if (!sim.frames.length) return;
+    this.hideMsg();
+    this.playGhost(sim);
+  },
+
+  // animate a demo trace as a translucent ghost (no block highlight — the cards
+  // on screen belong to the kid's plan, not this demo), then hand control back.
+  playGhost(sim) {
+    this.playing = true;
+    const scr = this.$("screen-puzzle");
+    scr.classList.add("playing", "ghosting");
+    this.resetSpriteToStart();
+    const STEP = this.stepMs();
+    let k = 0;
+    const step = () => {
+      const f = sim.frames[k];
+      this.applyFrame(f);
+      k++;
+      const stop = k >= sim.frames.length || f.win || f.type === "bonk" || f.type === "bounce";
+      if (stop) {
+        this._timer = setTimeout(() => {
+          this.playing = false;
+          scr.classList.remove("playing", "ghosting");
+          this.resetSpriteToStart();
+          this.resetHud();
+          this.showHintMsg("See how it starts? 👀 Now build the rest of the plan yourself — you've got this! 💪", { tutor: true });
+        }, 520);
+        return;
+      }
+      this._timer = setTimeout(step, STEP);
+    };
+    this._timer = setTimeout(step, 260);
   },
 
   applyFrame(f) {
@@ -945,21 +1066,38 @@ const Puzzle = {
   },
 
   // ---------- hint + messages ----------
+  // Hint ladder: tap once for the gentlest nudge, again for more, until the
+  // last one. hintIdx resets on stage entry (openStage). After the final hint,
+  // stages that stored a `solution` offer a "Watch a bit" demo.
   showHint() {
     const hints = this.stage.hints || [];
     if (!hints.length) return;
-    const msg = hints[Math.min(this.hintIdx, hints.length - 1)];
-    this.hintIdx = Math.min(this.hintIdx + 1, hints.length - 1);
-    this.showHintMsg("💡 " + msg);
+    const i = Math.min(this.hintIdx, hints.length - 1);
+    this.hintIdx = Math.min(this.hintIdx + 1, hints.length);
+    const atLast = this.hintIdx >= hints.length;
+    this.showHintMsg("💡 " + hints[i], { tutor: true, watch: atLast && !!this.stage.solution });
   },
 
-  showHintMsg(text) {
+  // opts: { tutor } adds the friendly tutor persona; { watch } adds the
+  // "Watch a bit" demo button (only offered after the last hint).
+  showHintMsg(text, opts = {}) {
     const box = this.$("puzzle-msg");
-    box.className = "pz-msg hint";
-    box.innerHTML = `<div class="pz-hint-text">${text}</div>
-      <button class="pz-hint-close" data-act="replay" title="Got it">Got it 👍</button>`;
+    box.className = "pz-msg hint" + (opts.tutor ? " tutor" : "");
+    const who = opts.tutor
+      ? `<div class="pz-hint-who"><span class="pz-hint-avatar">🦉</span> Tutor tip</div>`
+      : "";
+    const watchBtn = opts.watch
+      ? `<button class="pz-hint-watch" data-act="watch">👀 Watch a bit</button>`
+      : "";
+    box.innerHTML = `${who}<div class="pz-hint-text pz-reveal">${text}</div>
+      <div class="pz-hint-btns">${watchBtn}
+        <button class="pz-hint-close" data-act="replay" title="Got it">Got it 👍</button></div>`;
     box.onclick = e => {
-      if (e.target.closest("[data-act]")) { SFX.click(); this.hideMsg(); this.resetRun(); }
+      const btn = e.target.closest("[data-act]");
+      if (!btn) return;
+      SFX.click();
+      if (btn.dataset.act === "watch") this.watchABit();
+      else { this.hideMsg(); this.resetRun(); }
     };
   },
 
@@ -980,8 +1118,9 @@ const Puzzle = {
 
   stopPlayback() {
     if (this._timer) { clearTimeout(this._timer); this._timer = null; }
+    this._step = null;
     this.playing = false;
     const scr = this.$("screen-puzzle");
-    if (scr) scr.classList.remove("playing");
+    if (scr) scr.classList.remove("playing", "ghosting");
   },
 };

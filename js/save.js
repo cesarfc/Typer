@@ -848,6 +848,7 @@ const SAVE = {
     this.award("puzzle-1", newTrophies);                                  // 🧩 first solve ever
     if (this.allCodingStagesSolved()) this.award("puzzle-code", newTrophies); // 💻 all 18 coding stages
     if (this.allMathStagesSolved()) this.award("puzzle-math", newTrophies);   // 🔢 all 14 math stages
+    if (this.allStagesThreeStars()) this.award("puzzle-stars", newTrophies);  // 🌟 3★ on every stage
     this.collectTrophies(newTrophies); // harmless now; catches add the real dex growth
     this.save();
     return { xp, newTrophies, firstClear, record: rec };
@@ -875,6 +876,28 @@ const SAVE = {
       const r = this.state.puzzle[s.id];
       return !!(r && r.stars > 0);
     });
+  },
+  // Puzzle Perfect: three stars on EVERY stage (both packs). All these
+  // completion checks look up records by stage id, so bookkeeping keys like
+  // `_speed` on state.puzzle are never mistaken for a stage record.
+  allStagesThreeStars() {
+    return PUZZLE_STAGES.every(s => {
+      const r = this.state.puzzle[s.id];
+      return !!(r && r.stars >= 3);
+    });
+  },
+
+  // ---- Puzzle Lab playback speed (🐢/🐇/⚡) — one setting per player, stored on
+  // the puzzle save object under an underscore key so it never collides with a
+  // stage id. Persists across reloads; defaults to medium. ----
+  puzzleSpeed() {
+    const s = this.state.puzzle && this.state.puzzle._speed;
+    return (s === 0 || s === 1 || s === 2) ? s : 1;
+  },
+  setPuzzleSpeed(idx) {
+    if (!this.state.puzzle) this.state.puzzle = {};
+    this.state.puzzle._speed = idx;
+    this.save();
   },
 
   // mark a lab reward as caught once its ceremony awards it (bookkeeping so the

@@ -821,6 +821,7 @@ const PUZZLE_STAGES = [
     goal: "reach", need: 0,
     blocks: ["walk"],
     optimal: 3, budget: 5,
+    solution: [{ t: "walk" }, { t: "walk" }, { t: "walk" }],
     hints: [
       "The flag 🏁 is straight ahead. What block moves you forward?",
       "Tap 👣 walk, then tap it again — one block for each step.",
@@ -834,6 +835,7 @@ const PUZZLE_STAGES = [
     goal: "reach", need: 0,
     blocks: ["walk", "turnLeft", "turnRight"],
     optimal: 5, budget: 7,
+    solution: [{ t: "walk" }, { t: "walk" }, { t: "turn", d: "right" }, { t: "walk" }, { t: "walk" }],
     hints: [
       "You can't walk through the trees 🌳. Walk to the corner first.",
       "At the corner you're facing a wall — turn so you face the flag, then walk.",
@@ -848,6 +850,8 @@ const PUZZLE_STAGES = [
     blocks: ["walk", "turnLeft", "turnRight"],
     optimal: 8, budget: 11,
     reward: { catch: "0-16" }, // Yamper
+    solution: [{ t: "walk" }, { t: "walk" }, { t: "turn", d: "right" }, { t: "walk" }, { t: "walk" },
+      { t: "turn", d: "left" }, { t: "walk" }, { t: "walk" }],
     hints: [
       "This trail zig-zags. Walk to the first corner, then turn.",
       "You'll turn twice: once to head down, once to head back across.",
@@ -862,6 +866,7 @@ const PUZZLE_STAGES = [
     blocks: ["walk", "turnLeft", "turnRight", "collect"],
     optimal: 6, budget: 8,
     reward: { catch: "0-17" }, // Pawmi
+    solution: [{ t: "walk" }, { t: "collect" }, { t: "walk" }, { t: "walk" }, { t: "collect" }, { t: "walk" }],
     hints: [
       "Pick up both 🍒 berries before the flag. Stand ON a berry to grab it.",
       "Use 🍒 collect while you're on a berry tile, then keep walking.",
@@ -877,6 +882,8 @@ const PUZZLE_STAGES = [
     blocks: ["walk", "turnLeft", "turnRight", "collect"],
     optimal: 10, budget: 13,
     reward: { catch: "0-19" }, // Sprigatito
+    solution: [{ t: "walk" }, { t: "walk" }, { t: "collect" }, { t: "turn", d: "right" }, { t: "walk" },
+      { t: "walk" }, { t: "collect" }, { t: "turn", d: "left" }, { t: "walk" }, { t: "walk" }],
     hints: [
       "The big trail! Grab both 🍒 berries AND reach the flag.",
       "Walk to the first berry and collect, turn down the trail, grab the next.",
@@ -1416,6 +1423,7 @@ const TROPHIES = [
   { id: "puzzle-1", e: "🧩", name: "Junior Coder", desc: "Solve your first Puzzle Lab stage" },
   { id: "puzzle-code", e: "💻", name: "Master Coder", desc: "Earn a star on every coding stage in the Puzzle Lab" },
   { id: "puzzle-math", e: "🔢", name: "Number Wizard", desc: "Earn a star on every math stage in the Puzzle Lab" },
+  { id: "puzzle-stars", e: "🌟", name: "Puzzle Perfect", desc: "Earn 3 stars on every stage in the Puzzle Lab" },
 ];
 
 const ENCOURAGE = [
