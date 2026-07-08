@@ -393,6 +393,11 @@ const CREATURES = [
     { n: "Kadabra", e: "🥄", id: 64, r: 2, evoOnly: true }, { n: "Munchlax", e: "😋", id: 446, r: 1 },
     { n: "Snorlax", e: "😴", id: 143, r: 3, evoOnly: true }, { n: "Ditto", e: "🟣", id: 132, r: 2 },
     { n: "Spearow", e: "🐦", id: 21, r: 1 }, { n: "Fearow", e: "🦅", id: 22, r: 2, evoOnly: true },
+    // ---- Puzzle Lab rewards (append-only; caught ONLY by solving a lab stage) ----
+    { n: "Yamper", e: "🐕", id: 835, r: 1, puzzle: true },      // 0-16  · c1-3
+    { n: "Pawmi", e: "🐭", id: 921, r: 1, puzzle: true },       // 0-17  · c1-4
+    { n: "Skwovet", e: "🐿️", id: 819, r: 2, puzzle: true },    // 0-18  · c2-1 (stage ships in P2)
+    { n: "Sprigatito", e: "🌿", id: 906, r: 3, puzzle: true },  // 0-19  · c1-5 capstone
   ],
   [
     { n: "Eevee", e: "🦊", id: 133, r: 1 }, { n: "Furret", e: "🦦", id: 162, r: 1 }, { n: "Raichu", e: "🐭", id: 26, r: 1 },
@@ -664,11 +669,23 @@ function evoSourceFor(key) {
   return null;
 }
 
+// A Pokemon is "catchable" through the ordinary wild/egg/roamer pools only if
+// it is neither evolution-only nor a Puzzle Lab reward. Puzzle creatures are
+// terminal collectibles won by solving lab stages, so this single predicate
+// keeps them out of grass / catch / egg / roamer / raid pools everywhere.
+function catchable(c) {
+  return !c.evoOnly && !c.puzzle;
+}
+
 // every honest way to obtain a Pokemon — mirrors pickCatch / wildPick /
 // fishPick / eggPick / roamerNow so the spawn guide never lies
 function spawnSources(w, i) {
   const c = CREATURES[w][i];
   const key = `${w}-${i}`;
+  if (c.puzzle) {
+    return [{ icon: "🧩", label: "Puzzle Lab",
+      title: "Solve its coding puzzle in the Puzzle Lab to catch it" }];
+  }
   if (c.evoOnly) {
     const from = evoSourceFor(key);
     return from ? [{ icon: "✨", label: `evolve ${from.c.n}`,
@@ -708,6 +725,107 @@ const PRACTICE_TIERS = [
   { id: "medium", label: "Medium", e: "⭐", desc: "Words & moves · Stadium & Dragon's Den", worlds: [2, 3], count: 12, need: 2 },
   { id: "hard",   label: "Hard",   e: "🔥", desc: "Expert moves & long phrases · Eterna",  worlds: [4],    count: 10, need: 4 },
   { id: "expert", label: "Expert", e: "👑", desc: "Capitals & full sentences · Hall of Fame", worlds: [5], count: 6,  need: 5 },
+];
+
+// ============================================================
+// Puzzle Lab — a no-keyboard side building: snap code blocks to guide a
+// Pokemon through a grid, then catch it with the type-its-name ceremony.
+// (Phase 1: Coding Chapter 1 — walk / turn / collect. Loops & ifs land in P2,
+// which is why the program model and renderer are already recursive.)
+// ============================================================
+
+// Palette block definitions. `t`/`d` describe the program NODE a tap creates
+// (nested schema: [{t:"walk"},{t:"turn",d:"right"},{t:"collect"}, ...]); `cat`
+// drives the card colour so kids read categories at a glance.
+const PUZZLE_BLOCKS = {
+  walk:      { e: "👣", label: "walk",       cat: "move",    c: "#4dc3ff", node: { t: "walk" } },
+  turnLeft:  { e: "↰",  label: "turn left",  cat: "turn",    c: "#c77bff", node: { t: "turn", d: "left" } },
+  turnRight: { e: "↱",  label: "turn right", cat: "turn",    c: "#c77bff", node: { t: "turn", d: "right" } },
+  collect:   { e: "🍒", label: "collect",    cat: "collect", c: "#43e97b", node: { t: "collect" } },
+};
+
+// which palette key a saved node corresponds to (renderer looks the card up)
+function puzzleBlockKey(node) {
+  if (node.t === "walk") return "walk";
+  if (node.t === "collect") return "collect";
+  if (node.t === "turn") return node.d === "left" ? "turnLeft" : "turnRight";
+  return null;
+}
+
+// Grid tiles: 'S' start · '.' path · '#' wall · '~' water · '*' berry · 'o' goal.
+// Every stage hand-verified solvable with its palette; `optimal` is the true
+// minimum block count (counting each tap), `budget` the 2★ ceiling.
+// goal "reach" wins on the flag; "collect" also needs `need` berries first.
+const PUZZLE_STAGES = [
+  {
+    id: "c1-1", pack: "code", chapter: 1, name: "First Steps", concept: "walk forward",
+    grid: ["S..o"],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "reach", need: 0,
+    blocks: ["walk"],
+    optimal: 3, budget: 5,
+    hints: [
+      "The flag 🏁 is straight ahead. What block moves you forward?",
+      "Tap 👣 walk, then tap it again — one block for each step.",
+      "It's three steps to the flag: 👣 👣 👣, then press ▶ Run!",
+    ],
+  },
+  {
+    id: "c1-2", pack: "code", chapter: 1, name: "Turn the Corner", concept: "walk + turn",
+    grid: ["S..", "##.", "##o"],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "reach", need: 0,
+    blocks: ["walk", "turnLeft", "turnRight"],
+    optimal: 5, budget: 7,
+    hints: [
+      "You can't walk through the trees 🌳. Walk to the corner first.",
+      "At the corner you're facing a wall — turn so you face the flag, then walk.",
+      "Try 👣 👣, then ↱ turn right, then 👣 👣 to reach the flag.",
+    ],
+  },
+  {
+    id: "c1-3", pack: "code", chapter: 1, name: "The Long Way", concept: "plan a winding path",
+    grid: ["S..##", "##.##", "##..o"],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "reach", need: 0,
+    blocks: ["walk", "turnLeft", "turnRight"],
+    optimal: 8, budget: 11,
+    reward: { catch: "0-16" }, // Yamper
+    hints: [
+      "This trail zig-zags. Walk to the first corner, then turn.",
+      "You'll turn twice: once to head down, once to head back across.",
+      "Plan: 👣 👣, ↱ right, 👣 👣, ↰ left, 👣 👣 — home to the flag!",
+    ],
+  },
+  {
+    id: "c1-4", pack: "code", chapter: 1, name: "Berry Snack", concept: "collect on the way",
+    grid: ["S*.*o"],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "collect", need: 2,
+    blocks: ["walk", "turnLeft", "turnRight", "collect"],
+    optimal: 6, budget: 8,
+    reward: { catch: "0-17" }, // Pawmi
+    hints: [
+      "Pick up both 🍒 berries before the flag. Stand ON a berry to grab it.",
+      "Use 🍒 collect while you're on a berry tile, then keep walking.",
+      "Try 👣 🍒 👣 👣 🍒 👣 — walk onto each berry and collect it.",
+    ],
+  },
+  {
+    id: "c1-5", pack: "code", chapter: 1, name: "Meadow Trail", concept: "everything together",
+    capstone: true,
+    grid: ["S.*##", "##.##", "##*.o"],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "collect", need: 2,
+    blocks: ["walk", "turnLeft", "turnRight", "collect"],
+    optimal: 10, budget: 13,
+    reward: { catch: "0-19" }, // Sprigatito
+    hints: [
+      "The big trail! Grab both 🍒 berries AND reach the flag.",
+      "Walk to the first berry and collect, turn down the trail, grab the next.",
+      "Plan: 👣 👣 🍒, ↱ right, 👣 👣 🍒, ↰ left, 👣 👣 to the flag!",
+    ],
+  },
 ];
 
 // Gym Rematches: refight an already-beaten boss with a faster clock for a

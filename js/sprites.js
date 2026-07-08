@@ -84,6 +84,18 @@ const MAP_SPRITES = (() => {
       <rect x="96" y="12" width="3" height="22" fill="#6c4426"/>
       <polygon points="99,12 108,16 99,21" fill="#e3492f" ${O}/>`),
 
+    lab: s => svg(108, 80, s, `
+      <rect x="6" y="34" width="88" height="40" rx="4" fill="#eae3f6" ${O}/>
+      <polygon points="2,36 50,8 98,36" fill="#7b46d8" ${O}/>
+      <rect x="42" y="52" width="16" height="22" rx="3" fill="#5a3aa0" ${O}/>
+      <rect x="14" y="44" width="12" height="11" rx="2" fill="#a7f0d1" ${O}/>
+      <rect x="74" y="44" width="12" height="11" rx="2" fill="#a7f0d1" ${O}/>
+      <path d="M45 16 L45 24 L38 33 Q36 37 41 37 L59 37 Q64 37 62 33 L55 24 L55 16 Z" fill="#7fd4ff" ${O}/>
+      <rect x="43" y="13" width="14" height="4" rx="2" fill="#fff" ${O}/>
+      <ellipse cx="50" cy="33" rx="6" ry="3" fill="#43e97b"/>
+      <circle cx="96" cy="16" r="4" fill="#ffd34d" ${O}/>
+      <rect x="94" y="20" width="4" height="14" fill="#6c4426"/>`),
+
     gym: s => svg(104, 76, s, `
       <rect x="8" y="42" width="88" height="30" rx="6" fill="#e8e3d6" ${O}/>
       <path d="M8 46 Q52 2 96 46 Z" fill="#ff9b3d" ${O}/>

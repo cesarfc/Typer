@@ -223,7 +223,7 @@ const Engine = {
     // Practice Ghost: snapshot cumulative typing time as each word lands
     if (S.practice && S.wordTimes) S.wordTimes.push(S.typingMs);
 
-    if (S.state === "welcome") { this.finishHatch(); return; }
+    if (S.state === "welcome") { S.puzzleCatch ? this.finishPuzzleCatch() : this.finishHatch(); return; }
     if (S.state === "evolve") { this.evolveSuccess(); return; }
     if (S.state === "catch") { this.catchSuccess(); return; }
 
@@ -845,6 +845,55 @@ const Engine = {
         ? `🐣 The egg hatched a ${creature.n} — it shared 🍬 ${CANDY_COST} candy (${candy}/${CANDY_COST})!`
         : `🐣 The egg hatched into${shiny ? " a ✨ SHINY" : ""} <b>${creature.n}</b>!`;
       UI.toast(msg, "gold");
+      trophies.forEach((t, i) => setTimeout(() => UI.trophyToast(t), 700 + i * 800));
+    }, 1000);
+  },
+
+  // ---- Puzzle Lab catch: the reward for first-solving a lab stage. A clone of
+  // startHatch — a synthetic session (sentinel s:-8), award at the ball reveal,
+  // then the no-clock "type its name" ceremony (state "welcome"). ----
+  startPuzzleCatch(creature, stageId) {
+    const shiny = !creature.duplicate && Math.random() < SAVE.shinyOdds().catch3;
+    this.paused = false;
+    this.pendingNext = false;
+    const S = this.session = {
+      w: creature.w, s: -8, world: WORLDS[creature.w], isBoss: false,
+      prompts: [], idx: 0,
+      text: worldProperNames(creature.w) ? creature.n : creature.n.toLowerCase(),
+      pos: 0, score: 0, combo: 0, bestCombo: 0,
+      hits: 0, errors: 0, errorsThisPrompt: 0, timeouts: 0, hearts: 3,
+      typingMs: 0, promptStart: 0, timerMs: 0, timerRemaining: 0,
+      baseTime: 0, state: "reveal",
+      puzzleCatch: true, catchStageId: stageId,
+      pcatch: { creature, shiny, trophies: [] },
+      ninjaEligible: false, pendingRes: null, catchCreature: null,
+    };
+    UI.puzzleCatchReveal(S, () => {
+      if (this.session !== S || S.state !== "reveal") return;
+      // award at the reveal so nothing can be lost afterwards
+      const trophies = SAVE.addCreature(creature.w, creature.i, shiny);
+      if (stageId) SAVE.markPuzzleCaught(stageId);
+      this.maybePartyToast();
+      S.pcatch.trophies = trophies;
+      S.state = "welcome"; // type its name — no timer, no way to fail
+      UI.showWelcomePrompt(S);
+    });
+  },
+
+  finishPuzzleCatch() {
+    const S = this.session;
+    S.state = "done";
+    const { creature, shiny, trophies } = S.pcatch;
+    SAVE.bump("puzzleCatches");
+    SAVE.save();
+    UI.confetti();
+    SFX.fanfare();
+    setTimeout(() => {
+      this.session = null;
+      UI.superMode(false);
+      UI.show("lab");
+      UI.renderTopbar();
+      UI.toast(`🧩 You caught${shiny ? " a ✨ SHINY" : ""} <b>${creature.n}</b> in the Puzzle Lab!`, "gold");
       trophies.forEach((t, i) => setTimeout(() => UI.trophyToast(t), 700 + i * 800));
     }, 1000);
   },
