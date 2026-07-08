@@ -845,9 +845,28 @@ const SAVE = {
     st.xp += xp;
     this.dayInfo().school = true; // a lab solve counts for the day's third stamp
     const newTrophies = [];
+    this.award("puzzle-1", newTrophies);                                  // 🧩 first solve ever
+    if (this.allCodingStagesSolved()) this.award("puzzle-code", newTrophies); // 💻 all 18 coding stages
     this.collectTrophies(newTrophies); // harmless now; catches add the real dex growth
     this.save();
     return { xp, newTrophies, firstClear, record: rec };
+  },
+
+  // ---- Puzzle Lab gating helpers ----
+  // a chapter opens once EVERY stage of the chapter before it has >=1 star
+  puzzleChapterComplete(pack, ch) {
+    const list = PUZZLE_STAGES.filter(s => s.pack === pack && s.chapter === ch);
+    return list.length > 0 && list.every(s => {
+      const r = this.state.puzzle[s.id];
+      return !!(r && r.stars > 0);
+    });
+  },
+  // Master Coder: a star on all 18 coding stages
+  allCodingStagesSolved() {
+    return PUZZLE_STAGES.filter(s => s.pack === "code").every(s => {
+      const r = this.state.puzzle[s.id];
+      return !!(r && r.stars > 0);
+    });
   },
 
   // mark a lab reward as caught once its ceremony awards it (bookkeeping so the

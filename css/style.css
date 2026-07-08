@@ -2236,22 +2236,98 @@ button, .screen, #topbar { touch-action: manipulation; }
 #puzzle-program.empty { justify-content: center; }
 .pz-empty-hint { color: var(--dim); font-size: 14px; padding: 14px 8px; text-align: center; width: 100%; }
 .pz-card {
-  display: inline-flex; align-items: center; gap: 6px; padding: 8px 8px 8px 11px;
+  display: inline-flex; flex-direction: column; align-items: stretch; vertical-align: top;
   border-radius: 12px; background: color-mix(in srgb, var(--pc) 20%, var(--card2));
   border: 2px solid var(--pc); font-weight: 800; font-size: 14px; position: relative;
 }
+.pz-card-head { display: flex; align-items: center; gap: 6px; padding: 7px 8px 7px 11px; }
+.pz-card-head .pz-del { margin-left: auto; }
 .pz-card-e { font-size: 18px; }
+.pz-card-l { white-space: nowrap; }
 .pz-card.pz-active { box-shadow: 0 0 0 3px var(--gold), 0 0 14px rgba(255,211,77,.6); }
 .pz-card.pz-bonkcard { border-color: var(--bad); box-shadow: 0 0 0 3px var(--bad); animation: deniedFlash .5s; }
+
+/* C-shaped nesting: an indented body lane hangs under the header */
+.pz-nest { background: color-mix(in srgb, var(--pc) 13%, var(--card2)); }
+.pz-cbody {
+  display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
+  margin: 0 8px 8px 16px; padding: 6px 8px; min-height: 40px;
+  border-left: 4px solid var(--pc); border-radius: 4px 10px 10px 4px;
+  background: rgba(0,0,0,.22);
+}
+.pz-celse-label {
+  margin: -2px 8px 4px 16px; font-size: 12px; font-weight: 900; color: var(--pc); letter-spacing: .5px;
+}
+.pz-bodyslot {
+  padding: 8px 14px; border: 2px dashed color-mix(in srgb, var(--pc) 65%, transparent);
+  border-radius: 10px; color: var(--dim); font-size: 12.5px; font-weight: 700; cursor: pointer;
+  background: rgba(0,0,0,.15);
+}
+.pz-bodyslot:hover { border-color: var(--gold); }
+.pz-bodyslot.on { border-color: var(--gold); color: var(--gold); animation: pzCaret 1s ease-in-out infinite; }
+
+/* repeat stepper (− n +) */
+.pz-step-wrap { display: inline-flex; align-items: center; gap: 4px; }
+.pz-step {
+  width: 26px; height: 26px; border-radius: 8px; padding: 0; font-size: 17px; font-weight: 900; line-height: 1;
+  background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.22); color: #fff;
+}
+.pz-step:active { transform: scale(.9); }
+.pz-step-n { font-size: 14px; min-width: 26px; text-align: center; }
+
+/* condition chip on if / if-else cards */
+.pz-cond {
+  padding: 5px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 800; cursor: pointer;
+  background: rgba(0,0,0,.3); border: 1.5px solid var(--pc); color: #fff;
+  max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pz-cond:hover { background: color-mix(in srgb, var(--pc) 40%, #000); }
+
+/* tap-only condition picker overlay */
+#puzzle-condpicker {
+  position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
+  background: rgba(4,7,20,.72); padding: 16px;
+}
+#puzzle-condpicker.hidden { display: none; }
+.pz-cp-card {
+  width: min(430px, 100%); background: var(--card); border: 2px solid #f76d8e; border-radius: 18px;
+  padding: 16px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 18px 50px rgba(0,0,0,.6);
+}
+.pz-cp-title { font-size: 16px; font-weight: 900; text-align: center; }
+.pz-cp-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.pz-cp-sensor {
+  display: flex; align-items: center; gap: 5px; padding: 9px 12px; border-radius: 12px; min-height: 44px;
+  font-size: 13px; font-weight: 800; background: var(--card2); border: 2px solid var(--line);
+}
+.pz-cp-sensor.on { border-color: var(--info); background: rgba(77,195,255,.16); color: var(--info); }
+.pz-cp-e { font-size: 16px; }
+.pz-cp-not {
+  align-self: center; padding: 9px 18px; border-radius: 12px; font-size: 13px; font-weight: 800;
+  background: var(--card2); border: 2px solid var(--line);
+}
+.pz-cp-not.on { border-color: var(--gold); background: rgba(255,211,77,.16); color: var(--gold); }
+.pz-cp-join { display: flex; gap: 8px; justify-content: center; }
+.pz-cp-join button {
+  padding: 9px 16px; border-radius: 12px; font-size: 13px; font-weight: 800;
+  background: var(--card2); border: 2px solid var(--line);
+}
+.pz-cp-join button.on { border-color: #c77bff; background: rgba(199,123,255,.18); color: #d3a6ff; }
+.pz-cp-preview { text-align: center; font-size: 15px; padding: 9px; background: rgba(0,0,0,.25); border-radius: 10px; }
+.pz-chapter-lock { text-align: center; font-size: 12.5px; color: var(--dim); margin: -6px 0 10px; }
 .pz-del {
   width: 22px; height: 22px; border-radius: 8px; padding: 0; font-size: 12px; font-weight: 900;
   background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.18); color: #fff; line-height: 1;
 }
 .pz-del:hover { background: var(--bad); }
 .pz-caret {
-  width: 6px; align-self: stretch; min-height: 40px; border-radius: 4px; flex: none;
+  width: 5px; align-self: stretch; min-height: 38px; border-radius: 4px; flex: none;
+  background: rgba(255,255,255,.12); cursor: pointer;
+}
+.pz-caret:hover { background: rgba(255,211,77,.4); }
+.pz-caret.on {
+  width: 6px;
   background: repeating-linear-gradient(180deg, var(--gold), var(--gold) 6px, transparent 6px, transparent 11px);
-  opacity: .9; animation: pzCaret 1s ease-in-out infinite;
+  animation: pzCaret 1s ease-in-out infinite;
 }
 @keyframes pzCaret { 0%,100% { opacity: .35; } 50% { opacity: 1; } }
 
@@ -2278,6 +2354,6 @@ button, .screen, #topbar { touch-action: manipulation; }
 .pz-win-btns .big-btn { width: 100%; }
 
 @media (prefers-reduced-motion: reduce) {
-  .pz-caret, .pz-msg.win, .pz-reward.new { animation: none !important; }
+  .pz-caret, .pz-caret.on, .pz-bodyslot.on, .pz-msg.win, .pz-reward.new { animation: none !important; }
   .pz-sprite { transition: none; }
 }

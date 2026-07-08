@@ -407,6 +407,11 @@ const CREATURES = [
     { n: "Flareon", e: "🔥", id: 136, r: 2, evoOnly: true }, { n: "Dragonair", e: "🐉", id: 148, r: 2, evoOnly: true },
     { n: "Clefairy", e: "🧚", id: 35, r: 1 }, { n: "Clefable", e: "🌙", id: 36, r: 2, evoOnly: true },
     { n: "Zubat", e: "🦇", id: 41, r: 1 }, { n: "Golbat", e: "🦇", id: 42, r: 2, evoOnly: true },
+    // ---- Puzzle Lab rewards (append-only; caught ONLY by solving a lab stage) ----
+    { n: "Rockruff", e: "🐕", id: 744, r: 1, puzzle: true },   // 1-16 · c2-2
+    { n: "Riolu", e: "🐺", id: 447, r: 2, puzzle: true },      // 1-17 · c2-3
+    { n: "Carbink", e: "💎", id: 703, r: 2, puzzle: true },    // 1-18 · c3-1
+    { n: "Gible", e: "🦈", id: 443, r: 3, puzzle: true },      // 1-19 · c2-4
   ],
   [
     { n: "Growlithe", e: "🐶", id: 58, r: 1 }, { n: "Hoothoot", e: "🦉", id: 163, r: 1 }, { n: "Wooloo", e: "🐑", id: 831, r: 1 },
@@ -416,6 +421,11 @@ const CREATURES = [
     { n: "Dubwool", e: "🐏", id: 832, r: 2, evoOnly: true }, { n: "Machop", e: "💪", id: 66, r: 1 },
     { n: "Machoke", e: "💪", id: 67, r: 2, evoOnly: true }, { n: "Doduo", e: "🐤", id: 84, r: 1 },
     { n: "Dodrio", e: "🐔", id: 85, r: 2, evoOnly: true }, { n: "Tauros", e: "🐂", id: 128, r: 2 },
+    // ---- Puzzle Lab rewards (append-only; caught ONLY by solving a lab stage) ----
+    { n: "Pancham", e: "🐼", id: 674, r: 1, puzzle: true },     // 2-16 · c3-2
+    { n: "Hawlucha", e: "🦅", id: 701, r: 2, puzzle: true },    // 2-17 · c4-1
+    { n: "Scorbunny", e: "🐰", id: 813, r: 2, puzzle: true },   // 2-18 · c3-3
+    { n: "Annihilape", e: "🦍", id: 979, r: 3, puzzle: true },  // 2-19 · c3-4
   ],
   [
     { n: "Magikarp", e: "🐟", id: 129, r: 1 }, { n: "Piplup", e: "🐧", id: 393, r: 1 }, { n: "Mudkip", e: "🦎", id: 258, r: 1 },
@@ -742,6 +752,24 @@ const PUZZLE_BLOCKS = {
   turnLeft:  { e: "↰",  label: "turn left",  cat: "turn",    c: "#c77bff", node: { t: "turn", d: "left" } },
   turnRight: { e: "↱",  label: "turn right", cat: "turn",    c: "#c77bff", node: { t: "turn", d: "right" } },
   collect:   { e: "🍒", label: "collect",    cat: "collect", c: "#43e97b", node: { t: "collect" } },
+  // ---- Phase 2: C-shaped nesting blocks (body[] holds the indented plan) ----
+  repeat:    { e: "🔁", label: "repeat",     cat: "loop",    c: "#ffa64d", nest: true,
+               node: { t: "repeat", n: 2, body: [] } },
+  if:        { e: "❓", label: "if",          cat: "logic",   c: "#f76d8e", nest: true, hasCond: true,
+               node: { t: "if", cond: { sensor: "pathAhead" }, body: [] } },
+  ifElse:    { e: "🔀", label: "if / else",   cat: "logic",   c: "#f76d8e", nest: true, hasCond: true, hasElse: true,
+               node: { t: "ifElse", cond: { sensor: "pathAhead" }, body: [], else: [] } },
+};
+
+// Sensors the executor honestly supports (see Puzzle.sensorTrue). The picker
+// only ever offers these, so a chip can never describe something the runner
+// can't check. `on berry` reads the current tile; the rest look one step ahead.
+const PUZZLE_SENSORS = {
+  pathAhead:  { label: "path ahead",  e: "🟩" },
+  wallAhead:  { label: "wall ahead",  e: "🌳" },
+  berryAhead: { label: "berry ahead", e: "🍒" },
+  waterAhead: { label: "water ahead", e: "💧" },
+  onBerry:    { label: "on berry",    e: "🍒" },
 };
 
 // which palette key a saved node corresponds to (renderer looks the card up)
@@ -749,6 +777,9 @@ function puzzleBlockKey(node) {
   if (node.t === "walk") return "walk";
   if (node.t === "collect") return "collect";
   if (node.t === "turn") return node.d === "left" ? "turnLeft" : "turnRight";
+  if (node.t === "repeat") return "repeat";
+  if (node.t === "if") return "if";
+  if (node.t === "ifElse") return "ifElse";
   return null;
 }
 
@@ -824,6 +855,227 @@ const PUZZLE_STAGES = [
       "The big trail! Grab both 🍒 berries AND reach the flag.",
       "Walk to the first berry and collect, turn down the trail, grab the next.",
       "Plan: 👣 👣 🍒, ↱ right, 👣 👣 🍒, ↰ left, 👣 👣 to the flag!",
+    ],
+  },
+
+  // ============================================================
+  // Chapter 2 · Loops — the 🔁 repeat block. Budgets are tight on purpose:
+  // walking every step one-by-one runs past the star line, so a loop wins.
+  // ============================================================
+  {
+    id: "c2-1", pack: "code", chapter: 2, name: "Again and Again", concept: "repeat a block",
+    grid: ["S.......o"],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "reach", need: 0,
+    blocks: ["walk", "turnLeft", "turnRight", "repeat"],
+    optimal: 2, budget: 5,
+    reward: { catch: "0-18" }, // Skwovet
+    hints: [
+      "That's a LONG hallway. Tapping 👣 walk eight times works… but there's a tidier way!",
+      "Drop a 🔁 repeat block, put one 👣 walk inside it, then use − and + to count the steps.",
+      "Set the repeat to 8 and put a single 👣 walk inside: 🔁8 { 👣 }. Two blocks!",
+    ],
+  },
+  {
+    id: "c2-2", pack: "code", chapter: 2, name: "Square Dance", concept: "repeat walk + turn",
+    grid: ["S...", ".##.", ".##.", "o..."],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "reach", need: 0,
+    blocks: ["walk", "turnLeft", "turnRight", "repeat"],
+    optimal: 5, budget: 8,
+    reward: { catch: "1-16" }, // Rockruff
+    hints: [
+      "The path runs around the edge in a square. Each side is the same dance: walk, walk, walk, turn.",
+      "Put that dance INSIDE a 🔁 repeat so it happens on every side.",
+      "Try 🔁3 { 👣 👣 👣 ↱ } — three sides brings you right to the flag!",
+    ],
+  },
+  {
+    id: "c2-3", pack: "code", chapter: 2, name: "Berry Rows", concept: "repeat walk + collect",
+    grid: ["S****o"],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "collect", need: 4,
+    blocks: ["walk", "collect", "repeat"],
+    optimal: 3, budget: 6,
+    reward: { catch: "1-17" }, // Riolu
+    hints: [
+      "A whole row of 🍒 berries! Every step is the same: walk onto one, then collect it.",
+      "Wrap 👣 walk and 🍒 collect together inside a 🔁 repeat.",
+      "🔁5 { 👣 🍒 } sweeps up all four berries and lands you on the flag.",
+    ],
+  },
+  {
+    id: "c2-4", pack: "code", chapter: 2, name: "Spiral In", concept: "loops all together",
+    capstone: true,
+    grid: ["S...*", ".###.", ".###.", ".###.", "o...*"],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "collect", need: 2,
+    blocks: ["walk", "turnLeft", "turnRight", "collect", "repeat"],
+    optimal: 7, budget: 10,
+    reward: { catch: "1-19" }, // Gible
+    hints: [
+      "Loop around the big meadow, grabbing a 🍒 berry at each far corner on the way.",
+      "One side is the same every time: walk to the corner, collect, turn.",
+      "🔁3 { 👣 👣 👣 👣 🍒 ↱ } spirals you around and onto the flag with both berries.",
+    ],
+  },
+
+  // ============================================================
+  // Chapter 3 · Ifs — the ❓ if block asks a question about what's around
+  // the Pokemon (a sensor) and only runs its inside blocks when the answer
+  // is yes. One little loop with an if can steer a whole winding path.
+  // ============================================================
+  {
+    id: "c3-1", pack: "code", chapter: 3, name: "Look Before You Leap", concept: "if wall ahead",
+    grid: ["S...#", "###.#", "###o#"],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "reach", need: 0,
+    blocks: ["walk", "turnLeft", "turnRight", "repeat", "if"],
+    optimal: 4, budget: 6,
+    reward: { catch: "1-18" }, // Carbink
+    hints: [
+      "The trail bends. Instead of counting exactly when to turn, let your Pokemon CHECK for a wall.",
+      "Inside a 🔁 repeat, put an ❓ if that turns ↱ right only when there's a 🌳 wall ahead, then always 👣 walk.",
+      "🔁 { ❓(wall ahead){ ↱ } 👣 } marches down the trail and turns itself at the corner!",
+    ],
+  },
+  {
+    id: "c3-2", pack: "code", chapter: 3, name: "Wall Follower", concept: "if steers a spiral",
+    grid: ["S..", "#o.", "#.."],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "reach", need: 0,
+    blocks: ["walk", "turnLeft", "turnRight", "repeat", "if"],
+    optimal: 4, budget: 7,
+    reward: { catch: "2-16" }, // Pancham
+    hints: [
+      "This path curls all the way into the middle. That's a LOT of turns to count!",
+      "The very same idea works: keep the 🌳 wall on your right — turn ↱ when one's ahead, otherwise walk.",
+      "🔁 { ❓(wall ahead){ ↱ } 👣 } follows the whole spiral to the flag. Give the repeat plenty of turns.",
+    ],
+  },
+  {
+    id: "c3-3", pack: "code", chapter: 3, name: "Berry Radar", concept: "if steers + collect",
+    grid: ["S.*.#", "###.#", "###*#", "###.#", "###o#"],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "collect", need: 2,
+    blocks: ["walk", "turnLeft", "turnRight", "collect", "repeat", "if"],
+    optimal: 5, budget: 8,
+    reward: { catch: "2-18" }, // Scorbunny
+    hints: [
+      "Same wall-checking trick as before — but now grab the two 🍒 berries as you pass them.",
+      "Add a 🍒 collect to the loop so it happens on every step (an empty tile just gets skipped).",
+      "🔁 { ❓(wall ahead){ ↱ } 🍒 👣 } turns at the corner and scoops up both berries. (Fancy: ❓(on berry) around the collect!)",
+    ],
+  },
+  {
+    id: "c3-4", pack: "code", chapter: 3, name: "Mystery Maze", concept: "repeat + if capstone",
+    capstone: true,
+    grid: ["S.**", "#.#.", "#.o.", "#..#"],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "collect", need: 2,
+    blocks: ["walk", "turnLeft", "turnRight", "collect", "repeat", "if"],
+    optimal: 5, budget: 8,
+    reward: { catch: "2-19" }, // Annihilape
+    hints: [
+      "A twisty maze with two 🍒 berries hidden on the path. Don't count — let your Pokemon feel the walls.",
+      "One loop does it all: turn ↱ when a 🌳 wall is ahead, 🍒 collect, then 👣 walk.",
+      "🔁 { ❓(wall ahead){ ↱ } 🍒 👣 } spirals in, grabs both berries, and finds the flag.",
+    ],
+  },
+
+  // ============================================================
+  // Chapter 4 · Else — the 🔀 if / else block does ONE thing when the answer
+  // is yes and a DIFFERENT thing when it's no. (These stages only give you
+  // if / else, so you always pick a lane: turn OR walk, never both.)
+  // ============================================================
+  {
+    id: "c4-1", pack: "code", chapter: 4, name: "Two Doors", concept: "if / else: turn or walk",
+    grid: ["S..", "##.", "o.."],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "reach", need: 0,
+    blocks: ["walk", "turnLeft", "turnRight", "repeat", "ifElse"],
+    optimal: 4, budget: 6,
+    reward: { catch: "2-17" }, // Hawlucha
+    hints: [
+      "Every step your Pokemon faces a choice: a 🌳 wall means turn, open space means step forward.",
+      "Use one 🔀 if / else: if wall ahead → ↱ turn, else → 👣 walk.",
+      "🔁 { 🔀(wall ahead){ ↱ }else{ 👣 } } handles the whole corner by itself!",
+    ],
+  },
+  {
+    id: "c4-2", pack: "code", chapter: 4, name: "Zig or Zag", concept: "if / else + collect",
+    grid: ["S.*", "#..", "#o."],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "collect", need: 1,
+    blocks: ["walk", "turnLeft", "turnRight", "collect", "repeat", "ifElse"],
+    optimal: 5, budget: 8,
+    hints: [
+      "The same turn-or-walk choice steers this winding path — and there's a 🍒 berry to grab.",
+      "Keep your 🔀 if / else for steering, and add a 🍒 collect after it each loop.",
+      "🔁 { 🔀(wall ahead){ ↱ }else{ 👣 } 🍒 } zig-zags in and picks up the berry.",
+    ],
+  },
+  {
+    id: "c4-3", pack: "code", chapter: 4, name: "Autopilot", concept: "if / else capstone",
+    capstone: true,
+    grid: ["S.*", "#..", "o*."],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "collect", need: 2,
+    blocks: ["walk", "turnLeft", "turnRight", "collect", "repeat", "ifElse"],
+    optimal: 5, budget: 8,
+    hints: [
+      "Switch on autopilot: one loop that turns or walks on its own, collecting both 🍒 berries.",
+      "🔀 if / else for steering + a 🍒 collect each time = a Pokemon that drives itself.",
+      "🔁 { 🔀(wall ahead){ ↱ }else{ 👣 } 🍒 } follows the whole maze and grabs both berries.",
+    ],
+  },
+
+  // ============================================================
+  // Chapter 5 · Logic — bend the question itself. NOT flips a yes to a no;
+  // AND needs both to be true; OR needs just one. Water 💧 blocks the way
+  // too, but it isn't a wall — so plain "wall ahead" isn't enough here.
+  // ============================================================
+  {
+    id: "c5-1", pack: "code", chapter: 5, name: "Not This Way", concept: "NOT flips a sensor",
+    grid: ["S..", "~o.", "~.."],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "reach", need: 0,
+    blocks: ["walk", "turnLeft", "turnRight", "repeat", "if"],
+    logic: true,
+    optimal: 4, budget: 7,
+    hints: [
+      "💧 Water blocks you just like a wall, but it ISN'T a wall — so 'wall ahead' won't catch it.",
+      "Ask the opposite question instead: turn when the way ahead is NOT open path.",
+      "In the ❓ if, pick 'path ahead' and tap NOT: 🔁 { ❓(NOT path ahead){ ↱ } 👣 }.",
+    ],
+  },
+  {
+    id: "c5-2", pack: "code", chapter: 5, name: "Either Or and Both", concept: "AND / OR join sensors",
+    grid: ["S...", "#.#.", "#.o.", "#..~"],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "reach", need: 0,
+    blocks: ["walk", "turnLeft", "turnRight", "repeat", "if"],
+    logic: true,
+    optimal: 4, budget: 7,
+    hints: [
+      "Now the path is blocked by BOTH 🌳 walls and 💧 water. Checking only one won't get you through.",
+      "Join two sensors with OR so a turn happens for EITHER kind of blocker.",
+      "In the ❓ if, pick 'wall ahead', add OR, pick 'water ahead': 🔁 { ❓(wall OR water){ ↱ } 👣 }.",
+    ],
+  },
+  {
+    id: "c5-3", pack: "code", chapter: 5, name: "The Grand Maze", concept: "everything together",
+    capstone: true,
+    grid: ["S.**", "#.#.", "#.o.", "#..~"],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "collect", need: 2,
+    blocks: ["walk", "turnLeft", "turnRight", "collect", "repeat", "if", "ifElse"],
+    logic: true,
+    optimal: 5, budget: 8,
+    hints: [
+      "The final maze: 🌳 walls, 💧 water, and two 🍒 berries. Everything you've learned in one plan!",
+      "Steer with an OR question (wall OR water), and 🍒 collect on every step.",
+      "🔁 { ❓(wall OR water){ ↱ } 🍒 👣 } conquers the Grand Maze. Chase that 3rd ⭐!",
     ],
   },
 ];
@@ -917,6 +1169,8 @@ const TROPHIES = [
   { id: "boss-5", e: "🏆", name: "POKEMON MASTER", desc: "Defeat MissingNo and save the Pokedex" },
   { id: "rematch-silver", e: "🥈", name: "Gym Rematcher", desc: "Win a Gym Rematch for a Silver medal" },
   { id: "rematch-gold", e: "🥇", name: "Rematch Master", desc: "Win a Gym Rematch for a Gold medal" },
+  { id: "puzzle-1", e: "🧩", name: "Junior Coder", desc: "Solve your first Puzzle Lab stage" },
+  { id: "puzzle-code", e: "💻", name: "Master Coder", desc: "Earn a star on every coding stage in the Puzzle Lab" },
 ];
 
 const ENCOURAGE = [
