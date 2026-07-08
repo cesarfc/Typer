@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192.png">
-<link rel="stylesheet" href="css/style.css?v=40">
+<link rel="stylesheet" href="css/style.css?v=45">
 </head>
 <body>
 <div id="app">
@@ -98,7 +98,7 @@
       <div id="game-hud">
         <button id="btn-pause" title="Pause (Esc)" aria-label="Pause game">⏸</button>
         <div id="hud-stage">World · Level</div>
-        <div id="hud-progress"><div id="hud-progress-fill"></div></div>
+        <div id="hud-progress"><div id="hud-progress-fill"></div><span id="ghost-marker" class="hidden">👻</span></div>
         <div id="hud-right">
           <span id="hud-hearts" class="hidden"></span>
           <span id="hud-combo">x0</span>
@@ -131,11 +131,7 @@
       </div>
 
       <div id="prompt-area">
-        <div id="question-card" class="hidden"></div>
-        <div id="helper-card" class="hidden"></div>
         <div id="prompt-word"></div>
-        <div id="think-pill" class="hidden">🤔 think it through…</div>
-        <div id="code-output" class="hidden"></div>
         <div id="timer-bar"><div id="timer-fill"></div></div>
         <div id="stopwatch" class="hidden">⏱ <span id="stopwatch-time">0.0s</span> · <span id="stopwatch-wpm">0 wpm</span></div>
         <div id="finger-hint">&nbsp;</div>
@@ -233,6 +229,7 @@
       <div id="journal-wrap">
         <div class="journal-panel" id="jr-daily"></div>
         <div class="journal-panel" id="jr-research"></div>
+        <div class="journal-panel" id="jr-rematch"></div>
         <div class="journal-panel" id="jr-elite"></div>
       </div>
     </section>
@@ -322,13 +319,13 @@
   <div id="area-panel" class="hidden"></div>
 
 </div>
-<script src="js/data.js?v=40"></script>
-<script src="js/audio.js?v=40"></script>
-<script src="js/save.js?v=40"></script>
-<script src="js/engine.js?v=40"></script>
-<script src="js/sprites.js?v=40"></script>
-<script src="js/ui.js?v=40"></script>
-<script src="js/tutorial.js?v=40"></script>
-<script src="js/main.js?v=40"></script>
+<script src="js/data.js?v=45"></script>
+<script src="js/audio.js?v=45"></script>
+<script src="js/save.js?v=45"></script>
+<script src="js/engine.js?v=45"></script>
+<script src="js/sprites.js?v=45"></script>
+<script src="js/ui.js?v=45"></script>
+<script src="js/tutorial.js?v=45"></script>
+<script src="js/main.js?v=45"></script>
 </body>
 </html>

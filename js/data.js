@@ -9,37 +9,55 @@
 
 const AVATARS = ["🧢", "🦊", "🐱", "🐉", "🥷", "⚡", "🎒", "🦖", "🐼", "🚀"];
 
-// build-your-own-trainer options (layered SVG character)
+// build-your-own-trainer options (layered SVG character).
+// APPEND-ONLY: saved trainers store the *index* of each choice, so new pieces
+// may only be added to the END of a list — never reordered or inserted.
 const TRAINER_OPTS = {
   skin: ["#ffd5b3", "#f0b186", "#c98a5c", "#9c6238", "#6e4427"],
-  hair: ["spiky", "bowl", "long", "curls"],
-  hairColor: ["#2d2a33", "#6b4226", "#d8a13c", "#b8453a", "#4a7fd6", "#9b59d6", "#2eea9c"],
-  hat: ["none", "cap", "beanie"],
+  hair: ["spiky", "bowl", "long", "curls", "mohawk", "ponytail"],
+  hairColor: ["#2d2a33", "#6b4226", "#d8a13c", "#b8453a", "#4a7fd6", "#9b59d6", "#2eea9c", "#ff8a3d"],
+  hat: ["none", "cap", "beanie", "crown", "visor"],
   hatColor: ["#e3350d", "#2a6df0", "#2eaf5b", "#f5c518", "#8e44ad", "#ffd34d"],
-  shirt: ["#e3350d", "#2a6df0", "#2eaf5b", "#f5c518", "#8e44ad", "#16a2b8", "#ffd34d", "#1a1d2e"],
+  shirt: ["#e3350d", "#2a6df0", "#2eaf5b", "#f5c518", "#8e44ad", "#16a2b8", "#ffd34d", "#1a1d2e", "#ff5ec7"],
 };
 
-// wardrobe pieces earned through play ("part:index" -> requirement)
+// wardrobe pieces earned through play ("part:index" -> requirement).
+// `need` names a wardrobeOk() rule; `n` is its threshold; `label` is the hint.
 const TRAINER_LOCKS = {
   "hairColor:6": { need: "stamps", n: 6, label: "Earn 6 research stamps" },
+  "hairColor:7": { need: "rematchGold", n: 1, label: "Win a Gold Gym Rematch" },
   "hatColor:5": { need: "champion", label: "Become the Champion" },
+  "hat:3": { need: "raidWins", n: 1, label: "Win a Weekly Raid Boss" },
+  "hat:4": { need: "trophies", n: 20, label: "Earn 20 trophies" },
   "shirt:6": { need: "champion", label: "Become the Champion" },
   "shirt:7": { need: "stamps", n: 3, label: "Earn 3 research stamps" },
+  "shirt:8": { need: "shinies", n: 10, label: "Catch 10 shiny Pokemon" },
 };
 
 function defaultTrainer() {
   return { skin: 0, hair: 0, hairColor: 0, hat: 1, hatColor: 0, shirt: 1 };
 }
 
+// 🎲 must never land on a locked piece, for ANY part — only roll among the
+// choices the current player has actually unlocked (all free ones for a
+// brand-new trainer, since wardrobeOk treats a missing player as locked)
 function randomTrainer() {
-  const r = n => Math.floor(Math.random() * n);
+  const pick = part => {
+    const opts = TRAINER_OPTS[part];
+    const ok = [];
+    for (let i = 0; i < opts.length; i++) {
+      const locked = TRAINER_LOCKS[`${part}:${i}`];
+      if (!locked || (typeof SAVE !== "undefined" && SAVE.wardrobeOk(part, i).ok)) ok.push(i);
+    }
+    return ok.length ? ok[Math.floor(Math.random() * ok.length)] : 0;
+  };
   return {
-    skin: r(TRAINER_OPTS.skin.length),
-    hair: r(TRAINER_OPTS.hair.length),
-    hairColor: r(TRAINER_OPTS.hairColor.length),
-    hat: r(TRAINER_OPTS.hat.length),
-    hatColor: r(TRAINER_OPTS.hatColor.length),
-    shirt: r(TRAINER_OPTS.shirt.length),
+    skin: pick("skin"),
+    hair: pick("hair"),
+    hairColor: pick("hairColor"),
+    hat: pick("hat"),
+    hatColor: pick("hatColor"),
+    shirt: pick("shirt"),
   };
 }
 
@@ -81,9 +99,9 @@ const FINGER_NAMES = [
   "right index", "right middle", "right ring", "right pinky", "thumb",
 ];
 
-// ---- extra finger assignments for the number row and symbols (Scholar
-// Archipelago). Standard touch-typing reaches: index fingers take two
-// columns, pinkies the far edges. ----
+// ---- extra finger assignments for the number row and symbols (used by the
+// Shift-key guide when a prompt types punctuation like "Pokemon!"). Standard
+// touch-typing reaches: index fingers take two columns, pinkies the far edges. ----
 Object.assign(KEY_FINGER, {
   "1": 0, "2": 1, "3": 2, "4": 3, "5": 3,
   "6": 4, "7": 4, "8": 5, "9": 6, "0": 7,
@@ -101,28 +119,9 @@ const SHIFT_MAP = {
   "!": "1", ":": ";",
 };
 
-// keyboard layouts a world can request (world.kb). "letters" keeps the
-// original 3-row board; "full" adds the number row for the math/CS islands.
-const KB_LAYOUTS = {
-  letters: KB_ROWS,
-  full: [
-    ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="],
-    ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "[", "]"],
-    ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";", "'"],
-    ["z", "x", "c", "v", "b", "n", "m", ",", ".", "/"],
-  ],
-};
-
-// ---- prompt objects: a prompt is either a plain string (display == typed)
-// or { d: question, a: answer, think: seconds } where the player reads `d`
-// and types `a`. These helpers let the whole engine treat both alike. ----
+// ---- prompt objects: a prompt is a plain string (display == typed). This
+// helper lets the engine read the text to type from a prompt uniformly. ----
 function promptAnswer(p) { return typeof p === "string" ? p : p.a; }
-function promptDisplay(p) { return typeof p === "string" ? null : (p.d || null); }
-function promptThink(p) { return typeof p === "string" ? 0 : (p.think || 0); }
-function promptLen(p) { return promptAnswer(p).length; }
-function promptOut(p) { return typeof p === "string" ? null : (p.out || null); }  // code run result
-function promptCode(p) { return typeof p === "object" && !!p.code; }              // monospace prompt
-function promptSwatch(p) { return typeof p === "string" ? null : (p.swatch || null); } // hex color preview
 
 // iOS "smart punctuation" can deliver curly quotes / long dashes through
 // the on-screen keyboard — fold them to the plain ASCII we validate against.
@@ -708,6 +707,22 @@ const PRACTICE_TIERS = [
   { id: "expert", label: "Expert", e: "👑", desc: "Capitals & full sentences · Hall of Fame", worlds: [5], count: 6,  need: 5 },
 ];
 
+// Gym Rematches: refight an already-beaten boss with a faster clock for a
+// medal. Silver wants a comfy win (2+ hearts), Gold a flawless one (all 3).
+// `timeMul` shrinks the per-word budget; `needStars` reuses the boss star rule.
+const REMATCH_TIERS = [
+  { id: "silver", label: "Silver", e: "🥈", timeMul: 0.85, needStars: 2 },
+  { id: "gold",   label: "Gold",   e: "🥇", timeMul: 0.70, needStars: 3 },
+];
+
+// Weekly Raid Boss: a giant legendary the WHOLE family chips away at together.
+// Its HP lives on the shared save (root.raid), not on any one player — every
+// attempt banks its damage into the same bar. `RAID_HP` is about 80 words of
+// letters (damage = letters typed of each finished word). `RAID_WORDS` is one
+// attempt's worth of battle words; a defeated player still banks what they dealt.
+const RAID_HP = 400;
+const RAID_WORDS = 9;
+
 // Story Typing: type a whole paragraph (no countdown — race your own wpm).
 // Uses capitals + punctuation, so it unlocks once world 6 (Hall of Fame) is
 // reached. `need` = world index that must be unlocked.
@@ -758,6 +773,7 @@ const TROPHIES = [
   { id: "hatch-1", e: "🐣", name: "Hatched!", desc: "Hatch a Mystery Egg" },
   { id: "party-6", e: "🎽", name: "Full Squad", desc: "Put 6 Pokemon in your party" },
   { id: "legend-1", e: "🌟", name: "Legend Catcher", desc: "Catch a roaming legendary" },
+  { id: "raid-1", e: "⚔️", name: "Raid Champion", desc: "Help the family defeat a Weekly Raid Boss" },
   { id: "streak-3", e: "📅", name: "Three in a Row", desc: "Play 3 days in a row" },
   { id: "streak-7", e: "🗓️", name: "Legend Week", desc: "Play 7 days in a row" },
   { id: "boss-0", e: "🏆", name: "Rise and Shine", desc: "Wake the giant Snorlax" },
@@ -766,6 +782,8 @@ const TROPHIES = [
   { id: "boss-3", e: "🏆", name: "Dragon Tamer", desc: "Defeat Garchomp" },
   { id: "boss-4", e: "🏆", name: "Dream Defender", desc: "Defeat Darkrai" },
   { id: "boss-5", e: "🏆", name: "POKEMON MASTER", desc: "Defeat MissingNo and save the Pokedex" },
+  { id: "rematch-silver", e: "🥈", name: "Gym Rematcher", desc: "Win a Gym Rematch for a Silver medal" },
+  { id: "rematch-gold", e: "🥇", name: "Rematch Master", desc: "Win a Gym Rematch for a Gold medal" },
 ];
 
 const ENCOURAGE = [

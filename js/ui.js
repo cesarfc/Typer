@@ -201,6 +201,14 @@ const UI = {
       hairFront = `<g fill="${hairC}"><circle cx="31" cy="26" r="9"/><circle cx="41" cy="18" r="9"/>
         <circle cx="50" cy="15" r="9"/><circle cx="59" cy="18" r="9"/><circle cx="69" cy="26" r="9"/>
         <circle cx="27" cy="35" r="7"/><circle cx="73" cy="35" r="7"/></g>`;
+    } else if (hair === "mohawk") {
+      // shaved sides, a bold crest of spikes running over the middle
+      hairFront = `<path d="M42 36 L44 9 L48 24 L50 5 L52 24 L56 9 L58 36 Q50 30 42 36 Z" fill="${hairC}"/>`;
+    } else if (hair === "ponytail") {
+      // a rounded fringe up front with a tail swept out behind on one side
+      hairBack = `<path d="M67 24 Q88 32 83 58 Q80 72 71 67 Q80 50 69 33 Z" fill="${hairC}"/>
+        <rect x="64" y="27" width="9" height="7" rx="3" fill="#1d2030" opacity=".55"/>`;
+      hairFront = `<path d="M28 40 Q28 14 50 14 Q72 14 72 40 Q50 26 28 40 Z" fill="${hairC}"/>`;
     }
 
     let hatSvg = "";
@@ -212,6 +220,19 @@ const UI = {
       hatSvg = `<path d="M28 33 Q28 9 50 9 Q72 9 72 33 L72 35 L28 35 Z" fill="${hatC}"/>
         <rect x="28" y="31" width="44" height="6" rx="3" fill="#fff" opacity=".35"/>
         <circle cx="50" cy="9" r="4.5" fill="#fff" opacity=".8"/>`;
+    } else if (hat === "crown") {
+      // five points on a jewelled band
+      hatSvg = `<path d="M29 26 L33 10 L41 21 L50 6 L59 21 L67 10 L71 26 Z" fill="${hatC}"/>
+        <rect x="29" y="23" width="42" height="7" rx="2" fill="${hatC}"/>
+        <circle cx="50" cy="26" r="2.2" fill="#fff"/><circle cx="38" cy="27" r="1.7" fill="#fff"/>
+        <circle cx="62" cy="27" r="1.7" fill="#fff"/>
+        <circle cx="50" cy="9" r="2" fill="#fff"/><circle cx="33" cy="12" r="1.6" fill="#fff"/>
+        <circle cx="67" cy="12" r="1.6" fill="#fff"/>`;
+    } else if (hat === "visor") {
+      // a sun visor: a headband strap with an open top and a curved brim
+      hatSvg = `<path d="M25 31 Q50 23 75 31 Q75 36 69 36 L31 36 Q25 36 25 31 Z" fill="${hatC}"/>
+        <rect x="27" y="25" width="46" height="6" rx="3" fill="${hatC}"/>
+        <rect x="27" y="25" width="46" height="3" rx="1.5" fill="#fff" opacity=".3"/>`;
     }
 
     return `<svg class="${cls}" viewBox="0 0 100 118" aria-hidden="true">
@@ -257,10 +278,9 @@ const UI = {
     });
     this.$("btn-random-trainer").addEventListener("click", e => {
       e.preventDefault();
+      // randomTrainer only rolls among unlocked pieces for every part now,
+      // so 🎲 can never land on a locked hair / hat / color / skin
       this.builder = randomTrainer();
-      for (const part of ["hairColor", "hatColor", "shirt"]) {
-        if (!SAVE.wardrobeOk(part, this.builder[part]).ok) this.builder[part] = 0;
-      }
       SFX.combo();
       this.renderBuilder();
     });
@@ -293,12 +313,19 @@ const UI = {
         ? `<button class="swatch ${t[key] === i ? "sel" : ""}" data-k="${key}" data-i="${i}" style="background:${c}"></button>`
         : `<button class="swatch locked-sw" data-lk="${this.esc(lk.label)}" title="🔒 ${this.esc(lk.label)}" style="background:${c}">🔒</button>`;
     }).join("");
+    // shape swatches (hair / hat) show a mini trainer preview, or a 🔒 when locked
+    const shapeSw = (key, mods) => TRAINER_OPTS[key].map((h, i) => {
+      const lk = SAVE.wardrobeOk(key, i);
+      if (!lk.ok) {
+        return `<button class="swatch hair-sw locked-sw" data-lk="${this.esc(lk.label)}" title="🔒 ${this.esc(lk.label)}">🔒</button>`;
+      }
+      const inner = h === "none" ? "✖" : this.trainerSvg({ ...t, ...mods(i) }, "trainer-svg mini");
+      return `<button class="swatch hair-sw ${t[key] === i ? "sel" : ""}" data-k="${key}" data-i="${i}">${inner}</button>`;
+    }).join("");
     let html = row("Skin", colorSw("skin", TRAINER_OPTS.skin));
-    html += row("Hair", TRAINER_OPTS.hair.map((h, i) =>
-      `<button class="swatch hair-sw ${t.hair === i ? "sel" : ""}" data-k="hair" data-i="${i}">${this.trainerSvg({ ...t, hair: i, hat: 0 }, "trainer-svg mini")}</button>`).join(""));
+    html += row("Hair", shapeSw("hair", i => ({ hair: i, hat: 0 })));
     html += row("Hair color", colorSw("hairColor", TRAINER_OPTS.hairColor));
-    html += row("Hat", TRAINER_OPTS.hat.map((h, i) =>
-      `<button class="swatch hair-sw ${t.hat === i ? "sel" : ""}" data-k="hat" data-i="${i}">${h === "none" ? "✖" : this.trainerSvg({ ...t, hat: i }, "trainer-svg mini")}</button>`).join(""));
+    html += row("Hat", shapeSw("hat", i => ({ hat: i })));
     if (TRAINER_OPTS.hat[t.hat] !== "none") html += row("Hat color", colorSw("hatColor", TRAINER_OPTS.hatColor));
     html += row("Shirt", colorSw("shirt", TRAINER_OPTS.shirt));
     this.$("trainer-opts").innerHTML = html;
@@ -438,7 +465,7 @@ const UI = {
     const rng = () => { h = (h * 1664525 + 1013904223) >>> 0; return h / 4294967296; };
     const candidates = [];
     WORLDS.forEach((w, wi) => {
-      if (w.island || !this.GRASS_SPOTS[wi] || !SAVE.worldUnlocked(wi)) return;
+      if (!this.GRASS_SPOTS[wi] || !SAVE.worldUnlocked(wi)) return;
       this.GRASS_SPOTS[wi].forEach((p, k) => candidates.push({ id: `${wi}-${k}`, w: wi, ...p }));
     });
     const order = candidates.map((c, i) => ({ c, r: rng() })).sort((a, b) => a.r - b.r);
@@ -528,18 +555,10 @@ const UI = {
     return out;
   },
 
-  // the main island only holds the story worlds; Scholar islands (world.island)
-  // live on their own route screens reached via the Sea Chart
-  mainWorldCount() {
-    let n = 0;
-    while (WORLDS[n] && !WORLDS[n].island) n++;
-    return n;
-  },
-
   mapNodes() {
     if (this._mapNodes) return this._mapNodes;
     const A = this.mapAnchors;
-    this._mapNodes = WORLDS.slice(0, this.mainWorldCount()).map((w, wi) => {
+    this._mapNodes = WORLDS.map((w, wi) => {
       const [ax, ay] = A[wi], [bx, by] = A[wi + 1];
       const n = w.levels.length + 1;
       const dx = bx - ax, dy = by - ay;
@@ -556,7 +575,6 @@ const UI = {
 
   mapFrontier() {
     for (let w = 0; w < WORLDS.length; w++) {
-      if (WORLDS[w].island) continue; // the marker stays on the main island
       for (let s = 0; s <= WORLDS[w].levels.length; s++) {
         if (SAVE.stageUnlocked(w, s) && SAVE.stageStars(w, s) === 0) return { w, s };
       }
@@ -579,7 +597,7 @@ const UI = {
 
     // painted island terrain + per-region color tints
     let html = this.terrainSvg();
-    const blobs = WORLDS.slice(0, this.mainWorldCount()).map((w, i) => {
+    const blobs = WORLDS.map((w, i) => {
       const [ax, ay] = this.mapAnchors[i], [bx, by] = this.mapAnchors[i + 1];
       return `radial-gradient(740px 580px at ${Math.round((ax + bx) / 2)}px ${Math.round((ay + by) / 2)}px, ${w.gradient[1]}59, transparent 72%)`;
     }).join(",");
@@ -638,7 +656,6 @@ const UI = {
       <span class="${daily.done ? "" : "podium-glow"}">${daily.done ? "✅" : "📋"}</span><b>Daily Drill</b></button>`;
 
     WORLDS.forEach((w, wi) => {
-      if (w.island) return; // Scholar islands render on their own route screen
       const ns = nodes[wi];
       const unlocked = SAVE.worldUnlocked(wi);
       const maxStars = (w.levels.length + 1) * 3;
@@ -663,8 +680,11 @@ const UI = {
         const st = SAVE.stageStars(wi, s);
         const open = SAVE.stageUnlocked(wi, s);
         const next = open && st === 0;
+        // a beaten boss also shows its best Gym Rematch medal, if any
+        const rmBest = (SAVE.state && SAVE.state.rematch && SAVE.state.rematch[wi]) || 0;
+        const rmGlyph = rmBest === 2 ? "🥇" : rmBest === 1 ? "🥈" : "";
         const starsHtml = isBoss
-          ? (st > 0 ? `<span class="mini-stars">🏆</span>` : "")
+          ? (st > 0 ? `<span class="mini-stars">🏆${rmGlyph}</span>` : "")
           : `<span class="mini-stars">${"★".repeat(st)}<span class="off">${"★".repeat(Math.max(0, 3 - st))}</span></span>`;
         html += `<button class="mnode ${isBoss ? "boss" : ""} ${open ? "" : "locked"} ${next ? "next" : ""} ${st > 0 ? "done" : ""} ${SAVE.medalStageOk(wi, s, 3) ? "gilded" : ""}"
           style="left:${p.x}px;top:${p.y}px" data-w="${wi}" data-s="${s}"
@@ -720,6 +740,24 @@ const UI = {
       html += `<button class="map-roamer" style="left:${rx}px;top:${ry}px" title="A legendary presence... one chance this week!">
         <span class="roamer-aura"></span>${this.pokeHtml(roamer.id, roamer.e, { cls: "poke-img roamer-img" })}<span class="roamer-mark">🌟</span>
       </button>`;
+    }
+
+    // the Weekly Raid Boss den — a shared legendary the whole family chips at
+    const raid = SAVE.raidNow();
+    if (raid) {
+      const hpFrac = raid.maxHp ? Math.max(0, raid.hp) / raid.maxHp : 0;
+      const myContrib = (SAVE.root.active && raid.contrib[SAVE.root.active]) || 0;
+      const claimedByMe = SAVE.raidClaimedByMe();
+      let state, label;
+      if (!raid.defeated) { state = "alive"; label = `⚔️ Raid: ${this.esc(raid.n)}`; }
+      else if (myContrib > 0 && !claimedByMe) { state = "claim"; label = "🎁 Claim your prize!"; }
+      else { state = "resting"; label = "😴 Resting till next week"; }
+      html += `<button class="map-raid ${state}" style="left:1520px;top:990px"
+        title="Weekly Raid Boss — the whole family fights together!">
+        <span class="raid-aura"></span>${this.pokeHtml(raid.id, raid.e, { cls: "poke-img raid-img" })}
+        <span class="raid-mark">${raid.defeated ? (state === "claim" ? "🎁" : "😴") : "⚔️"}</span>
+        <div class="raid-hpbar"><div class="raid-hpfill" style="width:${hpFrac * 100}%"></div></div>
+        <b>${label}</b></button>`;
     }
 
     map.innerHTML = html;
@@ -1000,7 +1038,7 @@ const UI = {
     if (!keys.includes(e.key)) return;
     e.preventDefault();
     const flat = [];
-    WORLDS.forEach((w, wi) => { if (w.island) return; for (let s = 0; s <= w.levels.length; s++) flat.push({ w: wi, s }); });
+    WORLDS.forEach((w, wi) => { for (let s = 0; s <= w.levels.length; s++) flat.push({ w: wi, s }); });
     if (this._mapSel === null || this._mapSel === undefined) {
       const f = this.mapFrontier();
       this._mapSel = flat.findIndex(n => n.w === f.w && n.s === f.s);
@@ -1116,6 +1154,22 @@ const UI = {
       if (ro) {
         SFX.init();
         Engine.startLegendary();
+        return;
+      }
+      const rd = e.target.closest(".map-raid");
+      if (rd) {
+        SFX.init();
+        const raid = SAVE.raidNow();
+        if (!raid) return;
+        if (!raid.defeated) { Engine.startRaid(); return; } // any trainer can attack
+        const myContrib = (SAVE.root.active && raid.contrib[SAVE.root.active]) || 0;
+        if (SAVE.raidClaimedByMe()) {
+          this.toast("✅ You've claimed this week's raid reward. A fresh boss appears next week!");
+        } else if (myContrib > 0) {
+          Engine.startRaidClaim();
+        } else {
+          this.toast("💪 This boss is already down — but only trainers who fought it can claim the prize!");
+        }
         return;
       }
       const sc = e.target.closest(".map-school");
@@ -1262,11 +1316,8 @@ const UI = {
     return m[base] || null;
   },
 
-  _kbLayout: "letters",
-
-  buildKeyboard(layoutId = "letters") {
-    this._kbLayout = layoutId;
-    const rows = KB_LAYOUTS[layoutId] || KB_ROWS;
+  buildKeyboard() {
+    const rows = KB_ROWS;
     const shiftRowIdx = rows.length - 2; // the row that gets the ⇧ keys
     let html = "";
     rows.forEach((row, ri) => {
@@ -1283,7 +1334,6 @@ const UI = {
       html += `</div>`;
     });
     html += `<div class="kb-row"><div class="key space f8" data-key=" ">space</div></div>`;
-    this.$("kb").classList.toggle("kb-full", layoutId === "full");
     // one keyboard + hands for the game screen, one set for the tutorial
     this.$("kb").innerHTML = html;
     this.$("tut-kb").innerHTML = html;
@@ -1349,14 +1399,6 @@ const UI = {
     const w = S.world;
     document.body.classList.remove("super-mode");
     this.$("capslock-warn").classList.add("hidden");
-    // Scholar islands need the number row / symbols; others keep the
-    // original letters board (and its tight small-screen height budget)
-    const layout = w.kb || "letters";
-    if (this._kbLayout !== layout) this.buildKeyboard(layout);
-    this.$("question-card").classList.add("hidden");
-    this.$("helper-card").classList.add("hidden");
-    this.$("think-pill").classList.add("hidden");
-    this.$("code-output").classList.add("hidden");
     this.applyKbVisibility();
     this.practiceTimerUI(false);
 
@@ -1424,7 +1466,11 @@ const UI = {
   showPrompt(S) {
     const target = this.$("target");
     const wrap = this.$("target-wrap");
-    if (S.isBoss) {
+    if (S.raid) {
+      // the raid legendary looms for the whole attempt
+      target.innerHTML = this.pokeHtml(S.raid.id, S.raid.e);
+      target.className = "boss-size";
+    } else if (S.isBoss) {
       if (S.elite && S.elite.def.champion) {
         // the Champion is the player's own rival — their trainer, mirrored
         target.innerHTML = `<span class="rival">${this.avatarHtml(SAVE.state.profile)}</span>`;
@@ -1450,29 +1496,15 @@ const UI = {
     }
     wrap.style.opacity = 1;
     wrap.style.transform = "none";
-    this.$("helper-card").classList.add("hidden"); // fresh prompt, fresh start
-    this.$("code-output").classList.add("hidden");
     this.renderPromptText(S);
     this.$("hud-progress-fill").style.width = `${Math.round(100 * S.idx / S.prompts.length)}%`;
+    // the ghost racer only belongs to Trainer School drills
+    const gm = this.$("ghost-marker");
+    if (gm && !S.practice) gm.classList.add("hidden");
   },
 
   renderPromptText(S) {
     const pw = this.$("prompt-word");
-    const qc = this.$("question-card");
-    // the question (math problem / code-output prompt) above the answer slots
-    if (S.display) {
-      qc.classList.remove("hidden");
-      qc.classList.toggle("long", S.display.length > 18);
-      qc.innerHTML = this.esc(S.display).replace(/❓|\?$/g, m => `<span class="q-mark">${m}</span>`);
-    } else if (S.swatch) {
-      // hex color prompt: show the live color the code paints
-      qc.classList.remove("hidden");
-      qc.classList.remove("long");
-      qc.innerHTML = `<span class="hex-swatch" style="background:${this.esc(S.swatch)}"></span>`;
-    } else {
-      qc.classList.add("hidden");
-      qc.innerHTML = "";
-    }
     // Story Typing: the whole paragraph as flowing prose — chars are grouped
     // into non-breaking words so lines wrap at spaces, never mid-word
     if (S.paragraphMode) {
@@ -1495,20 +1527,15 @@ const UI = {
       return;
     }
     pw.className = "";
-    pw.classList.toggle("code-prompt", !!S.codeMode);
     if (S.text.length > 30) pw.classList.add("xlong");
     else if (S.text.length > 16) pw.classList.add("long");
-    // answer-mode: untyped characters render as blank slots, not the answer
     pw.innerHTML = [...S.text].map((c, i) => {
       const typed = i < S.pos;
       const cur = i === S.pos;
-      const hideAnswer = S.answerMode && !typed;
-      const glyph = c === " " ? "·" : hideAnswer ? "_" : this.esc(c);
-      return `<span class="ch ${typed ? "done" : cur ? "cur" : ""} ${c === " " ? "sp" : ""} ${hideAnswer ? "mystery" : ""}">${glyph}</span>`;
+      const glyph = c === " " ? "·" : this.esc(c);
+      return `<span class="ch ${typed ? "done" : cur ? "cur" : ""} ${c === " " ? "sp" : ""}">${glyph}</span>`;
     }).join("");
-    // suppress the answer guide in answer-mode until 2 errors turn it into a rescue
-    if (S.answerMode && S.errorsThisPrompt < 2) this.highlightKey(null);
-    else this.highlightKey(S.text[S.pos]);
+    this.highlightKey(S.text[S.pos]);
   },
 
   charDone(S) {
@@ -1524,8 +1551,7 @@ const UI = {
       if (!S.paragraphMode) spans[S.pos - 1].textContent = c === " " ? "·" : c;
     }
     if (spans[S.pos]) spans[S.pos].classList.add("cur");
-    if (S.answerMode && S.errorsThisPrompt < 2) this.highlightKey(null);
-    else this.highlightKey(S.text[S.pos]);
+    this.highlightKey(S.text[S.pos]);
     if (S.paragraphMode) {
       // keep the cursor line in view as the story scrolls
       if (spans[S.pos]) spans[S.pos].scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -1533,109 +1559,6 @@ const UI = {
     }
     const r = pw.getBoundingClientRect();
     this.burst(r.left + r.width / 2, r.top, [S.world.accent], 3, 2.2);
-  },
-
-  // ---------- Scholar islands: think/type, helper cards, ghost answers ----------
-  thinkPhase(S, on) {
-    const pill = this.$("think-pill");
-    const bar = this.$("timer-bar");
-    if (on) {
-      pill.classList.remove("hidden");
-      pill.textContent = "🤔 think it through…";
-      bar.classList.add("thinking"); // dim, breathing — no countdown yet
-    } else {
-      pill.classList.remove("hidden");
-      pill.textContent = "⌨️ go!";
-      bar.classList.remove("thinking");
-      setTimeout(() => { if (this.$("think-pill").textContent === "⌨️ go!") this.$("think-pill").classList.add("hidden"); }, 600);
-    }
-  },
-
-  showHelper(S) {
-    const card = this.$("helper-card");
-    const html = this.helperContent(S);
-    if (!html) return;
-    card.innerHTML = `<div class="helper-inner"><span class="helper-tag">📝 trainer's notes</span>${html}</div>`;
-    card.classList.remove("hidden");
-  },
-
-  // pictorial scaffolds matched to the operation in the question
-  helperContent(S) {
-    const d = S.display || "";
-    let m;
-    if ((m = d.match(/(\d+)\s*×\s*(\d+)/))) {
-      const a = +m[1], b = +m[2];
-      const strip = Array.from({ length: a }, (_, i) => `<span>${b * (i + 1)}</span>`).join("<i>·</i>");
-      return `<div class="help-skip">count by ${b}s: ${strip}</div>`;
-    }
-    if ((m = d.match(/(\d+)\s*÷\s*(\d+)/))) {
-      const a = +m[1], b = +m[2];
-      return `<div class="help-triangle"><b>${a}</b><span>${b} × ❓ = ${a}</span></div>`;
-    }
-    if ((m = d.match(/1\/(\d+)\s*of\s*(\d+)/))) {
-      const parts = +m[1], whole = +m[2];
-      return `<div class="help-pie">split ${whole} into ${parts} equal parts: ${whole} ÷ ${parts}</div>`;
-    }
-    if ((m = d.match(/([01]{2,})/))) {
-      // binary: show the 8-4-2-1 place values lit up
-      const bits = m[1];
-      const vals = [8, 4, 2, 1].slice(-bits.length);
-      const cells = [...bits].map((b, i) =>
-        `<span class="bin-cell ${b === "1" ? "on" : ""}">${vals[i]}<i>${b}</i></span>`).join("");
-      const sum = [...bits].reduce((a, b, i) => a + (b === "1" ? vals[i] : 0), 0);
-      return `<div class="help-bin">${cells}<b>= ${sum}</b></div>`;
-    }
-    if (/AND|OR|NOT/.test(d)) {
-      return `<div class="help-line">AND needs <b>both</b> true · OR needs <b>one</b> true · NOT <b>flips</b> it</div>`;
-    }
-    if (/shift back/.test(d)) {
-      return `<div class="help-line">move each letter back: b→a, c→b, d→c… use the alphabet!</div>`;
-    }
-    if ((m = d.match(/(\d+)\s*([+\-])\s*(\d+)/))) {
-      return `<div class="help-line">work it out step by step — line up the ones, then the tens</div>`;
-    }
-    return `<div class="help-line">take your time — you've got this! 💪</div>`;
-  },
-
-  ghostAnswer(S, cb) {
-    // type the answer in blue, slot by slot — shown, not earned (stays
-    // a "mystery" reveal). Then the kid echoes it once to continue.
-    const spans = this.$("prompt-word").children;
-    let i = S.pos;
-    const step = () => {
-      if (i >= S.text.length) { if (cb) cb(); return; }
-      const el = spans[i];
-      if (el) { el.classList.add("ghost"); el.textContent = S.text[i] === " " ? "·" : S.text[i]; el.classList.remove("mystery"); }
-      i++;
-      setTimeout(step, 300);
-    };
-    this.$("finger-hint").innerHTML = "💡 Here's the answer — now type it once to go on!";
-    step();
-  },
-
-  floatText(text) {
-    const a = this.$("arena");
-    const el = document.createElement("div");
-    el.className = "float-text";
-    el.textContent = text;
-    a.appendChild(el);
-    setTimeout(() => el.remove(), 1400);
-  },
-
-  // the payoff on the coding island: a completed line of code runs and
-  // typewriters its output into a little console
-  runCode(out) {
-    const box = this.$("code-output");
-    box.classList.remove("hidden");
-    box.innerHTML = `<span class="co-prompt">&gt; </span><span class="co-text"></span><span class="co-cursor">▋</span>`;
-    const txt = box.querySelector(".co-text");
-    let i = 0;
-    const step = () => {
-      if (i >= out.length) { SFX.word(); return; }
-      txt.textContent += out[i++];
-      setTimeout(step, 38);
-    };
-    step();
   },
 
   charError(S) {
@@ -1649,13 +1572,6 @@ const UI = {
     pw.classList.remove("shake");
     void pw.offsetWidth;
     pw.classList.add("shake");
-    // first slip on a Scholar prompt: gentle nudge, no content hint yet;
-    // at 2 the guide wakes as a rescue
-    if (S.scholar) {
-      if (S.answerMode && S.errorsThisPrompt >= 2) this.highlightKey(S.text[S.pos]);
-      const hint = this.$("finger-hint");
-      if (S.errorsThisPrompt === 1) { hint.innerHTML = "Not quite — check it again! ✋"; }
-    }
   },
 
   setTimer(frac) {
@@ -1882,9 +1798,11 @@ const UI = {
     this._lastStage = [res.w, res.s];
     this._practiceNext = null;
     this._paragraphNext = null;
+    this._rematchNext = res.rematch ? { w: res.w, tierId: res.rematch.id } : null;
+    this._raidNext = null;
     this._practiceMode = false;
     this._resultsAt = performance.now();
-    this.$("btn-replay").textContent = "↻ Replay";
+    this.$("btn-replay").textContent = res.rematch ? "↻ Try Again" : "↻ Replay";
     this.$("btn-replay").classList.remove("hidden");
     this.$("results-stars").classList.remove("hidden");
     const w = WORLDS[res.w];
@@ -1893,9 +1811,11 @@ const UI = {
     card.classList.remove("defeat");
     card.style.setProperty("--wa", w.accent);
 
-    title.textContent = res.isBoss
-      ? `${w.boss.emoji} BOSS DEFEATED!`
-      : `${w.emoji} ${res.s === 4 ? "Speed Run" : "Level"} Complete!`;
+    title.textContent = res.rematch
+      ? (res.rematchMedal ? `${res.rematchMedal.tier.e} REMATCH WON!` : `${w.boss.emoji} Rematch Complete`)
+      : res.isBoss
+        ? `${w.boss.emoji} BOSS DEFEATED!`
+        : `${w.emoji} ${res.s === 4 ? "Speed Run" : "Level"} Complete!`;
 
     // stars
     const stars = this.$("results-stars");
@@ -2018,6 +1938,22 @@ const UI = {
         SFX.medal();
       }, 1600);
     }
+    // Gym Rematch medal moment (reuses the mastery-medal card styling)
+    if (res.rematch) {
+      if (res.rematchMedal) {
+        const m = res.rematchMedal.tier;
+        medalBox.className = "medal-on";
+        medalBox.innerHTML = `<span class="medal-drop">${m.e}</span>
+          <span class="medal-text"><b>${this.esc(WORLDS[res.w].boss.name)} — ${m.label.toUpperCase()} REMATCH MEDAL!</b>
+          <i>${res.rematchMedal.upgraded ? "A new tier for your Journal!" : "You matched your best — still sharp!"}</i></span>`;
+        setTimeout(() => SFX.medal(), 500);
+        if (res.rematchMedal.upgraded) this.confetti();
+      } else {
+        const needHearts = res.rematch.needStars === 3 ? "all 3 hearts" : "2 or more hearts";
+        medalBox.className = "best-only";
+        medalBox.innerHTML = `<span class="best-note">${res.rematch.e} So close! Finish with <b>${needHearts}</b> to earn the ${res.rematch.label} medal.</span>`;
+      }
+    }
 
     // big moments
     if (res.isBoss && res.firstClear) {
@@ -2044,7 +1980,7 @@ const UI = {
     offer.className = "hidden";
     offer.innerHTML = "";
     const bi = BAND_ORDER.indexOf(res.band);
-    if (res.stars === 3 && res.acc >= 0.98 && bi >= 0 && bi < BAND_ORDER.length - 1) {
+    if (!res.rematch && res.stars === 3 && res.acc >= 0.98 && bi >= 0 && bi < BAND_ORDER.length - 1) {
       const up = BANDS[BAND_ORDER[bi + 1]];
       offer.className = "band-offer";
       offer.innerHTML = `<button id="btn-bandup" data-band="${BAND_ORDER[bi + 1]}">
@@ -2056,12 +1992,16 @@ const UI = {
     const lastWorld = HALL_W;
     next.classList.remove("hidden");
     let nextLabel = null;
-    if (!res.isBoss) nextLabel = res.s === WORLDS[res.w].levels.length - 1 ? "Boss Fight! 👊" : "Next Level ▶";
+    // a rematch has no "next" — you replay the tier or head back to the map
+    if (res.rematch) nextLabel = null;
+    else if (!res.isBoss) nextLabel = res.s === WORLDS[res.w].levels.length - 1 ? "Boss Fight! 👊" : "Next Level ▶";
     else if (res.w < lastWorld) nextLabel = `Next World: ${WORLDS[res.w + 1].emoji} ▶`;
     if (nextLabel) next.innerHTML = `${nextLabel} <small class="key-hint">Enter</small>`;
     else next.classList.add("hidden");
-    this._nextTarget = !res.isBoss ? [res.w, res.s + 1] : res.w < lastWorld ? [res.w + 1, 0] : null;
+    this._nextTarget = res.rematch ? null : !res.isBoss ? [res.w, res.s + 1] : res.w < lastWorld ? [res.w + 1, 0] : null;
     SFX.fanfare();
+    // a win can push trophies / gold rematches past a wardrobe gate
+    this.flashWardrobeUnlocks();
   },
 
   showDefeat(S) {
@@ -2070,6 +2010,9 @@ const UI = {
     this._lastStage = [S.w, S.s];
     this._practiceNext = null;
     this._paragraphNext = null;
+    // a lost rematch retries the rematch, not a plain boss fight
+    this._rematchNext = S.rematch ? { w: S.w, tierId: S.rematch.id } : null;
+    this._raidNext = null;
     this._practiceMode = false;
     this._resultsAt = performance.now();
     this.$("results-egg").className = "hidden";          // no stale egg note
@@ -2101,7 +2044,7 @@ const UI = {
     const next = this.$("btn-next");
     next.classList.remove("hidden");
     next.innerHTML = `⚔️ Try Again! <small class="key-hint">Enter</small>`;
-    this._nextTarget = [S.w, S.s];
+    this._nextTarget = S.rematch ? null : [S.w, S.s];
   },
 
   // ---------- dex ----------
@@ -2124,11 +2067,10 @@ const UI = {
         const candy = SAVE.state.candy[key] || 0;
         const fam = SAVE.familyFor(key);
         const targets = SAVE.evoTargetsFor(key);
-        const candyHtml = fam ? (fam.coins
-          ? `<div class="dex-candy">🪙 ${SAVE.state.coins || 0}/${fam.coins}</div>`
-          : `<div class="dex-candy">🍬 ${candy}/${CANDY_COST}${
+        const candyHtml = fam
+          ? `<div class="dex-candy">🍬 ${candy}/${CANDY_COST}${
               SAVE.state.vouchers > 0 ? ` <button class="btn-voucher" data-vbase="${key}" title="Spend a candy voucher here">🎟+1</button>` : ""
-            }</div>`) : "";
+            }</div>` : "";
         const evoBtn = targets.length
           ? `<button class="btn-evolve" data-base="${key}">EVOLVE!</button>` : "";
         const inParty = SAVE.state.party.includes(key);
@@ -2242,6 +2184,20 @@ const UI = {
     this.$("stopwatch-time").textContent = this.fmtTime(ms);
     const wpm = ms > 2000 ? Math.round((S.hits / 5) / (ms / 60000)) : 0;
     this.$("stopwatch-wpm").textContent = `${wpm} wpm`;
+    this.updateGhost(S, ms);
+  },
+
+  // Practice Ghost: slide the 👻 along the progress bar to where your best
+  // run had reached by this elapsed time; green glow while you're ahead of it.
+  updateGhost(S, ms) {
+    const marker = this.$("ghost-marker");
+    if (!marker) return;
+    if (!S.practice || !S.ghost || !S.ghost.length) { marker.classList.add("hidden"); return; }
+    marker.classList.remove("hidden");
+    let done = 0;
+    while (done < S.ghost.length && S.ghost[done] <= ms) done++;
+    marker.style.left = `${Math.min(100, 100 * done / S.prompts.length)}%`;
+    marker.classList.toggle("ahead", S.idx > done); // you've cleared more words than the ghost
   },
 
   practiceScene(S) {
@@ -2260,6 +2216,14 @@ const UI = {
     this.$("hud-hearts").classList.add("hidden");
     this.$("boss-bar").classList.add("hidden");
     this.$("player-avatar").innerHTML = this.avatarHtml(SAVE.state.profile);
+    // Practice Ghost marker (drills only — Story Typing never has a ghost)
+    const ghost = this.$("ghost-marker");
+    const hasGhost = !!(S.practice && S.ghost && S.ghost.length);
+    if (ghost) {
+      ghost.classList.toggle("hidden", !hasGhost);
+      ghost.classList.remove("ahead");
+      ghost.style.left = "0%";
+    }
     this.showPartner(S);
     this.partnerMeter(S);
     const arena = this.$("arena");
@@ -2283,6 +2247,10 @@ const UI = {
     this.$("stopwatch-time").textContent = "0.0s";
     this.$("stopwatch-wpm").textContent = "0 wpm";
     this.announce(`⏱ No countdown — beat your record!`, 1800);
+    // first drill of a tier: no ghost to race yet — invite them to make one
+    if (S.practice && !hasGhost) {
+      setTimeout(() => this.toast("👻 Set a record to unlock your ghost racer — then race it next time!", "gold"), 900);
+    }
   },
 
   renderPractice() {
@@ -2324,6 +2292,8 @@ const UI = {
     this.renderTopbar();
     this._practiceNext = res.tier.id;
     this._paragraphNext = null;
+    this._rematchNext = null;
+    this._raidNext = null;
     this._practiceMode = true;
     this._nextTarget = null;
     this._lastStage = null;
@@ -2345,6 +2315,13 @@ const UI = {
     if (res.betterTime) lines.push(`⏱ <b>NEW BEST TIME!</b>${res.prevTime ? ` (was ${this.fmtTime(res.prevTime)})` : ""}`);
     if (res.betterWpm) lines.push(`⚡ <b>NEW BEST SPEED!</b>${res.prevWpm ? ` (was ${res.prevWpm} wpm)` : ""}`);
     if (!record) lines.push(`Your records: ⏱ ${this.fmtTime(res.prevTime)} · ⚡ ${res.prevWpm} wpm — so close!`);
+    // Practice Ghost verdict: did you out-race the ghost of your best run?
+    if (res.ghost) {
+      const secs = (res.ghost.deltaMs / 1000).toFixed(1);
+      lines.push(res.ghost.beat
+        ? `🏁 You beat your ghost by <b>${secs}s</b>!`
+        : `👻 Your ghost won by <b>${secs}s</b> — rematch?`);
+    }
     const catchBox = this.$("results-catch");
     catchBox.className = "catch-result";
     catchBox.innerHTML = `<div class="record-note ${record ? "gold" : ""}">${lines.join("<br>")}</div>`;
@@ -2376,6 +2353,8 @@ const UI = {
     this.renderTopbar();
     this._paragraphNext = res.def.id;
     this._practiceNext = null;
+    this._rematchNext = null;
+    this._raidNext = null;
     this._practiceMode = true; // btn-replay returns to the Trainer School
     this._nextTarget = null;
     this._lastStage = null;
@@ -2414,6 +2393,182 @@ const UI = {
     (res.newTrophies || []).forEach((t, i) => setTimeout(() => this.trophyToast(t), 900 + i * 800));
     if (record) { this.confetti(); SFX.fanfare(); }
     else SFX.word();
+  },
+
+  // ---- Raid attempt results: how much the family chipped, what's left, and
+  // whether the boss is down (claim!) or still standing (attack again) ----
+  showRaidResults(S, info) {
+    this.show("results");
+    this.renderTopbar();
+    this._practiceNext = null;
+    this._paragraphNext = null;
+    this._rematchNext = null;
+    this._practiceMode = false;
+    this._nextTarget = null;
+    this._lastStage = null;
+    this._resultsAt = performance.now();
+    const down = !!info.defeated;
+    const canClaim = !!info.canClaim; // this player contributed and hasn't claimed
+    // btn-next drives the raid: claim the prize, or launch another attempt
+    this._raidNext = down ? (canClaim ? "claim" : null) : "attack";
+    const card = this.$("results-card");
+    card.classList.remove("defeat");
+    card.style.setProperty("--wa", "#ff5ec7");
+    this.$("results-title").textContent = down
+      ? (info.justDefeated ? "🌟 RAID BOSS DOWN!" : "⚔️ Raid Boss defeated!")
+      : "⚔️ Raid Attack!";
+    this.$("results-stars").classList.add("hidden");
+    const remaining = Math.max(0, info.remaining);
+    this.$("results-grid").innerHTML = `
+      <div class="rstat"><div class="rstat-v">${info.dealt}</div><div class="rstat-l">damage dealt</div></div>
+      <div class="rstat"><div class="rstat-v">${remaining}</div><div class="rstat-l">boss HP left</div></div>
+      <div class="rstat"><div class="rstat-v">${info.maxHp}</div><div class="rstat-l">total HP</div></div>`;
+
+    const lines = [];
+    if (info.lostHearts) lines.push(`💔 You ran out of hearts — but your <b>${info.dealt}</b> damage still counts!`);
+    if (down) {
+      lines.push(canClaim
+        ? `🎁 The boss is down! <b>Claim your prize</b> — a guaranteed catch and big XP!`
+        : (this.raidClaimedMsg()));
+    } else {
+      lines.push(`The family has knocked off <b>${info.maxHp - remaining}/${info.maxHp}</b> HP. Keep attacking to finish it!`);
+    }
+    const catchBox = this.$("results-catch");
+    catchBox.className = "catch-result";
+    catchBox.innerHTML = `<div class="record-note ${down ? "gold" : ""}">${lines.join("<br>")}</div>`;
+    this.$("results-egg").className = "hidden";
+    this.$("results-medal").className = "hidden";
+    this.$("results-offer").className = "hidden";
+
+    this.$("xp-gained").textContent = `+${info.xp} XP`;
+    const lv = levelFromXp(SAVE.state.xp);
+    this.$("xp-level").textContent = `Lv ${lv.level} · ${titleForLevel(lv.level)}`;
+    this.$("results-xpfill").style.width = `${100 * lv.into / lv.need}%`;
+
+    const next = this.$("btn-next");
+    if (this._raidNext === "claim") {
+      next.classList.remove("hidden");
+      next.innerHTML = `🎁 Claim Prize! <small class="key-hint">Enter</small>`;
+    } else if (this._raidNext === "attack") {
+      next.classList.remove("hidden");
+      next.innerHTML = `⚔️ Attack Again <small class="key-hint">Enter</small>`;
+    } else {
+      next.classList.add("hidden");
+    }
+    this.$("btn-replay").classList.add("hidden");
+    (info.newTrophies || []).forEach((t, i) => setTimeout(() => this.trophyToast(t), 900 + i * 800));
+    if (info.justDefeated) { this.confetti(); SFX.fanfare(); }
+    else SFX.word();
+  },
+
+  raidClaimedMsg() {
+    return SAVE.raidClaimedByMe()
+      ? `✅ You've claimed this raid. A new boss appears next week!`
+      : `🌟 The boss is down! Only trainers who landed a hit can claim the prize.`;
+  },
+
+  // ---------- Weekly Raid Boss scene ----------
+  // a boss-style arena, but the HP bar shows the family's SHARED raid HP and
+  // each finished word chips it with a floating damage number
+  raidScene(S) {
+    this.show("game");
+    this.$("screen-game").classList.remove("paragraph-mode");
+    const raid = S.raid;
+    document.body.classList.remove("super-mode");
+    this.$("capslock-warn").classList.add("hidden");
+    this.applyKbVisibility();
+    this.practiceTimerUI(false);
+    this.$("hud-stage").textContent = "⚔️ RAID BATTLE!";
+    this.$("hud-progress").classList.add("hidden"); // the boss HP bar is the meter
+    this.$("player-avatar").innerHTML = this.avatarHtml(SAVE.state.profile);
+    const arena = this.$("arena");
+    arena.style.background = "linear-gradient(160deg, #2a0d33, #7d1d5a)";
+    arena.style.setProperty("--wa", "#ff5ec7");
+    const scene = this.$("scene-emojis");
+    scene.innerHTML = "";
+    ["🌟", "💥", "✨", "⚔️"].forEach((e2, i) => {
+      const sp = document.createElement("span");
+      sp.textContent = e2;
+      sp.style.left = `${10 + i * 24 + Math.random() * 8}%`;
+      sp.style.top = `${15 + Math.random() * 65}%`;
+      sp.style.fontSize = `${16 + Math.random() * 18}px`;
+      scene.appendChild(sp);
+    });
+    this.showPartner(S);
+    this.partnerMeter(S);
+    this.$("hud-hearts").classList.remove("hidden");
+    this.renderHearts(S);
+    const bossBar = this.$("boss-bar");
+    bossBar.classList.remove("hidden");
+    this.$("boss-bar-name").textContent = `🌟 ${raid.n} · Raid`;
+    this.updateRaidBar(S);
+    const target = this.$("target");
+    const wrap = this.$("target-wrap");
+    target.className = "boss-size";
+    target.innerHTML = this.pokeHtml(raid.id, raid.e);
+    wrap.style.opacity = 1;
+    wrap.style.transform = "none";
+    wrap.classList.remove("enter", "hit", "flee", "wobble");
+    this.$("target-label").classList.add("hidden");
+    this.updateHud(S);
+    this.announce(`🌟 The whole family is fighting ${raid.n}!`, 2000);
+    this.speech("Only your teamwork can wear me down!", 2600);
+  },
+
+  // paint the shared raid HP bar from how much has been dealt this attempt
+  updateRaidBar(S) {
+    const remaining = Math.max(0, S.raid.hp - (S.raidDealt || 0));
+    const frac = S.raid.maxHp ? remaining / S.raid.maxHp : 0;
+    this.$("boss-hp-fill").style.width = `${frac * 100}%`;
+    this.$("target").classList.toggle("angry", frac <= 0.5 && frac > 0);
+  },
+
+  // a finished word lands on the raid boss: projectile, damage number, HP chip
+  raidHit(S, dmg) {
+    const wrap = this.$("target-wrap");
+    const target = this.$("target");
+    this.projectile(this.projHtml(S), () => {
+      const r = target.getBoundingClientRect();
+      this.burst(r.left + r.width / 2, r.top + r.height / 2, ["#fff", "#ffd34d", "#ff5ec7"], 22, 6);
+      this.floatText(`-${dmg}`, wrap, "big");
+      wrap.classList.remove("boss-flash");
+      void wrap.offsetWidth;
+      wrap.classList.add("boss-flash");
+      this.updateRaidBar(S);
+    });
+  },
+
+  // a celebration arena for claiming the raid legendary (a guaranteed catch)
+  raidClaimScene(S) {
+    this.show("game");
+    this.$("screen-game").classList.remove("paragraph-mode");
+    document.body.classList.remove("super-mode");
+    this.$("capslock-warn").classList.add("hidden");
+    this.applyKbVisibility();
+    this.practiceTimerUI(false);
+    this.$("hud-stage").textContent = "⚔️ RAID REWARD!";
+    this.$("hud-progress").classList.remove("hidden");
+    this.$("hud-progress-fill").style.width = "100%";
+    this.$("hud-hearts").classList.add("hidden");
+    this.$("boss-bar").classList.add("hidden");
+    this.$("player-avatar").innerHTML = this.avatarHtml(SAVE.state.profile);
+    this.showPartner(S);
+    this.partnerMeter(S);
+    const arena = this.$("arena");
+    arena.style.background = "linear-gradient(160deg, #1c1030, #8a6d1d)";
+    arena.style.setProperty("--wa", "#ffd34d");
+    const scene = this.$("scene-emojis");
+    scene.innerHTML = "";
+    ["🌟", "✨", "🎉", "🌟"].forEach((e2, i) => {
+      const sp = document.createElement("span");
+      sp.textContent = e2;
+      sp.style.left = `${10 + i * 24 + Math.random() * 8}%`;
+      sp.style.top = `${15 + Math.random() * 65}%`;
+      sp.style.fontSize = `${16 + Math.random() * 18}px`;
+      scene.appendChild(sp);
+    });
+    this.$("target-label").classList.add("hidden");
+    this.updateHud(S);
   },
 
   // ---------- wild encounter scene (grass + fishing + legendary) ----------
@@ -2904,6 +3059,34 @@ const UI = {
         : `<p class="jr-note">🔒 Opens when the story is complete and you hold
             <b>${ELITE_NEED_MEDALS} medal points</b> (you have <b>${pts}</b> — grow them in the Museum's Medal Case).</p>`}
       ${hof.length ? `<p class="jr-note">📸 Hall of Fame entries: <b>${hof.length}</b></p>` : ""}`;
+
+    // Gym Rematches: refight beaten bosses on a faster clock for medals
+    const rms = SAVE.state.rematch || {};
+    const beaten = [];
+    for (let w = 0; w <= HALL_W; w++) {
+      if (SAVE.stageStars(w, WORLDS[w].levels.length) > 0) beaten.push(w);
+    }
+    this.$("jr-rematch").innerHTML = `
+      <h3>🥊 Gym Rematches</h3>
+      ${beaten.length ? `
+        <p class="jr-note">Refight a boss you've beaten — the clock runs faster! Finish with
+          <b>2+ hearts</b> for 🥈 Silver, a <b>flawless 3</b> for 🥇 Gold.</p>
+        <div class="rematch-list">${beaten.map(w => {
+          const b = WORLDS[w].boss;
+          const best = rms[w] || 0;
+          const bestHtml = best === 2 ? "🥇 <b>Gold</b>"
+            : best === 1 ? "🥈 <b>Silver</b>"
+            : `<span class="dim">no medal yet</span>`;
+          return `<div class="rematch-row">
+            <span class="rematch-boss">${this.pokeHtml(b.id, b.emoji, { cls: "poke-img rematch-img" })}<b>${this.esc(b.name)}</b></span>
+            <span class="rematch-best">${bestHtml}</span>
+            <span class="rematch-btns">
+              <button class="rematch-go ${best >= 1 ? "won" : ""}" data-rw="${w}" data-tier="silver" title="Silver rematch — a faster clock">🥈</button>
+              <button class="rematch-go ${best >= 2 ? "won" : ""}" data-rw="${w}" data-tier="gold" title="Gold rematch — much faster!">🥇</button>
+            </span>
+          </div>`;
+        }).join("")}</div>`
+        : `<p class="jr-note">🔒 Beat a Gym boss first — then come back to refight them for shiny medals!</p>`}`;
   },
 
   // ---------- Today's Adventure: three stamps and a soft landing ----------
@@ -2970,6 +3153,16 @@ const UI = {
   toast(html, cls = "") {
     this._toastQ.push({ html, cls });
     this._pumpToasts();
+  },
+
+  // announce any wardrobe pieces the player just earned (once each) — points
+  // them at the 👤 redesign entry on the player screen
+  flashWardrobeUnlocks() {
+    const newly = SAVE.newlyUnlockedWardrobe();
+    newly.forEach((u, i) => setTimeout(() =>
+      this.toast(`👗 New outfit unlocked — ${this.esc(u.label)}! Tap 👤 on the player screen to redesign.`, "gold"),
+      1200 + i * 900));
+    return newly.length;
   },
 
   _pumpToasts() {
@@ -3197,7 +3390,10 @@ const UI = {
     });
 
     this.$("btn-next").addEventListener("click", () => {
-      if (this._paragraphNext) Engine.startParagraph(this._paragraphNext);
+      if (this._raidNext === "claim") Engine.startRaidClaim();
+      else if (this._raidNext === "attack") Engine.startRaid();
+      else if (this._rematchNext) Engine.startRematch(this._rematchNext.w, this._rematchNext.tierId);
+      else if (this._paragraphNext) Engine.startParagraph(this._paragraphNext);
       else if (this._practiceNext) Engine.startPractice(this._practiceNext);
       else if (this._nextTarget) {
         const [w, s] = this._nextTarget;
@@ -3205,7 +3401,8 @@ const UI = {
       } else this.show("map");
     });
     this.$("btn-replay").addEventListener("click", () => {
-      if (this._practiceMode) this.show("practice");
+      if (this._rematchNext) Engine.startRematch(this._rematchNext.w, this._rematchNext.tierId);
+      else if (this._practiceMode) this.show("practice");
       else if (this._lastStage) {
         const [w, s] = this._lastStage;
         Engine.startStage(w, s);
@@ -3333,7 +3530,9 @@ const UI = {
         return;
       }
       if (e.target.closest("#btn-daily")) { SFX.click(); Engine.startDaily(); return; }
-      if (e.target.closest("#btn-elite")) { SFX.click(); Engine.startElite(); }
+      if (e.target.closest("#btn-elite")) { SFX.click(); Engine.startElite(); return; }
+      const rm = e.target.closest(".rematch-go");
+      if (rm) { SFX.init(); Engine.startRematch(+rm.dataset.rw, rm.dataset.tier); }
     });
     this.$("results-offer").addEventListener("click", e => {
       const up = e.target.closest("#btn-bandup");

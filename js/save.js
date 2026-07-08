@@ -52,7 +52,8 @@ const SAVE = {
       eggDate: null,               // last day an egg was granted (one per day)
       party: [],                   // up to 6 dex keys; first one is the lead partner
       roamer: null,                // { week, done } — weekly legendary attempt
-      practice: {},                // tier id -> { time: bestMs, wpm: best }
+      practice: {},                // tier id -> { time: bestMs, wpm: best, ghost: [ms...] }
+      rematch: {},                 // world index -> best rematch tier (1 silver, 2 gold)
       paragraphs: {},              // story id -> { wpm, acc } personal bests
       flags: {},                   // one-time hints / NEW badges bookkeeping
       trophies: {},                // id -> true
@@ -70,8 +71,6 @@ const SAVE = {
       day: null,                   // today's adventure stamps { date, levels, wild, school, shown }
       elite: null,                 // { bestRound, clears }
       hof: [],                     // Hall of Fame entries { date, party, wpm }
-      coins: 0,                    // 🪙 Gold Coins from Gimmighoul Coast (math)
-      scholar: {},                 // per-subject facts solved { math, code, cs }
     };
   },
 
@@ -106,6 +105,9 @@ const SAVE = {
     this.normalizePlayers();
     this.save();
     this.state = this.root.active ? this.root.players[this.root.active] || null : null;
+    // Weekly Raid Boss lives on the shared root (not per-player) so the whole
+    // family chips the same bar. Spin it up / reset it for the current week.
+    if (this.state && this.worldUnlocked(3)) this.raidNow();
     return this.state;
   },
 
@@ -184,6 +186,85 @@ const SAVE = {
       this.state.roamer.done = true;
       this.save();
     }
+  },
+
+  // ---- Weekly Raid Boss: one giant legendary the whole family fights ----
+  // The HP pool lives on root.raid (shared), so every player's attempts chip
+  // the same bar. A new week resets it with a fresh boss.
+  raidNow() {
+    if (!this.worldUnlocked(3)) return null; // opens once Dragon's Den is reached
+    const wk = this.weekKey();
+    let R = this.root.raid;
+    if (!R || R.week !== wk) {
+      R = this.root.raid = {
+        week: wk, ci: this.raidPick(wk), hp: RAID_HP, maxHp: RAID_HP,
+        defeated: false, contrib: {}, claimed: {},
+      };
+      this.save();
+    }
+    const c = CREATURES[HALL_W][R.ci];
+    return {
+      ...c, w: HALL_W, i: R.ci,
+      week: R.week, hp: R.hp, maxHp: R.maxHp, defeated: R.defeated,
+      contrib: R.contrib, claimed: R.claimed,
+    };
+  },
+
+  // deterministic weekly pick, offset from the roamer's hash so the raid boss
+  // and the roaming legendary are (almost) never the same creature in a week
+  raidPick(wk) {
+    const pool = CREATURES[HALL_W].map((c, i) => ({ c, i })).filter(x => !x.c.evoOnly);
+    if (!pool.length) return 0;
+    let h = 0;
+    for (const ch of wk) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    const roamerBase = h % pool.length;      // roamerNow starts from this bucket
+    let idx = (h + 5) % pool.length;         // shift so the raid usually differs
+    if (pool.length > 1 && idx === roamerBase) idx = (idx + 1) % pool.length;
+    return pool[idx].i;
+  },
+
+  // bank damage dealt this attempt into the shared bar; record the active
+  // player's contribution; mark defeated at 0. A losing player still banks.
+  raidDamage(dmg) {
+    const raid = this.raidNow();
+    const R = this.root.raid;
+    if (!raid || !R) return { defeated: false, remaining: 0, maxHp: 0, dealt: 0, justDefeated: false };
+    const d = Math.max(0, Math.round(dmg) || 0);
+    const before = R.hp;
+    R.hp = Math.max(0, R.hp - d);
+    const pid = this.root.active;
+    if (pid && d > 0) R.contrib[pid] = (R.contrib[pid] || 0) + d;
+    const justDefeated = !R.defeated && R.hp <= 0;
+    if (R.hp <= 0) R.defeated = true;
+    this.save();
+    return {
+      defeated: R.defeated, justDefeated, remaining: R.hp, maxHp: R.maxHp,
+      dealt: before - R.hp,
+      canClaim: R.defeated && !!pid && (R.contrib[pid] || 0) > 0 && !R.claimed[pid],
+    };
+  },
+
+  // once the boss is down, each contributor may claim their prize a single
+  // time. Records the win (counter + trophy); the catch itself is in engine.
+  claimRaid() {
+    const R = this.root.raid;
+    const pid = this.root.active;
+    if (!R || !R.defeated) return { ok: false, reason: "alive" };
+    if (!pid || !(R.contrib[pid] > 0)) return { ok: false, reason: "nocontrib" };
+    if (R.claimed[pid]) return { ok: false, reason: "claimed" };
+    R.claimed[pid] = true;
+    this.bump("raidWins");
+    const newTrophies = [];
+    this.award("raid-1", newTrophies);
+    this.save();
+    return { ok: true, newTrophies, contrib: R.contrib[pid] };
+  },
+
+  // has the active player already claimed this week's raid?
+  raidClaimedByMe() {
+    const R = this.root.raid;
+    const pid = this.root.active;
+    return !!(R && pid && R.claimed[pid]);
   },
 
   // ---- backup file (typequest-save.json): keep it in the game folder
@@ -433,7 +514,37 @@ const SAVE = {
     if (lock.need === "champion") {
       return { ok: !!this.state.trophies.champion, label: lock.label };
     }
+    if (lock.need === "shinies") {
+      return { ok: this.shinyCount() >= lock.n, label: lock.label };
+    }
+    if (lock.need === "raidWins") {
+      return { ok: (this.state.counters.raidWins || 0) >= lock.n, label: lock.label };
+    }
+    if (lock.need === "rematchGold") {
+      const golds = Object.values(this.state.rematch || {}).filter(v => v >= 2).length;
+      return { ok: golds >= lock.n, label: lock.label };
+    }
+    if (lock.need === "trophies") {
+      return { ok: Object.keys(this.state.trophies).length >= lock.n, label: lock.label };
+    }
     return { ok: true };
+  },
+
+  // wardrobe pieces that just became available and haven't been announced yet.
+  // Marks them seen so each unlock only ever toasts once.
+  newlyUnlockedWardrobe() {
+    if (!this.state) return [];
+    const seen = this.state.flags.unlockSeen || (this.state.flags.unlockSeen = {});
+    const newly = [];
+    for (const key of Object.keys(TRAINER_LOCKS)) {
+      const [part, idxStr] = key.split(":");
+      if (!seen[key] && this.wardrobeOk(part, +idxStr).ok) {
+        seen[key] = true;
+        newly.push({ part, idx: +idxStr, label: TRAINER_LOCKS[key].label });
+      }
+    }
+    if (newly.length) this.save();
+    return newly;
   },
 
   medalPoints() {
@@ -604,22 +715,11 @@ const SAVE = {
     return EVOLUTIONS.find(f => f.base === baseKey) || null;
   },
 
-  // ---- Gold Coins (Gimmighoul Coast) -> Gholdengo evolution ----
-  addCoins(n) {
-    this.state.coins = (this.state.coins || 0) + n;
-    this.save();
-    return this.state.coins;
-  },
-
   // which evolutions this base can do right now (caught + enough candy);
   // chains unlock in order, choice families offer everything (uncaught first)
   evoTargetsFor(baseKey) {
     const fam = this.familyFor(baseKey);
     if (!fam || !this.state.dex[baseKey]) return [];
-    // Gimmighoul evolves with Gold Coins instead of candy (canon!)
-    if (fam.coins) {
-      return (this.state.coins || 0) >= fam.coins && !this.state.dex[fam.chain[0]] ? [fam.chain[0]] : [];
-    }
     if ((this.state.candy[baseKey] || 0) < CANDY_COST) return [];
     if (fam.choices) {
       const un = fam.choices.filter(k => !this.state.dex[k]);
@@ -632,9 +732,7 @@ const SAVE = {
   applyEvolution(baseKey, targetKey) {
     this.bump("evolutions");
     const newTrophies = [];
-    const fam = this.familyFor(baseKey);
-    if (fam && fam.coins) this.state.coins = Math.max(0, (this.state.coins || 0) - fam.coins);
-    else this.state.candy[baseKey] = Math.max(0, (this.state.candy[baseKey] || 0) - CANDY_COST);
+    this.state.candy[baseKey] = Math.max(0, (this.state.candy[baseKey] || 0) - CANDY_COST);
     const t = this.state.dex[targetKey];
     let outcome;
     if (!t) { this.state.dex[targetKey] = { shiny: false }; outcome = "new"; }
@@ -660,7 +758,7 @@ const SAVE = {
   },
 
   // ---- Trainer School practice: personal bests per tier ----
-  applyPractice(tierId, timeMs, wpm, acc, bestCombo) {
+  applyPractice(tierId, timeMs, wpm, acc, bestCombo, wordTimes) {
     const st = this.state;
     const prev = st.practice[tierId] || {};
     const betterTime = !prev.time || timeMs < prev.time;
@@ -668,10 +766,13 @@ const SAVE = {
     if (betterTime || betterWpm) this.bump("records");
     this.dayInfo().school = true;
     const result = { betterTime, betterWpm, prevTime: prev.time || null, prevWpm: prev.wpm || null };
+    // the ghost belongs to the best-TIME run — keep the old one otherwise
+    const ghost = betterTime && wordTimes && wordTimes.length ? wordTimes : (prev.ghost || null);
     st.practice[tierId] = {
       time: betterTime ? timeMs : prev.time,
       wpm: betterWpm ? wpm : prev.wpm,
     };
+    if (ghost) st.practice[tierId].ghost = ghost;
 
     const newTrophies = [];
     st.stats.bestWpm = Math.max(st.stats.bestWpm, wpm);
@@ -766,13 +867,9 @@ const SAVE = {
     st.xp += res.xp;
 
     st.stats.bestCombo = Math.max(st.stats.bestCombo, res.bestCombo);
-    // facts islands (math/code/cs) have tiny WPM by nature — keep them out
-    // of the speed chart and best-WPM so they never distort the typing stats
-    if (!res.factsLane) {
-      st.stats.bestWpm = Math.max(st.stats.bestWpm, res.wpm);
-      st.stats.history.push({ d: new Date().toISOString().slice(0, 10), wpm: res.wpm, acc: res.acc });
-      if (st.stats.history.length > 30) st.stats.history = st.stats.history.slice(-30);
-    }
+    st.stats.bestWpm = Math.max(st.stats.bestWpm, res.wpm);
+    st.stats.history.push({ d: new Date().toISOString().slice(0, 10), wpm: res.wpm, acc: res.acc });
+    if (st.stats.history.length > 30) st.stats.history = st.stats.history.slice(-30);
 
     // personal bests per stage — the raw material of mastery medals.
     // Explorer-band runs count for stars and Crown, but Silver/Gold speed
@@ -830,6 +927,26 @@ const SAVE = {
       medalUp,
       levelUps: after.level > before.level ? { from: before.level, to: after.level, title: titleForLevel(after.level) } : null,
     };
+  },
+
+  // ---- Gym Rematch: bank the best medal earned refighting a boss ----
+  // Only ever climbs (best-tier semantics): a Gold win banks Gold even if
+  // the trainer never took Silver first. Never touches stage stars or
+  // medals, so normal progression is left exactly as it was.
+  applyRematch(w, tier) {
+    const st = this.state;
+    if (!st.rematch) st.rematch = {};
+    const tierN = tier.id === "gold" ? 2 : 1;
+    const prev = st.rematch[w] || 0;
+    const upgraded = tierN > prev;
+    if (upgraded) st.rematch[w] = tierN;
+    const newTrophies = [];
+    // trophies stack like the region medals: a Gold also proves the Silver
+    if (st.rematch[w] >= 1) this.award("rematch-silver", newTrophies);
+    if (st.rematch[w] >= 2) this.award("rematch-gold", newTrophies);
+    this.bump("rematchWins");
+    this.save();
+    return { tier, newTrophies, upgraded, best: st.rematch[w] };
   },
 
   // ---- World Mastery Medals (computed; tier 0..4 = none..crown) ----

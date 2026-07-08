@@ -50,8 +50,6 @@ const Engine = {
       baseTime: (isBoss ? world.boss.time : lvl.time) * BANDS[band].time,
       band,
       timeScale: opts.assist ? 1.45 : 1, // one-run "more time" rescue
-      scholar: !!world.island,           // think/type clock + helper ladder
-      statsLane: world.statsLane || "type",
       state: "play",
       ninjaEligible: UI.kbHidden,
       pendingRes: null,
@@ -63,13 +61,29 @@ const Engine = {
     this.session.charge = 0;
     this.session.partnerReady = false;
     this.session.meterOn = isBoss && !!this.session.partner;
+    // Gym Rematch: same boss, a tighter clock — stash the tier so finishStage
+    // routes to the medal path instead of normal progression
+    if (opts.rematch) {
+      this.session.rematch = opts.rematch;
+      this.session.baseTime *= opts.rematch.timeMul;
+    }
     UI.gameStart(this.session);
     this.nextPrompt();
+  },
+
+  // refight an already-beaten boss for a Silver/Gold rematch medal
+  startRematch(w, tierId) {
+    const tier = REMATCH_TIERS.find(t => t.id === tierId);
+    const bossS = WORLDS[w].levels.length;
+    if (!tier || SAVE.stageStars(w, bossS) <= 0) return; // only beaten bosses
+    this.startStage(w, bossS, { rematch: tier });
   },
 
   nextPrompt() {
     const S = this.session;
     if (!S || S.state === "done") return;
+    // a raid attempt ends the instant the family drops the boss to 0 HP
+    if (S.raid && S.raidDealt >= S.raid.hp) { this.finishStage(); return; }
     S.idx++;
     if (S.idx >= S.prompts.length) { this.finishStage(); return; }
     S.state = "play";
@@ -77,29 +91,14 @@ const Engine = {
     S.errorsThisPrompt = 0;
     const p = S.prompts[S.idx];
     S.text = promptAnswer(p);
-    S.display = promptDisplay(p);        // the question (null for copy prompts)
-    S.think = promptThink(p);            // seconds of free thinking time
-    S.answerMode = !!S.display;          // display != typed -> hide the answer guide
-    S.codeMode = promptCode(p);          // monospace code prompt
-    S.out = promptOut(p);                // run result to print on completion
-    S.swatch = promptSwatch(p);          // hex color preview
     UI.showPrompt(S);
 
     if (S.practice || S.paragraph) { this.startTimer(Infinity); return; }
 
     // typing-only budget (the clock measures fluency, never thinking)
-    let ms = (S.baseTime + S.text.length * 0.6 + S.think) * this.difficulty().time * 1000 * (S.timeScale || 1);
+    let ms = (S.baseTime + S.text.length * 0.6) * this.difficulty().time * 1000 * (S.timeScale || 1);
     if (S.idx === 0 && isFinite(ms)) ms += 700; // reading time for the announce
 
-    // Answer prompts (math problems, predict-the-output): "the clock only
-    // runs while you type" — pause until the first keystroke so working out
-    // the answer never costs the clock. Copy prompts just type normally.
-    if (S.scholar && S.answerMode) {
-      S.awaitingKey = true;
-      UI.thinkPhase(S, true);
-      S.pendingMs = ms;
-      return;
-    }
     this.startTimer(ms);
   },
 
@@ -168,13 +167,6 @@ const Engine = {
     UI.capsCheck(e);
     if (!UI.kbHidden) S.ninjaEligible = false;
 
-    // first keystroke on a Scholar prompt wakes the typing clock
-    if (S.awaitingKey) {
-      S.awaitingKey = false;
-      UI.thinkPhase(S, false);
-      this.startTimer(S.pendingMs);
-    }
-
     const key = normalizeKey(e.key);
     const expected = S.text[S.pos];
     SAVE.recordKey(expected, key === expected);
@@ -198,38 +190,12 @@ const Engine = {
     } else {
       S.errors++;
       S.errorsThisPrompt++;
-      // arithmetic slips are thinking, not typing: the FIRST wrong attempt
-      // on a Scholar answer prompt doesn't break the combo
-      if (!(S.answerMode && S.errorsThisPrompt === 1)) {
-        S.combo = 0;
-        UI.superMode(false);
-      }
+      S.combo = 0;
+      UI.superMode(false);
       SFX.error();
       UI.charError(S);
-      // the helper card / hint ladder teaches instead of scolding
-      if (S.scholar) this.scholarHint(S);
     }
     UI.updateHud(S);
-  },
-
-  // three-step support ladder on Scholar prompts: self-correct chance ->
-  // helper card -> ghost-type the answer + silently re-queue
-  scholarHint(S) {
-    if (S.errorsThisPrompt === 2) {
-      UI.showHelper(S);          // trainer's notes (skip-count, fact triangle, ...)
-    } else if (S.errorsThisPrompt >= 3 && !S.ghosting) {
-      S.ghosting = true;
-      UI.ghostAnswer(S, () => {  // shows the answer in blue; kid echoes it once
-        S.ghosting = false;
-        // re-meet this exact prompt a few cards later (unless near the end)
-        if (S.answerMode && (S.requeuedHint || 0) < 3 && S.idx < S.prompts.length - 1) {
-          const insertAt = Math.min(S.prompts.length, S.idx + 3);
-          S.prompts.splice(insertAt, 0, S.prompts[S.idx]);
-          S.requeuedHint = (S.requeuedHint || 0) + 1;
-          S.requeuedIdx = insertAt;
-        }
-      });
-    }
   },
 
   addCharge(S, amt) {
@@ -247,6 +213,8 @@ const Engine = {
     const S = this.session;
     this.stopTimer();
     S.typingMs += performance.now() - S.promptStart;
+    // Practice Ghost: snapshot cumulative typing time as each word lands
+    if (S.practice && S.wordTimes) S.wordTimes.push(S.typingMs);
 
     if (S.state === "welcome") { this.finishHatch(); return; }
     if (S.state === "evolve") { this.evolveSuccess(); return; }
@@ -259,18 +227,20 @@ const Engine = {
       S.prompts.push(S.text);
       S.requeued = (S.requeued || 0) + 1;
     }
-    // solving a re-queued "remembered" Scholar prompt is a small celebration
-    if (S.scholar && S.requeuedIdx === S.idx && perfect) {
-      S.score += 5;
-      UI.floatText("🧠 You remembered! +5");
-      S.requeuedIdx = -1;
-    }
     S.score += perfect ? 5 : 2;
     if (perfect) this.addCharge(S, 5); // flawless words charge the partner extra
     UI.updateHud(S);
 
-    // coding island: a finished line of code RUNS and prints its output
-    if (S.out) UI.runCode(S.out);
+    // Weekly Raid: each finished word deals its letters as damage to the
+    // shared boss. Show the number, chip the bar, and end the moment it drops.
+    if (S.raid) {
+      const dmg = S.text.length;
+      S.raidDealt = (S.raidDealt || 0) + dmg;
+      UI.raidHit(S, dmg);
+      SFX.bossHit();
+      setTimeout(() => { this.paused ? this.pendingNext = true : this.nextPrompt(); }, 850);
+      return;
+    }
 
     if (S.isBoss) { UI.bossHit(S); SFX.bossHit(); }
     else { UI.targetHit(S); SFX.word(); }
@@ -301,6 +271,11 @@ const Engine = {
     while (prompts.length < tier.count) prompts = prompts.concat(shuffle([...pool]));
     prompts = prompts.slice(0, tier.count);
 
+    // Practice Ghost: race the per-word pace of your best-TIME run so far.
+    // Old saves (or a first attempt) simply have no ghost yet.
+    const rec = SAVE.state.practice[tierId] || {};
+    const ghost = rec.ghost && rec.ghost.length ? rec.ghost : null;
+
     this.paused = false;
     this.pendingNext = false;
     this.session = {
@@ -316,6 +291,7 @@ const Engine = {
       hits: 0, errors: 0, errorsThisPrompt: 0, timeouts: 0, hearts: 3,
       typingMs: 0, promptStart: 0, timerMs: 0, timerRemaining: 0,
       baseTime: 0, state: "play", practice: tier,
+      wordTimes: [], ghost, // cumulative ms per word; ghost = best run's snapshots
       partner: SAVE.leadCreature(), charge: 0, partnerReady: false, meterOn: false,
       ninjaEligible: false, pendingRes: null, catchCreature: null,
     };
@@ -353,15 +329,22 @@ const Engine = {
   finishStage() {
     const S = this.session;
     this.stopTimer();
+    if (S.raid) { this.finishRaid(false); return; }
     if (S.practice) {
       S.state = "done";
       const total = S.hits + S.errors;
       const acc = total ? S.hits / total : 1;
       const timeMs = Math.round(Math.max(1000, S.typingMs));
       const wpm = Math.round((S.hits / 5) / (timeMs / 60000));
-      const applied = SAVE.applyPractice(S.practice.id, timeMs, wpm, acc, S.bestCombo);
+      // Practice Ghost: how did this run stack up against the ghost we raced?
+      let ghost = null;
+      if (S.ghost && S.ghost.length) {
+        const ghostFinal = S.ghost[S.ghost.length - 1];
+        ghost = { beat: timeMs < ghostFinal, deltaMs: Math.abs(timeMs - ghostFinal) };
+      }
+      const applied = SAVE.applyPractice(S.practice.id, timeMs, wpm, acc, S.bestCombo, S.wordTimes);
       UI.showPracticeResults({
-        tier: S.practice, timeMs, wpm, acc, bestCombo: S.bestCombo, ...applied,
+        tier: S.practice, timeMs, wpm, acc, bestCombo: S.bestCombo, ghost, ...applied,
       });
       return;
     }
@@ -389,13 +372,14 @@ const Engine = {
     if (S.isBoss) stars = S.hearts === 3 ? 3 : S.hearts === 2 ? 2 : 1;
     else stars = (S.timeouts === 0 && acc >= 0.95) ? 3 : (acc >= 0.85 && S.timeouts <= 1) ? 2 : 1;
 
+    // a rematch reuses the boss star rule but never rewrites progression
+    if (S.rematch) { this.finishRematch(S, stars, acc, wpm); return; }
+
     const ninja = S.ninjaEligible && UI.kbHidden;
     const diff = this.difficulty();
-    const facts = S.statsLane === "facts";
     let xp = S.isBoss ? 50 + 15 * stars : 20 + 10 * stars;
     if (acc >= 1 && total > 0) xp += 10;
-    // facts islands earn from answers solved, not raw WPM (math answers are short)
-    xp += facts ? Math.min(20, S.hits) : Math.min(20, wpm);
+    xp += Math.min(20, wpm);
     if (ninja) xp = Math.round(xp * 1.5);
     if (diff.xp > 1) xp = Math.round(xp * diff.xp);
     xp = Math.round(xp * (BANDS[S.band] ? BANDS[S.band].xp : 1));
@@ -404,14 +388,9 @@ const Engine = {
       w: S.w, s: S.s, isBoss: S.isBoss, stars, acc, wpm, xp,
       score: S.score, bestCombo: S.bestCombo, errors: S.errors, timeouts: S.timeouts,
       ninja, turbo: diff.xp > 1, xpBefore: SAVE.state.xp,
-      band: S.band || "trainer", factsLane: facts,
+      band: S.band || "trainer",
       firstClear: SAVE.stageStars(S.w, S.s) === 0,
     };
-    // Gimmighoul Coast pays Gold Coins (= stars) toward Gholdengo
-    if (S.world.subject === "math" && stars > 0) {
-      SAVE.addCoins(stars);
-      res.coins = stars;
-    }
     const applied = SAVE.applyResult(res);
     res.trophies = applied.newTrophies;
     res.levelUp = applied.levelUps;
@@ -427,15 +406,32 @@ const Engine = {
     UI.showResults(res);
   },
 
-  // clear any Scholar-island answer/code prompt state so a name prompt
-  // (catch, etc.) never inherits a stale math question or code styling
-  plainPrompt(S) {
-    S.display = null;
-    S.answerMode = false;
-    S.codeMode = false;
-    S.swatch = null;
-    S.out = null;
-    S.awaitingKey = false;
+  // ---- Gym Rematch finish: grant XP + a medal, leave stars/medals/unlocks
+  // untouched. Losing (too few hearts) simply keeps the boss beaten. ----
+  finishRematch(S, stars, acc, wpm) {
+    S.state = "done";
+    const tier = S.rematch;
+    const diff = this.difficulty();
+    const xpBefore = SAVE.state.xp;
+    let xp = 40 + 15 * stars + Math.min(20, wpm);
+    if (diff.xp > 1) xp = Math.round(xp * diff.xp);
+    SAVE.state.xp += xp;
+    const res = {
+      w: S.w, s: S.s, isBoss: true, stars, acc, wpm, xp,
+      score: S.score, bestCombo: S.bestCombo, errors: S.errors, timeouts: S.timeouts,
+      ninja: false, turbo: diff.xp > 1, xpBefore,
+      band: S.band || "trainer", firstClear: false,
+      rematch: tier, trophies: [],
+    };
+    if (stars >= tier.needStars) {
+      const applied = SAVE.applyRematch(S.w, tier); // also persists the XP
+      res.rematchMedal = applied;
+      res.trophies = applied.newTrophies;
+    } else {
+      SAVE.save(); // no medal — still bank the XP
+    }
+    UI.superMode(false);
+    UI.showResults(res);
   },
 
   startCatch(creature, res) {
@@ -447,7 +443,6 @@ const Engine = {
     // sprite (and twinkle) live, instead of springing it on the results card
     S.catchShiny = !creature.duplicate && res.stars === 3 && Math.random() < SAVE.shinyOdds().catch3;
     S.text = worldProperNames(S.w) ? creature.n : creature.n.toLowerCase();
-    this.plainPrompt(S); // a catch is always "type the name", never a math/code answer
     S.pos = 0;
     S.errorsThisPrompt = 0;
     // Pokemon names may use a few letters the player hasn't learned yet —
@@ -518,7 +513,8 @@ const Engine = {
     SFX.catchJingle();
     this.maybePartyToast();
     if (res.wild) {
-      SAVE.bump(S.wild.source === "fish" ? "fishCatches" : "wildCatches");
+      const raidClaim = S.wild.source === "raid";
+      SAVE.bump(S.wild.source === "fish" ? "fishCatches" : raidClaim ? "raidClaims" : "wildCatches");
       SAVE.state.xp += 15;
       SAVE.save();
       UI.catchAnim(S, true, () => {
@@ -527,16 +523,25 @@ const Engine = {
         UI.show("map");
         UI.renderTopbar();
         const legendary = S.wild.source === "legendary";
-        const msg = res.legendShiny
-          ? `🌟 Your ${res.legendShiny.n} turned <b>✨ SHINY</b>! +15 XP`
-          : res.caught
-            ? `${legendary ? "🌟 LEGENDARY!" : "🎉"} Caught a wild${res.caught.shiny ? " ✨ SHINY" : ""} <b>${res.caught.n}</b>! +15 XP`
-            : res.candy
-              ? `🍬 Wild ${res.candy.creature.n} gave +1 candy (${res.candy.count}/${CANDY_COST})! +15 XP`
-              : `✨ +${res.dupXp ? res.dupXp.xp + 15 : 15} XP!`;
+        const raidXp = raidClaim ? (S.raidClaim.bonusXp + 15) : 15;
+        const msg = raidClaim
+          ? (res.caught
+              ? `⚔️ RAID REWARD! You caught${res.caught.shiny ? " a ✨ SHINY" : ""} <b>${res.caught.n}</b>! +${raidXp} XP`
+              : res.candy
+                ? `⚔️ Raid reward! Another ${res.candy.creature.n} shared 🍬 +1 candy (${res.candy.count}/${CANDY_COST})! +${raidXp} XP`
+                : `⚔️ Raid reward claimed! +${raidXp} XP`)
+          : res.legendShiny
+            ? `🌟 Your ${res.legendShiny.n} turned <b>✨ SHINY</b>! +15 XP`
+            : res.caught
+              ? `${legendary ? "🌟 LEGENDARY!" : "🎉"} Caught a wild${res.caught.shiny ? " ✨ SHINY" : ""} <b>${res.caught.n}</b>! +15 XP`
+              : res.candy
+                ? `🍬 Wild ${res.candy.creature.n} gave +1 candy (${res.candy.count}/${CANDY_COST})! +15 XP`
+                : `✨ +${res.dupXp ? res.dupXp.xp + 15 : 15} XP!`;
         UI.toast(msg, "gold");
-        if (legendary && res.caught) UI.confetti();
+        if ((legendary && res.caught) || raidClaim) UI.confetti();
         res.trophies.forEach((t, i) => setTimeout(() => UI.trophyToast(t), 700 + i * 800));
+        // a shiny catch or a raid win can cross a wardrobe gate (shinies / raidWins)
+        UI.flashWardrobeUnlocks();
       });
       return;
     }
@@ -602,6 +607,93 @@ const Engine = {
     this.nextPrompt();
   },
 
+  // ---- Weekly Raid Boss: an attempt is a wave of battle words; each finished
+  // word deals its letters as damage to the family's shared HP bar ----
+  startRaid() {
+    const raid = SAVE.raidNow();
+    if (!raid) return;
+    if (raid.defeated) { this.startRaidClaim(); return; } // already down — go claim
+    let wMax = 0;
+    for (let w = 0; w < WORLDS.length; w++) if (SAVE.worldUnlocked(w)) wMax = w;
+    this.paused = false;
+    this.pendingNext = false;
+    const S = this.session = {
+      w: raid.w, s: -5, world: WORLDS[raid.w], isBoss: true, raid,
+      prompts: this.battleWords(wMax, RAID_WORDS), idx: -1, text: "", pos: 0,
+      score: 0, combo: 0, bestCombo: 0,
+      hits: 0, errors: 0, errorsThisPrompt: 0, timeouts: 0, hearts: 3,
+      typingMs: 0, promptStart: 0, timerMs: 0, timerRemaining: 0,
+      baseTime: 5, state: "play", raidDealt: 0,
+      ninjaEligible: false, pendingRes: null, catchCreature: null,
+      partner: SAVE.leadCreature(), charge: 0, partnerReady: false, meterOn: false,
+    };
+    UI.raidScene(S);
+    this.nextPrompt();
+  },
+
+  // ---- Raid finish: bank the damage dealt (win or run out of hearts). When
+  // the family drops the boss, contributors get a claim prize back on the map ----
+  finishRaid(lostHearts) {
+    const S = this.session;
+    this.stopTimer();
+    S.state = "done";
+    const dealt = S.raidDealt || 0;
+    const xp = 10 + dealt;                 // a little XP for every attempt
+    SAVE.state.xp += xp;
+    const info = SAVE.raidDamage(dealt);   // subtract from the shared bar (also saves)
+    UI.superMode(false);
+    UI.showRaidResults(S, { ...info, dealt, xp, lostHearts });
+  },
+
+  // ---- Raid claim: a contributor's reward once the boss is down — big XP and
+  // a guaranteed, generous-timer catch of the raid legendary (boosted shiny) ----
+  startRaidClaim() {
+    const claim = SAVE.claimRaid();
+    if (!claim.ok) {
+      if (claim.reason === "nocontrib") {
+        UI.toast("💪 Land at least one hit on the raid boss first — then claim your prize!", "gold");
+      } else if (claim.reason === "claimed") {
+        UI.toast("✅ You already claimed this week's raid reward. A new boss appears next week!");
+      } else {
+        UI.toast("The raid boss is still standing — chip away at it first!");
+      }
+      UI.show("map");
+      return;
+    }
+    const raid = SAVE.raidNow();
+    const c = { ...CREATURES[HALL_W][raid.i], w: HALL_W, i: raid.i,
+      duplicate: !!SAVE.state.dex[`${HALL_W}-${raid.i}`] };
+    const bonusXp = 100;
+    SAVE.state.xp += bonusXp;              // big XP for finishing the raid
+    SAVE.save();
+    // boosted shiny odds for a brand-new raid legendary
+    const shiny = !c.duplicate && Math.random() < (SAVE.shinyOdds().wild + 0.15);
+    this.paused = false;
+    this.pendingNext = false;
+    const res = { wild: true, stars: 0, bestCombo: 0, raidClaim: true,
+      trophies: (claim.newTrophies || []).slice() };
+    const S = this.session = {
+      w: HALL_W, s: -6, world: WORLDS[HALL_W], isBoss: false,
+      wild: { creature: c, source: "raid", shiny },
+      raidClaim: { bonusXp, contrib: claim.contrib },
+      prompts: [], idx: 0, text: "", pos: 0,
+      score: 0, combo: 0, bestCombo: 0,
+      hits: 0, errors: 0, errorsThisPrompt: 0, timeouts: 0, hearts: 3,
+      typingMs: 0, promptStart: 0, timerMs: 0, timerRemaining: 0,
+      baseTime: 0, state: "reveal", relaxedCatch: true, // guaranteed reward — no clock
+      pendingRes: res, catchCreature: c, ninjaEligible: false,
+      partner: SAVE.leadCreature(), charge: 0, partnerReady: false, meterOn: false,
+    };
+    S.text = worldProperNames(HALL_W) ? c.n : c.n.toLowerCase();
+    UI.raidClaimScene(S);
+    UI.catchReveal(S, c, () => {
+      if (this.session !== S || S.state !== "reveal") return;
+      S.state = "catch";
+      UI.showCatch(S, c);
+      UI.announce("🎉 Type its name to add it to your Pokedex!", 2000);
+    });
+  },
+
   startFishing() {
     const pick = SAVE.fishPick();
     if (!pick) return;
@@ -628,7 +720,6 @@ const Engine = {
     S.pendingRes = res;
     S.catchCreature = c;
     S.text = worldProperNames(c.w) ? c.n : c.n.toLowerCase();
-    this.plainPrompt(S); // a catch is always "type the name", never a math/code answer
     S.pos = 0;
     S.errorsThisPrompt = 0;
     const taught = taughtKeys(S.w);
@@ -822,6 +913,9 @@ const Engine = {
   defeat() {
     const S = this.session;
     if (S && S.elite) { this.eliteDefeat(); return; }
+    // a raid attempt that runs out of hearts still banks the damage it dealt —
+    // the family's effort is never wasted
+    if (S && S.raid) { this.finishRaid(true); return; }
     this.stopTimer();
     S.state = "done";
     SAVE.state.xp += 8; // consolation "training XP"
@@ -869,6 +963,8 @@ const Engine = {
     // non-story sessions can't restart via startStage (negative stage idx)
     if (S.practice) { this.startPractice(S.practice.id); return; }
     if (S.paragraph) { this.startParagraph(S.paragraph.id); return; }
+    if (S.raid || S.raidClaim) { this.startRaid(); return; }
+    if (S.rematch) { this.startStage(S.w, S.s, { rematch: S.rematch }); return; }
     if (S.s >= 0) { this.startStage(S.w, S.s); return; }
     this.session = null;
     UI.show("map");
