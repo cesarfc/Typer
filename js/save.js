@@ -514,7 +514,37 @@ const SAVE = {
     if (lock.need === "champion") {
       return { ok: !!this.state.trophies.champion, label: lock.label };
     }
+    if (lock.need === "shinies") {
+      return { ok: this.shinyCount() >= lock.n, label: lock.label };
+    }
+    if (lock.need === "raidWins") {
+      return { ok: (this.state.counters.raidWins || 0) >= lock.n, label: lock.label };
+    }
+    if (lock.need === "rematchGold") {
+      const golds = Object.values(this.state.rematch || {}).filter(v => v >= 2).length;
+      return { ok: golds >= lock.n, label: lock.label };
+    }
+    if (lock.need === "trophies") {
+      return { ok: Object.keys(this.state.trophies).length >= lock.n, label: lock.label };
+    }
     return { ok: true };
+  },
+
+  // wardrobe pieces that just became available and haven't been announced yet.
+  // Marks them seen so each unlock only ever toasts once.
+  newlyUnlockedWardrobe() {
+    if (!this.state) return [];
+    const seen = this.state.flags.unlockSeen || (this.state.flags.unlockSeen = {});
+    const newly = [];
+    for (const key of Object.keys(TRAINER_LOCKS)) {
+      const [part, idxStr] = key.split(":");
+      if (!seen[key] && this.wardrobeOk(part, +idxStr).ok) {
+        seen[key] = true;
+        newly.push({ part, idx: +idxStr, label: TRAINER_LOCKS[key].label });
+      }
+    }
+    if (newly.length) this.save();
+    return newly;
   },
 
   medalPoints() {

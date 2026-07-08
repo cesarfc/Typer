@@ -540,6 +540,8 @@ const Engine = {
         UI.toast(msg, "gold");
         if ((legendary && res.caught) || raidClaim) UI.confetti();
         res.trophies.forEach((t, i) => setTimeout(() => UI.trophyToast(t), 700 + i * 800));
+        // a shiny catch or a raid win can cross a wardrobe gate (shinies / raidWins)
+        UI.flashWardrobeUnlocks();
       });
       return;
     }

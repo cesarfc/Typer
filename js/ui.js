@@ -201,6 +201,14 @@ const UI = {
       hairFront = `<g fill="${hairC}"><circle cx="31" cy="26" r="9"/><circle cx="41" cy="18" r="9"/>
         <circle cx="50" cy="15" r="9"/><circle cx="59" cy="18" r="9"/><circle cx="69" cy="26" r="9"/>
         <circle cx="27" cy="35" r="7"/><circle cx="73" cy="35" r="7"/></g>`;
+    } else if (hair === "mohawk") {
+      // shaved sides, a bold crest of spikes running over the middle
+      hairFront = `<path d="M42 36 L44 9 L48 24 L50 5 L52 24 L56 9 L58 36 Q50 30 42 36 Z" fill="${hairC}"/>`;
+    } else if (hair === "ponytail") {
+      // a rounded fringe up front with a tail swept out behind on one side
+      hairBack = `<path d="M67 24 Q88 32 83 58 Q80 72 71 67 Q80 50 69 33 Z" fill="${hairC}"/>
+        <rect x="64" y="27" width="9" height="7" rx="3" fill="#1d2030" opacity=".55"/>`;
+      hairFront = `<path d="M28 40 Q28 14 50 14 Q72 14 72 40 Q50 26 28 40 Z" fill="${hairC}"/>`;
     }
 
     let hatSvg = "";
@@ -212,6 +220,19 @@ const UI = {
       hatSvg = `<path d="M28 33 Q28 9 50 9 Q72 9 72 33 L72 35 L28 35 Z" fill="${hatC}"/>
         <rect x="28" y="31" width="44" height="6" rx="3" fill="#fff" opacity=".35"/>
         <circle cx="50" cy="9" r="4.5" fill="#fff" opacity=".8"/>`;
+    } else if (hat === "crown") {
+      // five points on a jewelled band
+      hatSvg = `<path d="M29 26 L33 10 L41 21 L50 6 L59 21 L67 10 L71 26 Z" fill="${hatC}"/>
+        <rect x="29" y="23" width="42" height="7" rx="2" fill="${hatC}"/>
+        <circle cx="50" cy="26" r="2.2" fill="#fff"/><circle cx="38" cy="27" r="1.7" fill="#fff"/>
+        <circle cx="62" cy="27" r="1.7" fill="#fff"/>
+        <circle cx="50" cy="9" r="2" fill="#fff"/><circle cx="33" cy="12" r="1.6" fill="#fff"/>
+        <circle cx="67" cy="12" r="1.6" fill="#fff"/>`;
+    } else if (hat === "visor") {
+      // a sun visor: a headband strap with an open top and a curved brim
+      hatSvg = `<path d="M25 31 Q50 23 75 31 Q75 36 69 36 L31 36 Q25 36 25 31 Z" fill="${hatC}"/>
+        <rect x="27" y="25" width="46" height="6" rx="3" fill="${hatC}"/>
+        <rect x="27" y="25" width="46" height="3" rx="1.5" fill="#fff" opacity=".3"/>`;
     }
 
     return `<svg class="${cls}" viewBox="0 0 100 118" aria-hidden="true">
@@ -257,10 +278,9 @@ const UI = {
     });
     this.$("btn-random-trainer").addEventListener("click", e => {
       e.preventDefault();
+      // randomTrainer only rolls among unlocked pieces for every part now,
+      // so 🎲 can never land on a locked hair / hat / color / skin
       this.builder = randomTrainer();
-      for (const part of ["hairColor", "hatColor", "shirt"]) {
-        if (!SAVE.wardrobeOk(part, this.builder[part]).ok) this.builder[part] = 0;
-      }
       SFX.combo();
       this.renderBuilder();
     });
@@ -293,12 +313,19 @@ const UI = {
         ? `<button class="swatch ${t[key] === i ? "sel" : ""}" data-k="${key}" data-i="${i}" style="background:${c}"></button>`
         : `<button class="swatch locked-sw" data-lk="${this.esc(lk.label)}" title="🔒 ${this.esc(lk.label)}" style="background:${c}">🔒</button>`;
     }).join("");
+    // shape swatches (hair / hat) show a mini trainer preview, or a 🔒 when locked
+    const shapeSw = (key, mods) => TRAINER_OPTS[key].map((h, i) => {
+      const lk = SAVE.wardrobeOk(key, i);
+      if (!lk.ok) {
+        return `<button class="swatch hair-sw locked-sw" data-lk="${this.esc(lk.label)}" title="🔒 ${this.esc(lk.label)}">🔒</button>`;
+      }
+      const inner = h === "none" ? "✖" : this.trainerSvg({ ...t, ...mods(i) }, "trainer-svg mini");
+      return `<button class="swatch hair-sw ${t[key] === i ? "sel" : ""}" data-k="${key}" data-i="${i}">${inner}</button>`;
+    }).join("");
     let html = row("Skin", colorSw("skin", TRAINER_OPTS.skin));
-    html += row("Hair", TRAINER_OPTS.hair.map((h, i) =>
-      `<button class="swatch hair-sw ${t.hair === i ? "sel" : ""}" data-k="hair" data-i="${i}">${this.trainerSvg({ ...t, hair: i, hat: 0 }, "trainer-svg mini")}</button>`).join(""));
+    html += row("Hair", shapeSw("hair", i => ({ hair: i, hat: 0 })));
     html += row("Hair color", colorSw("hairColor", TRAINER_OPTS.hairColor));
-    html += row("Hat", TRAINER_OPTS.hat.map((h, i) =>
-      `<button class="swatch hair-sw ${t.hat === i ? "sel" : ""}" data-k="hat" data-i="${i}">${h === "none" ? "✖" : this.trainerSvg({ ...t, hat: i }, "trainer-svg mini")}</button>`).join(""));
+    html += row("Hat", shapeSw("hat", i => ({ hat: i })));
     if (TRAINER_OPTS.hat[t.hat] !== "none") html += row("Hat color", colorSw("hatColor", TRAINER_OPTS.hatColor));
     html += row("Shirt", colorSw("shirt", TRAINER_OPTS.shirt));
     this.$("trainer-opts").innerHTML = html;
@@ -1973,6 +2000,8 @@ const UI = {
     else next.classList.add("hidden");
     this._nextTarget = res.rematch ? null : !res.isBoss ? [res.w, res.s + 1] : res.w < lastWorld ? [res.w + 1, 0] : null;
     SFX.fanfare();
+    // a win can push trophies / gold rematches past a wardrobe gate
+    this.flashWardrobeUnlocks();
   },
 
   showDefeat(S) {
@@ -3124,6 +3153,16 @@ const UI = {
   toast(html, cls = "") {
     this._toastQ.push({ html, cls });
     this._pumpToasts();
+  },
+
+  // announce any wardrobe pieces the player just earned (once each) — points
+  // them at the 👤 redesign entry on the player screen
+  flashWardrobeUnlocks() {
+    const newly = SAVE.newlyUnlockedWardrobe();
+    newly.forEach((u, i) => setTimeout(() =>
+      this.toast(`👗 New outfit unlocked — ${this.esc(u.label)}! Tap 👤 on the player screen to redesign.`, "gold"),
+      1200 + i * 900));
+    return newly.length;
   },
 
   _pumpToasts() {
