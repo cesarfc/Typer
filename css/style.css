@@ -372,7 +372,7 @@ button:active { transform: translateY(1px) scale(.98); }
 #trainer-opts { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; min-width: 0; align-content: start; }
 .opt-row { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
 .opt-row > span { font-size: 12.5px; color: var(--dim); font-weight: 700; text-align: left; }
-.opt-swatches { display: grid; grid-template-columns: repeat(6, auto); gap: 5px; justify-content: start; }
+.opt-swatches { display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-start; max-width: 100%; }
 .swatch { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); padding: 0; flex: none; }
 .swatch.sel { border-color: var(--gold); box-shadow: 0 0 8px rgba(255, 211, 77, .5); transform: scale(1.12); }
 .swatch.sel:hover { transform: scale(1.12) translateY(-1px); }
