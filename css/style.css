@@ -659,6 +659,24 @@ button:active { transform: translateY(1px) scale(.98); }
 .wp-error { font-size: 13px; font-weight: 700; color: var(--bad); background: #2a1626; border-radius: 10px; padding: 8px 11px; }
 .wp-form-btns { display: flex; gap: 10px; margin-top: 2px; }
 
+/* ---- Typing License: post-Champion number-row exam ---- */
+#license-list { display: flex; flex-direction: column; gap: 12px; width: min(560px, 94%); margin: 0 auto 24px; align-items: center; }
+#license-list .tier-wrap { width: 100%; }
+.license-teaser {
+  width: min(560px, 94%); margin: 0 auto 24px; text-align: center;
+  color: var(--dim); font-size: 14px; font-weight: 700;
+  background: var(--card2); border: 2px dashed var(--line);
+  border-radius: 16px; padding: 16px 18px;
+}
+.license-card:not(.locked):hover { border-color: #7fd4ff; }
+.license-card .tier-info em { color: #7fd4ff; }
+.license-card.stamped { border-color: #7fd4ff; box-shadow: 0 0 0 1px #7fd4ff inset; }
+.license-stamp {
+  font-size: 11px; font-weight: 900; color: #0c2233; background: #7fd4ff;
+  border-radius: 6px; padding: 1px 6px; margin-left: 6px; vertical-align: middle;
+  letter-spacing: .3px;
+}
+
 #stopwatch {
   width: min(460px, 90%);
   margin: 10px auto 0;

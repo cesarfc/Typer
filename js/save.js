@@ -781,6 +781,8 @@ const SAVE = {
       wpm: betterWpm ? wpm : prev.wpm,
     };
     if (ghost) st.practice[tierId].ghost = ghost;
+    // a Typing License stamp, once earned, is permanent — carry it across runs
+    if (prev.stamp) st.practice[tierId].stamp = true;
 
     const newTrophies = [];
     st.stats.bestWpm = Math.max(st.stats.bestWpm, wpm);
@@ -879,6 +881,36 @@ const SAVE = {
     this.award("words-1", list);
     if (list.length) this.save();
     return list;
+  },
+
+  // ---- Typing License: the post-Champion number-row exam ----
+  // A license tier is open once you're Champion; tiers unlock in order — the next
+  // opens after the previous one has been completed at least once (a gentle gate,
+  // not a stamp gate, so a kid can keep advancing even before nailing 90%).
+  licenseTierOpen(index) {
+    if (!this.state.trophies.champion) return false;
+    if (index <= 0) return true;
+    const prev = LICENSE_TIERS[index - 1];
+    return !!(prev && this.state.practice["license-" + prev.id]);
+  },
+
+  // Award the stamp for a completed license run when accuracy clears 90%.
+  // Collecting all four stamps earns 🪪 Licensed Typist. Returns
+  // { earned, already, newTrophies } so the results card can pick its copy.
+  applyLicenseStamp(tierId, acc) {
+    const key = "license-" + tierId;
+    const rec = this.state.practice[key] || (this.state.practice[key] = {});
+    const already = !!rec.stamp;
+    const earned = acc >= 0.90;
+    const newTrophies = [];
+    if (earned && !already) {
+      rec.stamp = true;
+      if (LICENSE_TIERS.every(t => this.state.practice["license-" + t.id] && this.state.practice["license-" + t.id].stamp)) {
+        this.award("license-1", newTrophies);
+      }
+      this.save();
+    }
+    return { earned, already, newTrophies };
   },
 
   // ---- Story Typing: personal bests per paragraph ----

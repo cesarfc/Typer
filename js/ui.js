@@ -1467,6 +1467,16 @@ const UI = {
       Engine.startPractice(`custom-${card.dataset.pack}`, sel && sel !== "mine" ? sel : null);
     });
 
+    this.$("license-list").addEventListener("click", e => {
+      const gp = e.target.closest(".ghost-pick");
+      if (gp) { this.pickRaceGhost(gp); return; }
+      const card = e.target.closest(".license-card");
+      if (!card || card.classList.contains("locked")) return;
+      SFX.init();
+      const sel = this._raceGhost && this._raceGhost[`practice:license-${card.dataset.license}`];
+      Engine.startPractice(`license-${card.dataset.license}`, sel && sel !== "mine" ? sel : null);
+    });
+
     this.$("party-bar").addEventListener("click", e => {
       const slot = e.target.closest(".party-slot.filled");
       if (!slot) return;
@@ -1531,8 +1541,9 @@ const UI = {
     return m[base] || null;
   },
 
-  buildKeyboard() {
-    const rows = KB_ROWS;
+  // Build the key HTML for a given row layout. KB_ROWS is the everyday layout;
+  // KB_ROWS_FULL adds the number row + "/" for Typing License sessions.
+  kbHtml(rows) {
     const shiftRowIdx = rows.length - 2; // the row that gets the ⇧ keys
     let html = "";
     rows.forEach((row, ri) => {
@@ -1549,7 +1560,13 @@ const UI = {
       html += `</div>`;
     });
     html += `<div class="kb-row"><div class="key space f8" data-key=" ">space</div></div>`;
+    return html;
+  },
+
+  buildKeyboard() {
+    const html = this.kbHtml(KB_ROWS);
     // one keyboard + hands for the game screen, one set for the tutorial
+    this._kbFull = false;
     this.$("kb").innerHTML = html;
     this.$("tut-kb").innerHTML = html;
     this.$("hand-left").innerHTML = this.handSvg("l");
@@ -1557,6 +1574,15 @@ const UI = {
     this.$("tut-hand-left").innerHTML = this.handSvg("l");
     this.$("tut-hand-right").innerHTML = this.handSvg("r");
     this.applyKbVisibility();
+  },
+
+  // Swap the GAME keyboard between the everyday layout and the full number-row
+  // layout (Typing License only). The tutorial keyboard is left untouched. Hands
+  // are shared and don't change. Only rebuilds when the layout actually flips.
+  setGameKeyboard(full) {
+    if (!!full === !!this._kbFull) return;
+    this._kbFull = !!full;
+    this.$("kb").innerHTML = this.kbHtml(full ? KB_ROWS_FULL : KB_ROWS);
   },
 
   applyKbVisibility() {
@@ -1614,6 +1640,7 @@ const UI = {
     const w = S.world;
     document.body.classList.remove("super-mode");
     this.$("capslock-warn").classList.add("hidden");
+    this.setGameKeyboard(false); // adventure levels use the everyday layout
     this.applyKbVisibility();
     this.practiceTimerUI(false);
 
@@ -2434,6 +2461,7 @@ const UI = {
     const w = S.world;
     document.body.classList.remove("super-mode");
     this.$("capslock-warn").classList.add("hidden");
+    this.setGameKeyboard(!!S.fullKb); // License drills show the number row
     this.applyKbVisibility();
     this.practiceTimerUI(true);
     this.$("hud-stage").textContent = S.paragraph
@@ -2523,6 +2551,7 @@ const UI = {
     }).join("");
 
     this.renderWordPacks();
+    this.renderLicense();
   },
 
   // ---- My Words: list custom spelling packs as playable tier-cards, each with
@@ -2634,6 +2663,38 @@ const UI = {
     this.toast(`📚 “${pack.name}” removed.`);
   },
 
+  // ---- Typing License: post-Champion number-row exam. Shows a locked teaser
+  // until you're Champion; then four stamp-collectible tiers that unlock in
+  // order. License records live under practice["license-"+id] and share ghosts
+  // across profiles via the "practice" kind (ids match, unlike word packs). ----
+  renderLicense() {
+    const list = this.$("license-list");
+    if (!list) return;
+    if (!SAVE.state.trophies.champion) {
+      list.innerHTML = `<div class="license-teaser">🔒 Become the 👑 Champion first — then your Typing License opens!</div>`;
+      return;
+    }
+    list.innerHTML = LICENSE_TIERS.map((t, i) => {
+      const key = "license-" + t.id;
+      const pb = SAVE.state.practice[key];
+      const open = SAVE.licenseTierOpen(i);
+      const stamped = !!(pb && pb.stamp);
+      const pbHtml = pb
+        ? `⏱ best ${this.fmtTime(pb.time)} · ⚡ best ${pb.wpm} wpm`
+        : (open ? `no stamp yet — earn 90%!` : `🔒 finish the last tier to unlock`);
+      const card = `<button class="tier-card license-card ${open ? "" : "locked"} ${stamped ? "stamped" : ""}" data-license="${t.id}" ${open ? "" : "disabled"}>
+        <span class="tier-e">${t.e}</span>
+        <span class="tier-info">
+          <b>${t.label}${stamped ? " <span class=\"license-stamp\">🪪 STAMPED</span>" : ""}</b>
+          <i>${this.esc(t.desc)}</i>
+          <em>${pbHtml}</em>
+        </span>
+      </button>`;
+      const race = open ? this.ghostRaceHtml("practice", key, pb) : "";
+      return `<div class="tier-wrap">${card}${race}</div>`;
+    }).join("");
+  },
+
   // Sibling ghost selector shown under a tier/story card when at least one
   // OTHER profile has a recorded ghost for it. Default pick is your own ghost
   // ("mine"); tapping a chip chooses whose ghost to race on the next run. The
@@ -2684,7 +2745,9 @@ const UI = {
     card.style.setProperty("--wa", "#4dc3ff");
     this.$("results-title").textContent = res.custom
       ? `📚 My Words · ${res.tier.label}`
-      : `🏫 Practice · ${res.tier.label}`;
+      : res.license
+        ? `🪪 License · ${res.tier.label}`
+        : `🏫 Practice · ${res.tier.label}`;
     this.$("results-stars").classList.add("hidden");
     this.$("results-grid").innerHTML = `
       <div class="rstat"><div class="rstat-v">${this.fmtTime(res.timeMs)}</div><div class="rstat-l">your time</div></div>
@@ -2706,9 +2769,17 @@ const UI = {
         ? `🏁 You beat ${who} by <b>${secs}s</b>!`
         : `👻 ${Who} won by <b>${secs}s</b> — rematch?`);
     }
+    // Typing License stamp verdict — the gentle 90% gate, never a "fail"
+    const st = res.license && res.stamp;
+    const newStamp = st && st.earned && !st.already;
+    if (st) {
+      if (newStamp) lines.push(`🪪 <b>STAMP EARNED!</b> ${Math.round(res.acc * 100)}% accuracy — nice steady fingers!`);
+      else if (st.earned) lines.push(`🪪 Stamped again — ${Math.round(res.acc * 100)}% accuracy, still sharp!`);
+      else lines.push(`So close — steady fingers earn the stamp! (need 90%, you had ${Math.round(res.acc * 100)}%)`);
+    }
     const catchBox = this.$("results-catch");
     catchBox.className = "catch-result";
-    catchBox.innerHTML = `<div class="record-note ${record ? "gold" : ""}">${lines.join("<br>")}</div>`;
+    catchBox.innerHTML = `<div class="record-note ${record || newStamp ? "gold" : ""}">${lines.join("<br>")}</div>`;
     this.$("results-egg").className = "hidden";
     this.$("results-medal").className = "hidden";
     this.$("results-offer").className = "hidden";
@@ -2723,10 +2794,13 @@ const UI = {
     next.innerHTML = `⏱ Try Again <small class="key-hint">Enter</small>`;
     this.$("btn-replay").textContent = "🎚 Difficulty";
     (res.newTrophies || []).forEach((t, i) => setTimeout(() => this.trophyToast(t), 900 + i * 800));
-    if (record) {
+    if (record || newStamp) {
       this.confetti();
       SFX.fanfare();
-      setTimeout(() => this.toast(`🏫 New ${res.tier.label} record! Can you beat it?`, "gold"), 700);
+      const msg = newStamp
+        ? `🪪 ${res.tier.label} stamp earned — one step to your license!`
+        : `🏫 New ${res.tier.label} record! Can you beat it?`;
+      setTimeout(() => this.toast(msg, "gold"), 700);
     } else {
       SFX.word();
     }
@@ -2866,6 +2940,7 @@ const UI = {
   // each finished word chips it with a floating damage number
   raidScene(S) {
     this.show("game");
+    this.setGameKeyboard(false);
     this.$("screen-game").classList.remove("paragraph-mode");
     const raid = S.raid;
     document.body.classList.remove("super-mode");
@@ -2968,6 +3043,7 @@ const UI = {
   // ---------- wild encounter scene (grass + fishing + legendary) ----------
   wildScene(S) {
     this.show("game");
+    this.setGameKeyboard(false);
     this.$("screen-game").classList.remove("paragraph-mode");
     const w = S.world;
     const c = S.wild.creature;
@@ -3449,6 +3525,7 @@ const UI = {
   // ---------- special scene (Daily Drill & friends: countdown, no boss) ----------
   specialScene(S, label) {
     this.show("game");
+    this.setGameKeyboard(false);
     this.$("screen-game").classList.remove("paragraph-mode");
     const w = S.world;
     document.body.classList.remove("super-mode");

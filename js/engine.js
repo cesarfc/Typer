@@ -270,8 +270,10 @@ const Engine = {
   // ---- Trainer School: no countdown, race your own best ----
   // Virtual tier ids route to sibling systems that reuse the same machinery:
   //   "custom-<packId>"  → My Words spelling drill
+  //   "license-<tierId>" → Typing License exam
   startPractice(tierId, ghostPid) {
     if (typeof tierId === "string" && tierId.startsWith("custom-")) { this.startWordPack(tierId.slice(7), ghostPid); return; }
+    if (typeof tierId === "string" && tierId.startsWith("license-")) { this.startLicense(tierId.slice(8), ghostPid); return; }
     const tier = PRACTICE_TIERS.find(t => t.id === tierId);
     if (!tier || !SAVE.worldUnlocked(tier.need)) return;
     const pool = new Set();
@@ -359,6 +361,51 @@ const Engine = {
     this.nextPrompt();
   },
 
+  // ---- Typing License: post-Champion number-row exam. Runs like a practice
+  // tier (records under practice["license-"+tierId], own+sibling ghosts via the
+  // shared "practice" kind) but renders the FULL keyboard (S.fullKb) so the
+  // digit row and shifted symbols have on-screen keys + finger guides. A stamp
+  // is earned at accuracy >= 90% (handled in finishStage).
+  startLicense(tierId, ghostPid) {
+    const idx = LICENSE_TIERS.findIndex(t => t.id === tierId);
+    const tier = LICENSE_TIERS[idx];
+    if (!tier || !SAVE.licenseTierOpen(idx)) return;
+    const prompts = shuffle(tier.prompts.slice());
+    const key = "license-" + tier.id;
+
+    const rec = SAVE.state.practice[key] || {};
+    let ghost = rec.ghost && rec.ghost.length ? rec.ghost : null;
+    let ghostName = null, ghostOwnerPid = null;
+    if (ghostPid && ghostPid !== SAVE.root.active) {
+      const g = SAVE.ghostFrom("practice", key, ghostPid);
+      if (g) { ghost = g.ghost; ghostName = g.name; ghostOwnerPid = ghostPid; }
+    }
+
+    this.paused = false;
+    this.pendingNext = false;
+    this.session = {
+      w: 0, s: -4, isBoss: false,
+      world: {
+        name: "Typing License", gradient: ["#1c2b3a", "#38536e"], accent: "#7fd4ff",
+        targets: ["🪪", "🔢", "⭐"], projectile: "⚡",
+        hitText: ["Nice!", "Sharp!", "Clean!", "Nailed it!"],
+        sceneEmojis: ["🪪", "🔢", "⭐", "🏫"], levels: [],
+      },
+      prompts, idx: -1, text: "", pos: 0,
+      score: 0, combo: 0, bestCombo: 0,
+      hits: 0, errors: 0, errorsThisPrompt: 0, timeouts: 0, hearts: 3,
+      typingMs: 0, promptStart: 0, timerMs: 0, timerRemaining: 0,
+      baseTime: 0, state: "play",
+      practice: { id: key, label: tier.label }, license: tier, fullKb: true,
+      wordTimes: [], ghost,
+      ghostName, ghostPid: ghostOwnerPid,
+      partner: SAVE.leadCreature(), charge: 0, partnerReady: false, meterOn: false,
+      ninjaEligible: false, pendingRes: null, catchCreature: null,
+    };
+    UI.practiceScene(this.session);
+    this.nextPrompt();
+  },
+
   // Story Typing: one long paragraph, count-up stopwatch, race your own wpm
   startParagraph(id, ghostPid) {
     const def = PARAGRAPHS.find(p => p.id === id);
@@ -421,9 +468,15 @@ const Engine = {
       if (S.custom) {
         applied.newTrophies = (applied.newTrophies || []).concat(SAVE.awardWordCollector());
       }
+      // Typing License: accuracy >= 90% earns this tier's stamp (all four → 🪪)
+      let stamp = null;
+      if (S.license) {
+        stamp = SAVE.applyLicenseStamp(S.license.id, acc);
+        applied.newTrophies = (applied.newTrophies || []).concat(stamp.newTrophies);
+      }
       UI.showPracticeResults({
         tier: S.practice, timeMs, wpm, acc, bestCombo: S.bestCombo, ghost, ghostPid: S.ghostPid,
-        custom: !!S.custom, ...applied,
+        custom: !!S.custom, license: !!S.license, stamp, ...applied,
       });
       return;
     }
