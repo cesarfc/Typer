@@ -188,11 +188,16 @@ mystery Pokemon — then the clock starts.
   (only while you type) and you race your own best time and best WPM. Four
   difficulties — Easy, Medium, Hard, Expert — unlock alongside the story worlds
   and keep separate records. New records pay bonus XP; relaxed practice, real
-  progress.
+  progress. **Race a sibling's ghost:** once another family member has set a
+  record, a little "🏁 Race:" picker under each drill lets you chase their
+  👻 ghost instead of your own — the marker shows their name and the results
+  card cheers "You beat Maya's ghost by 3.2s!" (earning the 🏁 Family Race
+  trophy the first time).
 - **📖 Story Typing** — also inside the Trainer School, unlocked once you reach
   the 👑 Hall of Fame (you'll need your capitals and punctuation). Type a whole
   short story as flowing prose — ten to choose from — with no countdown: the
-  stopwatch counts up while you type and you race your own best WPM.
+  stopwatch counts up while you type and you race your own best WPM (or a
+  sibling's ghost, with the same 🏁 Race picker as the speed drills).
 - **🧩 Puzzle Lab (block coding + math)** — a second side-building beside the
   Trainer School, opening once you reach Mt. Moon. **No keyboard needed to
   play:** snap code blocks together to guide a Pokemon through grid puzzles,
@@ -216,7 +221,7 @@ mystery Pokemon — then the clock starts.
   Kelvin Shadewing (via the Tuxemon project — see CREDITS.md).
 - **Combos** — 25 correct keys in a row triggers SUPER MODE.
 - **XP, levels and titles** — from Rookie all the way to Typing Legend.
-- **43 trophies**, daily play streaks, and a personal-best speed chart.
+- **44 trophies**, daily play streaks, and a personal-best speed chart.
 - **🥷 Ninja Mode** — hide the on-screen keyboard for 1.5× XP (this is the
   real goal: typing without looking!).
 

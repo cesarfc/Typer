@@ -577,6 +577,30 @@ button:active { transform: translateY(1px) scale(.98); }
 .tier-card.locked .tier-e, .para-card.locked .tier-e { opacity: .4; filter: grayscale(1); }
 .tier-card.locked .tier-info b, .para-card.locked .tier-info b { color: var(--dim); }
 .para-card.denied { animation: deniedFlash .4s; }
+/* each card + its optional sibling-ghost selector stack as one unit */
+.tier-wrap { display: flex; flex-direction: column; gap: 6px; }
+.tier-wrap > .tier-card, .tier-wrap > .para-card { width: 100%; }
+.ghost-race {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px 2px 14px;
+}
+.gr-label { font-size: 12px; font-weight: 900; color: var(--dim); }
+.ghost-pick {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text);
+  background: var(--card2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.ghost-pick:hover { border-color: #c77bff; }
+.ghost-pick.on { border-color: #c77bff; background: rgba(199, 123, 255, .22); color: #e9d9ff; }
 .tier-e { font-size: 36px; flex: none; }
 .tier-info { display: flex; flex-direction: column; gap: 2px; }
 .tier-info b { font-size: 18px; font-weight: 900; }
@@ -728,6 +752,25 @@ button:active { transform: translateY(1px) scale(.98); }
 }
 #ghost-marker.ahead { filter: drop-shadow(0 0 6px rgba(126, 231, 135, .95)); }
 #ghost-marker.hidden { display: none; }
+/* racing a sibling's ghost: tint it a friendly violet and name the owner */
+#ghost-marker.sibling { filter: hue-rotate(240deg) saturate(1.4) drop-shadow(0 0 5px rgba(199, 123, 255, .9)); }
+#ghost-marker.sibling.ahead { filter: drop-shadow(0 0 6px rgba(126, 231, 135, .95)); }
+#ghost-owner {
+  position: absolute;
+  top: 130%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-weight: 900;
+  font-style: normal;
+  white-space: nowrap;
+  color: #d9c2ff;
+  background: rgba(10, 13, 30, .85);
+  border: 1px solid rgba(199, 123, 255, .6);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+#ghost-owner.hidden { display: none; }
 #hud-right { display: flex; gap: 12px; align-items: center; font-weight: 900; font-size: 16px; }
 #hud-combo { color: var(--dim); transition: color .2s, transform .15s; }
 #hud-combo.hot { color: var(--gold); transform: scale(1.15); }

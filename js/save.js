@@ -823,6 +823,46 @@ const SAVE = {
     return { xp, betterWpm, betterAcc, prevWpm: prev.wpm || null, newTrophies };
   },
 
+  // ---- Sibling ghost racing ----
+  // Every OTHER profile that has a recorded ghost for this practice tier
+  // ("practice") or story paragraph ("paragraph"), with their best time and
+  // best WPM so the picker can label them. Read-only.
+  siblingGhosts(kind, id) {
+    const activePid = this.root.active;
+    const out = [];
+    for (const pid of Object.keys(this.root.players)) {
+      if (pid === activePid) continue;
+      const p = this.root.players[pid];
+      const rec = kind === "paragraph"
+        ? (p.paragraphs && p.paragraphs[id])
+        : (p.practice && p.practice[id]);
+      if (!rec || !rec.ghost || !rec.ghost.length) continue;
+      out.push({ pid, name: p.profile.name, time: rec.time || null, wpm: rec.wpm || null });
+    }
+    return out;
+  },
+
+  // Load a specific profile's ghost for a tier/story (read-only — racing a
+  // sibling's ghost never touches their save). Returns { ghost, name } or null
+  // when that profile was deleted or no longer has a ghost recorded.
+  ghostFrom(kind, id, pid) {
+    const p = this.root.players[pid];
+    if (!p) return null;
+    const rec = kind === "paragraph"
+      ? (p.paragraphs && p.paragraphs[id])
+      : (p.practice && p.practice[id]);
+    if (!rec || !rec.ghost || !rec.ghost.length) return null;
+    return { ghost: rec.ghost, name: p.profile.name };
+  },
+
+  // Beat a sibling's ghost — the one-time Family Race trophy (active player).
+  awardSiblingRace() {
+    const list = [];
+    this.award("race-sibling", list);
+    if (list.length) this.save();
+    return list;
+  },
+
   // ---- Puzzle Lab: bank a solved stage (best stars & fewest blocks only) ----
   // Light pattern like applyPractice: Math.max the record, award XP, count the
   // day's school stamp. The catch itself is a separate ceremony (startPuzzleCatch),

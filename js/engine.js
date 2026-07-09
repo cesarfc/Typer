@@ -268,7 +268,7 @@ const Engine = {
   },
 
   // ---- Trainer School: no countdown, race your own best ----
-  startPractice(tierId) {
+  startPractice(tierId, ghostPid) {
     const tier = PRACTICE_TIERS.find(t => t.id === tierId);
     if (!tier || !SAVE.worldUnlocked(tier.need)) return;
     const pool = new Set();
@@ -281,7 +281,14 @@ const Engine = {
     // Practice Ghost: race the per-word pace of your best-TIME run so far.
     // Old saves (or a first attempt) simply have no ghost yet.
     const rec = SAVE.state.practice[tierId] || {};
-    const ghost = rec.ghost && rec.ghost.length ? rec.ghost : null;
+    let ghost = rec.ghost && rec.ghost.length ? rec.ghost : null;
+    // Sibling ghost racing: an optional other-profile ghost, loaded read-only.
+    // If that profile was deleted since the pick, fall back to your own ghost.
+    let ghostName = null, ghostOwnerPid = null;
+    if (ghostPid && ghostPid !== SAVE.root.active) {
+      const g = SAVE.ghostFrom("practice", tierId, ghostPid);
+      if (g) { ghost = g.ghost; ghostName = g.name; ghostOwnerPid = ghostPid; }
+    }
 
     this.paused = false;
     this.pendingNext = false;
@@ -299,6 +306,7 @@ const Engine = {
       typingMs: 0, promptStart: 0, timerMs: 0, timerRemaining: 0,
       baseTime: 0, state: "play", practice: tier,
       wordTimes: [], ghost, // cumulative ms per word; ghost = best run's snapshots
+      ghostName, ghostPid: ghostOwnerPid, // set only when racing a sibling's ghost
       partner: SAVE.leadCreature(), charge: 0, partnerReady: false, meterOn: false,
       ninjaEligible: false, pendingRes: null, catchCreature: null,
     };
@@ -307,12 +315,17 @@ const Engine = {
   },
 
   // Story Typing: one long paragraph, count-up stopwatch, race your own wpm
-  startParagraph(id) {
+  startParagraph(id, ghostPid) {
     const def = PARAGRAPHS.find(p => p.id === id);
     if (!def || !SAVE.worldUnlocked(def.need)) return;
     // Story Ghost: race the per-word pace of your best-WPM run (guard old saves)
     const rec = (SAVE.state.paragraphs || {})[id] || {};
-    const ghost = rec.ghost && rec.ghost.length ? rec.ghost : null;
+    let ghost = rec.ghost && rec.ghost.length ? rec.ghost : null;
+    let ghostName = null, ghostOwnerPid = null;
+    if (ghostPid && ghostPid !== SAVE.root.active) {
+      const g = SAVE.ghostFrom("paragraph", id, ghostPid);
+      if (g) { ghost = g.ghost; ghostName = g.name; ghostOwnerPid = ghostPid; }
+    }
     this.paused = false;
     this.pendingNext = false;
     this.session = {
@@ -330,6 +343,7 @@ const Engine = {
       typingMs: 0, promptStart: 0, timerMs: 0, timerRemaining: 0,
       baseTime: 0, state: "play",
       wordTimes: [], ghost, // cumulative ms per word; ghost = best run's snapshots
+      ghostName, ghostPid: ghostOwnerPid, // set only when racing a sibling's ghost
       partner: SAVE.leadCreature(), charge: 0, partnerReady: false, meterOn: false,
       ninjaEligible: false, pendingRes: null, catchCreature: null,
     };
@@ -351,11 +365,15 @@ const Engine = {
       let ghost = null;
       if (S.ghost && S.ghost.length) {
         const ghostFinal = S.ghost[S.ghost.length - 1];
-        ghost = { beat: timeMs < ghostFinal, deltaMs: Math.abs(timeMs - ghostFinal) };
+        ghost = { beat: timeMs < ghostFinal, deltaMs: Math.abs(timeMs - ghostFinal), name: S.ghostName || null };
       }
       const applied = SAVE.applyPractice(S.practice.id, timeMs, wpm, acc, S.bestCombo, S.wordTimes);
+      // Family Race trophy: first time you out-run a sibling's ghost
+      if (S.ghostName && ghost && ghost.beat) {
+        applied.newTrophies = (applied.newTrophies || []).concat(SAVE.awardSiblingRace());
+      }
       UI.showPracticeResults({
-        tier: S.practice, timeMs, wpm, acc, bestCombo: S.bestCombo, ghost, ...applied,
+        tier: S.practice, timeMs, wpm, acc, bestCombo: S.bestCombo, ghost, ghostPid: S.ghostPid, ...applied,
       });
       return;
     }
@@ -369,10 +387,13 @@ const Engine = {
       let ghost = null;
       if (S.ghost && S.ghost.length) {
         const ghostFinal = S.ghost[S.ghost.length - 1];
-        ghost = { beat: timeMs < ghostFinal, deltaMs: Math.abs(timeMs - ghostFinal) };
+        ghost = { beat: timeMs < ghostFinal, deltaMs: Math.abs(timeMs - ghostFinal), name: S.ghostName || null };
       }
       const applied = SAVE.applyParagraph(S.paragraph.id, timeMs, wpm, acc, S.wordTimes);
-      UI.showParagraphResults({ def: S.paragraph.def, timeMs, wpm, acc, ghost, ...applied });
+      if (S.ghostName && ghost && ghost.beat) {
+        applied.newTrophies = (applied.newTrophies || []).concat(SAVE.awardSiblingRace());
+      }
+      UI.showParagraphResults({ def: S.paragraph.def, timeMs, wpm, acc, ghost, ghostPid: S.ghostPid, ...applied });
       return;
     }
     if (S.daily) { this.finishDaily(); return; }
@@ -1026,9 +1047,10 @@ const Engine = {
     UI.pauseOverlay(false);
     UI.superMode(false);
     if (!S) return;
-    // non-story sessions can't restart via startStage (negative stage idx)
-    if (S.practice) { this.startPractice(S.practice.id); return; }
-    if (S.paragraph) { this.startParagraph(S.paragraph.id); return; }
+    // non-story sessions can't restart via startStage (negative stage idx);
+    // keep racing whichever ghost (yours or a sibling's) this run was set to
+    if (S.practice) { this.startPractice(S.practice.id, S.ghostPid); return; }
+    if (S.paragraph) { this.startParagraph(S.paragraph.id, S.ghostPid); return; }
     if (S.raid || S.raidClaim) { this.startRaid(); return; }
     if (S.rematch) { this.startStage(S.w, S.s, { rematch: S.rematch }); return; }
     if (S.s >= 0) { this.startStage(S.w, S.s); return; }

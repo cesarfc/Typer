@@ -1254,11 +1254,14 @@ const UI = {
     });
 
     this.$("practice-tiers").addEventListener("click", e => {
+      const gp = e.target.closest(".ghost-pick");
+      if (gp) { this.pickRaceGhost(gp); return; }
       const t = e.target.closest(".tier-card");
       if (!t) return;
       SFX.init();
       if (!t.classList.contains("locked")) {
-        Engine.startPractice(t.dataset.tier);
+        const sel = this._raceGhost && this._raceGhost[`practice:${t.dataset.tier}`];
+        Engine.startPractice(t.dataset.tier, sel && sel !== "mine" ? sel : null);
       } else {
         SFX.error();
         t.classList.remove("denied");
@@ -1270,11 +1273,14 @@ const UI = {
     });
 
     this.$("paragraph-list").addEventListener("click", e => {
+      const gp = e.target.closest(".ghost-pick");
+      if (gp) { this.pickRaceGhost(gp); return; }
       const c = e.target.closest(".para-card");
       if (!c) return;
       SFX.init();
       if (!c.classList.contains("locked")) {
-        Engine.startParagraph(c.dataset.para);
+        const sel = this._raceGhost && this._raceGhost[`paragraph:${c.dataset.para}`];
+        Engine.startParagraph(c.dataset.para, sel && sel !== "mine" ? sel : null);
       } else {
         SFX.error();
         c.classList.remove("denied");
@@ -2261,12 +2267,19 @@ const UI = {
     this.$("boss-bar").classList.add("hidden");
     this.$("player-avatar").innerHTML = this.avatarHtml(SAVE.state.profile);
     // Practice Ghost marker — drills AND Story Typing race their best run
+    // (or, when racing a sibling, their recorded ghost: tinted + name-labelled)
     const ghost = this.$("ghost-marker");
     const hasGhost = !!(S.ghost && S.ghost.length);
     if (ghost) {
       ghost.classList.toggle("hidden", !hasGhost);
       ghost.classList.remove("ahead");
+      ghost.classList.toggle("sibling", !!S.ghostName);
       ghost.style.left = "0%";
+      const owner = this.$("ghost-owner");
+      if (owner) {
+        owner.textContent = S.ghostName ? `${S.ghostName}'s ghost` : "";
+        owner.classList.toggle("hidden", !(hasGhost && S.ghostName));
+      }
     }
     this.showPartner(S);
     this.partnerMeter(S);
@@ -2305,7 +2318,7 @@ const UI = {
       const pbHtml = pb
         ? `⏱ best ${this.fmtTime(pb.time)} · ⚡ best ${pb.wpm} wpm`
         : `no record yet — set one!`;
-      return `<button class="tier-card ${open ? "" : "locked"}" data-tier="${t.id}">
+      const card = `<button class="tier-card ${open ? "" : "locked"}" data-tier="${t.id}">
         <span class="tier-e">${t.e}</span>
         <span class="tier-info">
           <b>${t.label}</b>
@@ -2313,6 +2326,7 @@ const UI = {
           <em>${open ? `${t.count} words · ${pbHtml}` : "🔒"}</em>
         </span>
       </button>`;
+      return `<div class="tier-wrap">${card}${open ? this.ghostRaceHtml("practice", t.id, pb) : ""}</div>`;
     }).join("");
 
     this.$("paragraph-list").innerHTML = PARAGRAPHS.map(p => {
@@ -2320,7 +2334,7 @@ const UI = {
       const pb = (SAVE.state.paragraphs || {})[p.id];
       const pbHtml = pb ? `⚡ best ${pb.wpm} wpm · ${Math.round(pb.acc * 100)}%` : "no record yet — set one!";
       const words = p.text.trim().split(/\s+/).length;
-      return `<button class="para-card ${open ? "" : "locked"}" data-para="${p.id}">
+      const card = `<button class="para-card ${open ? "" : "locked"}" data-para="${p.id}">
         <span class="tier-e">${p.e}</span>
         <span class="tier-info">
           <b>${this.esc(p.title)}</b>
@@ -2328,13 +2342,47 @@ const UI = {
           <em>${open ? `${words} words · ${pbHtml}` : "🔒 capitals & punctuation"}</em>
         </span>
       </button>`;
+      return `<div class="tier-wrap">${card}${open ? this.ghostRaceHtml("paragraph", p.id, pb) : ""}</div>`;
     }).join("");
+  },
+
+  // Sibling ghost selector shown under a tier/story card when at least one
+  // OTHER profile has a recorded ghost for it. Default pick is your own ghost
+  // ("mine"); tapping a chip chooses whose ghost to race on the next run. The
+  // choice lives in memory only (per-launch, never persisted). Hidden entirely
+  // when no sibling ghosts exist (single-player stays clean).
+  ghostRaceHtml(kind, id, myRec) {
+    const sibs = SAVE.siblingGhosts(kind, id);
+    if (!sibs.length) return "";
+    const sel = (this._raceGhost && this._raceGhost[`${kind}:${id}`]) || "mine";
+    const chip = (pid, label, on) =>
+      `<button class="ghost-pick ${on ? "on" : ""}" data-gkind="${kind}" data-gid="${id}" data-gpid="${pid}">👻 ${label}</button>`;
+    const mineLabel = myRec && myRec.ghost
+      ? (kind === "paragraph" ? `mine (${myRec.wpm} wpm)` : `mine (${this.fmtTime(myRec.time)})`)
+      : "mine";
+    let html = `<div class="ghost-race"><span class="gr-label">🏁 Race:</span>` + chip("mine", mineLabel, sel === "mine");
+    sibs.forEach(s => {
+      const lab = kind === "paragraph"
+        ? `${this.esc(s.name)} (${s.wpm} wpm)`
+        : `${this.esc(s.name)} (${this.fmtTime(s.time)})`;
+      html += chip(s.pid, lab, sel === s.pid);
+    });
+    return html + `</div>`;
+  },
+
+  // remember which ghost this card will race next (per-launch, in memory only)
+  pickRaceGhost(chip) {
+    SFX.click();
+    if (!this._raceGhost) this._raceGhost = {};
+    this._raceGhost[`${chip.dataset.gkind}:${chip.dataset.gid}`] = chip.dataset.gpid;
+    this.renderPractice();
   },
 
   showPracticeResults(res) {
     this.show("results");
     this.renderTopbar();
     this._practiceNext = res.tier.id;
+    this._practiceGhostPid = res.ghostPid || null; // rematch the same ghost on Try Again
     this._paragraphNext = null;
     this._rematchNext = null;
     this._raidNext = null;
@@ -2359,12 +2407,14 @@ const UI = {
     if (res.betterTime) lines.push(`⏱ <b>NEW BEST TIME!</b>${res.prevTime ? ` (was ${this.fmtTime(res.prevTime)})` : ""}`);
     if (res.betterWpm) lines.push(`⚡ <b>NEW BEST SPEED!</b>${res.prevWpm ? ` (was ${res.prevWpm} wpm)` : ""}`);
     if (!record) lines.push(`Your records: ⏱ ${this.fmtTime(res.prevTime)} · ⚡ ${res.prevWpm} wpm — so close!`);
-    // Practice Ghost verdict: did you out-race the ghost of your best run?
+    // Practice Ghost verdict: did you out-race the ghost you raced?
     if (res.ghost) {
       const secs = (res.ghost.deltaMs / 1000).toFixed(1);
+      const who = res.ghost.name ? `${this.esc(res.ghost.name)}'s ghost` : "your ghost";
+      const Who = res.ghost.name ? `${this.esc(res.ghost.name)}'s ghost` : "Your ghost";
       lines.push(res.ghost.beat
-        ? `🏁 You beat your ghost by <b>${secs}s</b>!`
-        : `👻 Your ghost won by <b>${secs}s</b> — rematch?`);
+        ? `🏁 You beat ${who} by <b>${secs}s</b>!`
+        : `👻 ${Who} won by <b>${secs}s</b> — rematch?`);
     }
     const catchBox = this.$("results-catch");
     catchBox.className = "catch-result";
@@ -2396,6 +2446,7 @@ const UI = {
     this.show("results");
     this.renderTopbar();
     this._paragraphNext = res.def.id;
+    this._paragraphGhostPid = res.ghostPid || null; // rematch the same ghost on Read Again
     this._practiceNext = null;
     this._rematchNext = null;
     this._raidNext = null;
@@ -2417,12 +2468,14 @@ const UI = {
     const lines = [];
     if (res.betterWpm) lines.push(`⚡ <b>NEW BEST SPEED!</b>${res.prevWpm ? ` (was ${res.prevWpm} wpm)` : ""}`);
     else lines.push(`Your best: ⚡ ${res.prevWpm} wpm — read it again to beat it!`);
-    // Story Ghost verdict: did you out-read the ghost of your best run?
+    // Story Ghost verdict: did you out-read the ghost you raced?
     if (res.ghost) {
       const secs = (res.ghost.deltaMs / 1000).toFixed(1);
+      const who = res.ghost.name ? `${this.esc(res.ghost.name)}'s ghost` : "your ghost";
+      const Who = res.ghost.name ? `${this.esc(res.ghost.name)}'s ghost` : "Your ghost";
       lines.push(res.ghost.beat
-        ? `🏁 You beat your ghost by <b>${secs}s</b>!`
-        : `👻 Your ghost won by <b>${secs}s</b> — rematch?`);
+        ? `🏁 You beat ${who} by <b>${secs}s</b>!`
+        : `👻 ${Who} won by <b>${secs}s</b> — rematch?`);
     }
     const catchBox = this.$("results-catch");
     catchBox.className = "catch-result";
@@ -3574,8 +3627,8 @@ const UI = {
       if (this._raidNext === "claim") Engine.startRaidClaim();
       else if (this._raidNext === "attack") Engine.startRaid();
       else if (this._rematchNext) Engine.startRematch(this._rematchNext.w, this._rematchNext.tierId);
-      else if (this._paragraphNext) Engine.startParagraph(this._paragraphNext);
-      else if (this._practiceNext) Engine.startPractice(this._practiceNext);
+      else if (this._paragraphNext) Engine.startParagraph(this._paragraphNext, this._paragraphGhostPid);
+      else if (this._practiceNext) Engine.startPractice(this._practiceNext, this._practiceGhostPid);
       else if (this._nextTarget) {
         const [w, s] = this._nextTarget;
         Engine.startStage(w, s);
