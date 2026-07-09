@@ -681,6 +681,11 @@ const UI = {
       style="left:585px;top:1372px" title="${daily.done ? "Daily Drill done — back tomorrow!" : "Professor's Daily Drill — one special run a day!"}">
       <span class="${daily.done ? "" : "podium-glow"}">${daily.done ? "✅" : "📋"}</span><b>Daily Drill</b></button>`;
 
+    // Family Trading Post: a market stall on the south shore where two family
+    // trainers swap Pokemon 1-for-1
+    html += `<button class="map-trade" style="left:770px;top:1418px" title="Trading Post — swap Pokemon with your family!">
+      <span>${mapSprite("trade", 74)}</span><b>🤝 Trading Post</b></button>`;
+
     WORLDS.forEach((w, wi) => {
       const ns = nodes[wi];
       const unlocked = SAVE.worldUnlocked(wi);
@@ -863,6 +868,151 @@ const UI = {
 
   closeAreaPanel() {
     this.$("area-panel").classList.add("hidden");
+  },
+
+  // ---------- Family Trading Post ----------
+  // Two family trainers swap one Pokemon each on a single shared device. The
+  // whole trade is rebuilt from live save data on open, so deleting a profile
+  // elsewhere can never corrupt a half-built swap. Nothing is written until the
+  // both-agree confirm; cancelling is always free.
+  openTradePost() {
+    if (!Object.keys(SAVE.state.dex).length) {
+      this.toast("🤝 Catch a Pokemon first — then you'll have something to trade!");
+      return;
+    }
+    const partners = SAVE.tradePartners();
+    if (!partners.length) {
+      this.toast("🤝 Ask a family member to make a trainer and catch a Pokemon — then you can trade together!");
+      return;
+    }
+    this._trade = { partnerPid: null, mine: null, theirs: null, stage: "partner" };
+    this.renderTrade();
+  },
+
+  closeTradePanel() {
+    this._trade = null;
+    this.$("trade-panel").classList.add("hidden");
+  },
+
+  // one owned Pokemon as a selectable tile in an offer column
+  tradeMonTile(c, side, sel) {
+    return `<button class="trade-mon ${sel ? "sel" : ""}" data-side="${side}" data-key="${c.key}"
+      title="${this.esc(c.n)}">
+      <span class="tm-sprite">${this.pokeHtml(c.id, c.e, { shiny: c.shiny })}</span>
+      <span class="tm-name">${c.shiny ? "✨" : ""}${this.esc(c.n)}</span></button>`;
+  },
+
+  renderTrade() {
+    const panel = this.$("trade-panel");
+    const T = this._trade;
+    if (!T) { panel.classList.add("hidden"); return; }
+    panel.classList.remove("hidden");
+    const close = `<button id="trade-close" aria-label="Close">✕</button>`;
+
+    // --- stage 1: pick a family trainer to trade with (rebuilt every open) ---
+    if (T.stage === "partner") {
+      const partners = SAVE.tradePartners();
+      if (!partners.length) { this.closeTradePanel(); return; }
+      const cards = partners.map(p => `<button class="trade-partner" data-pid="${p.pid}">
+        <span class="tp-av">${this.avatarHtml({ avatar: p.avatar, trainer: p.trainer })}</span>
+        <span class="tp-info"><b>${this.esc(p.name)}</b><i>🐾 ${p.count}</i></span></button>`).join("");
+      panel.innerHTML = `<div class="trade-card">${close}
+        <h3>🤝 Trading Post</h3>
+        <p class="trade-sub">Pick a family trainer to trade with:</p>
+        <div class="trade-partners">${cards}</div></div>`;
+      return;
+    }
+
+    const partner = SAVE.root.players[T.partnerPid];
+    // a partner deleted mid-trade drops us safely back to the picker
+    if (!partner) { T.stage = "partner"; T.partnerPid = T.mine = T.theirs = null; this.renderTrade(); return; }
+    const myName = SAVE.state.profile.name;
+
+    // --- stage 3: the both-agree ritual ---
+    if (T.stage === "confirm") {
+      const mine = SAVE.creatureByKey(T.mine);
+      const theirs = (() => { const [w, i] = T.theirs.split("-").map(Number); const c = CREATURES[w][i];
+        return { ...c, w, i, key: T.theirs, shiny: !!partner.dex[T.theirs].shiny }; })();
+      panel.innerHTML = `<div class="trade-card">${close}
+        <div class="trade-ritual">
+          <div class="tr-face"><span class="tr-av">${this.avatarHtml(SAVE.state.profile)}</span><b>${this.esc(myName)}</b></div>
+          <span class="tr-hands">🤝</span>
+          <div class="tr-face"><span class="tr-av">${this.avatarHtml(partner.profile)}</span><b>${this.esc(partner.profile.name)}</b></div>
+        </div>
+        <p class="trade-ask">Do you <b>BOTH</b> agree to trade<br>
+          <span class="tr-mon">${this.pokeHtml(mine.id, mine.e, { shiny: mine.shiny })} ${mine.shiny ? "✨" : ""}${this.esc(mine.n)}</span>
+          for
+          <span class="tr-mon">${this.pokeHtml(theirs.id, theirs.e, { shiny: theirs.shiny })} ${theirs.shiny ? "✨" : ""}${this.esc(theirs.n)}</span>?</p>
+        <button id="trade-go" class="big-btn trade-go">✅ Yes — trade!</button>
+        <button id="trade-cancel" class="link-btn">not yet — go back</button></div>`;
+      return;
+    }
+
+    // --- stage 4: the celebration after a completed swap ---
+    if (T.stage === "done") {
+      const got = T.gotCreature, gave = T.gaveCreature;
+      panel.innerHTML = `<div class="trade-card trade-done-card">${close}
+        <div class="trade-balls"><span class="trade-ball tb-l">${this.ballHtml()}</span><span class="trade-ball tb-r">${this.ballHtml()}</span></div>
+        <h3>🤝 Trade complete!</h3>
+        <div class="trade-done">
+          <div class="td-mon"><span>${this.pokeHtml(got.id, got.e, { shiny: got.shiny })}</span>
+            <b>${got.shiny ? "✨" : ""}${this.esc(got.n)}</b><i>joined your team!</i></div>
+        </div>
+        <p class="trade-sub">You sent ${this.esc(gave.n)} to ${this.esc(partner.profile.name)}. Best friends! 🤝</p>
+        <button id="trade-done-ok" class="big-btn">🎉 Yay!</button></div>`;
+      return;
+    }
+
+    // --- stage 2: each side picks exactly one Pokemon to offer ---
+    const myList = SAVE.dexList(SAVE.root.active);
+    const theirList = SAVE.dexList(T.partnerPid);
+    const col = (title, list, side, selKey) => `<div class="trade-col">
+      <h4>${this.esc(title)}</h4>
+      <div class="trade-grid">${list.map(c => this.tradeMonTile(c, side, c.key === selKey)).join("")}</div></div>`;
+    const ready = T.mine && T.theirs;
+    const chosen = (key, list) => { const c = list.find(x => x.key === key); return c
+      ? `${this.pokeHtml(c.id, c.e, { shiny: c.shiny })} ${c.shiny ? "✨" : ""}${this.esc(c.n)}` : "<i>pick one</i>"; };
+    panel.innerHTML = `<div class="trade-card trade-offer-card">${close}
+      <h3>🤝 ${this.esc(myName)} &amp; ${this.esc(partner.profile.name)}</h3>
+      <p class="trade-sub">Each trainer picks ONE Pokemon to offer.</p>
+      <div class="trade-cols">
+        ${col("Your offer", myList, "mine", T.mine)}
+        ${col(`${partner.profile.name}'s offer`, theirList, "theirs", T.theirs)}
+      </div>
+      <div class="trade-summary">
+        <span class="ts-side">${chosen(T.mine, myList)}</span>
+        <span class="ts-swap">🔁</span>
+        <span class="ts-side">${chosen(T.theirs, theirList)}</span>
+      </div>
+      <div class="trade-actions">
+        <button id="trade-back" class="link-btn">← partners</button>
+        <button id="trade-next" class="big-btn ${ready ? "" : "disabled"}" ${ready ? "" : "disabled"}>Trade ▶</button>
+      </div></div>`;
+  },
+
+  // run the confirmed swap, then celebrate
+  doTrade() {
+    const T = this._trade;
+    if (!T || !T.partnerPid || !T.mine || !T.theirs) return;
+    const partner = SAVE.root.players[T.partnerPid];
+    if (!partner) { T.stage = "partner"; this.renderTrade(); return; }
+    // capture display info BEFORE the swap moves the shiny flags around
+    const gave = SAVE.creatureByKey(T.mine);
+    const [tw, ti] = T.theirs.split("-").map(Number);
+    const got = { ...CREATURES[tw][ti], id: CREATURES[tw][ti].id, key: T.theirs, shiny: !!partner.dex[T.theirs].shiny };
+    const res = SAVE.executeTrade(T.partnerPid, T.mine, T.theirs);
+    if (!res.ok) { this.toast("🤝 That trade could not be completed — nothing changed."); this.closeTradePanel(); return; }
+    T.stage = "done";
+    T.gotCreature = got;
+    T.gaveCreature = gave;
+    this.renderTrade();
+    SFX.catchJingle();
+    this.confetti();
+    this.toast(`🤝 You traded <b>${this.esc(gave.n)}</b> and got <b>${got.shiny ? "✨" : ""}${this.esc(got.n)}</b>!`, "gold");
+    (res.myTrophies || []).forEach((t, i) => setTimeout(() => this.trophyToast(t), 700 + i * 800));
+    // refresh everything the trade touched so it's fresh when the panel closes
+    this.renderPartyBar();
+    if (this.current === "map") this.renderMap();
   },
 
   // ---------- Professor's Letters: features introduce themselves ----------
@@ -1053,6 +1203,11 @@ const UI = {
       if (e.key === "Escape") { e.preventDefault(); this.closeAreaPanel(); }
       return;
     }
+    // the Trading Post overlay owns keys while it's open
+    if (!this.$("trade-panel").classList.contains("hidden")) {
+      if (e.key === "Escape") { e.preventDefault(); this.closeTradePanel(); }
+      return;
+    }
     if (!this.$("day-card").classList.contains("hidden")) {
       if (e.key === "Escape" || e.key === "Enter") {
         e.preventDefault();
@@ -1215,6 +1370,12 @@ const UI = {
         SFX.init();
         if (SAVE.dailyInfo().done) this.toast("✅ Today's drill is done — the Professor preps a new one overnight!");
         else Engine.startDaily();
+        return;
+      }
+      const tr = e.target.closest(".map-trade");
+      if (tr) {
+        SFX.init();
+        this.openTradePost();
         return;
       }
       // wild Pokemon living on the map: say hi (caught) or open the
@@ -3696,6 +3857,34 @@ const UI = {
         SFX.click();
         this.closeAreaPanel();
       }
+    });
+
+    this.$("trade-panel").addEventListener("click", e => {
+      const T = this._trade;
+      if (e.target.closest("#trade-close") || e.target.id === "trade-panel") {
+        SFX.click(); this.closeTradePanel(); return;
+      }
+      if (!T) return;
+      const partner = e.target.closest(".trade-partner");
+      if (partner) {
+        SFX.click();
+        T.partnerPid = partner.dataset.pid; T.mine = T.theirs = null; T.stage = "offer";
+        this.renderTrade(); return;
+      }
+      const mon = e.target.closest(".trade-mon");
+      if (mon) {
+        SFX.click();
+        T[mon.dataset.side] = T[mon.dataset.side] === mon.dataset.key ? null : mon.dataset.key;
+        this.renderTrade(); return;
+      }
+      if (e.target.closest("#trade-back")) { SFX.click(); T.stage = "partner"; T.mine = T.theirs = null; this.renderTrade(); return; }
+      if (e.target.closest("#trade-next")) {
+        if (!(T.mine && T.theirs)) { SFX.error(); return; }
+        SFX.click(); T.stage = "confirm"; this.renderTrade(); return;
+      }
+      if (e.target.closest("#trade-cancel")) { SFX.click(); T.stage = "offer"; this.renderTrade(); return; }
+      if (e.target.closest("#trade-go")) { this.doTrade(); return; }
+      if (e.target.closest("#trade-done-ok")) { SFX.click(); this.closeTradePanel(); return; }
     });
 
     this.$("museum-tabs").addEventListener("click", e => {

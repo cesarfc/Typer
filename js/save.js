@@ -555,8 +555,14 @@ const SAVE = {
   },
 
   award(id, list) {
-    if (!this.state.trophies[id]) {
-      this.state.trophies[id] = true;
+    return this.awardFor(this.state, id, list);
+  },
+
+  // award a trophy to an arbitrary player object (used by the Trading Post,
+  // where both trainers earn Best Friends). Same first-time semantics as award.
+  awardFor(p, id, list) {
+    if (!p.trophies[id]) {
+      p.trophies[id] = true;
       const t = TROPHIES.find(t => t.id === id);
       if (t && list) list.push(t);
       return true;
@@ -861,6 +867,78 @@ const SAVE = {
     this.award("race-sibling", list);
     if (list.length) this.save();
     return list;
+  },
+
+  // ---- Family Trading Post: swap Pokemon 1-for-1 between two profiles ----
+  // eligible trade partners = every OTHER profile that owns at least one
+  // Pokemon (you can never trade with yourself, and both sides must have a
+  // Pokemon to offer). Rebuilt on every open, so deleting a player elsewhere
+  // can never corrupt a half-built trade.
+  tradePartners() {
+    const activePid = this.root.active;
+    const out = [];
+    for (const pid of Object.keys(this.root.players)) {
+      if (pid === activePid) continue;
+      const p = this.root.players[pid];
+      if (!p.profile || !p.profile.name) continue;
+      if (!Object.keys(p.dex).length) continue;
+      out.push({ pid, name: p.profile.name, avatar: p.profile.avatar, trainer: p.profile.trainer || null,
+        count: Object.keys(p.dex).length });
+    }
+    return out;
+  },
+
+  // owned creatures for a player id, as full objects the trade panels need
+  // (sprite id + emoji + name + shiny flag), in dex-key order
+  dexList(pid) {
+    const p = this.root.players[pid];
+    if (!p) return [];
+    return Object.keys(p.dex).map(key => {
+      const [w, i] = key.split("-").map(Number);
+      const c = CREATURES[w] && CREATURES[w][i];
+      return c ? { ...c, w, i, key, shiny: !!p.dex[key].shiny } : null;
+    }).filter(Boolean);
+  },
+
+  // execute a confirmed 1-for-1 trade between the active player and a partner.
+  // The {shiny} value travels with each Pokemon. Party arrays are fixed up
+  // exactly like normalizePlayers (a traded-away Pokemon leaves the party; the
+  // lead falls back safely, and a trainer is never left partner-less). Candy
+  // does NOT move — it stays keyed to each player's own base creatures. Both
+  // players' trade counters bump and both earn Best Friends on their first
+  // trade. All dex writes land inside one save() call (atomic on disk).
+  executeTrade(partnerPid, myKey, theirKey) {
+    const me = this.state;
+    const you = this.root.players[partnerPid];
+    if (!me || !you || partnerPid === this.root.active) return { ok: false };
+    const myEntry = me.dex[myKey];
+    const yourEntry = you.dex[theirKey];
+    if (!myEntry || !yourEntry) return { ok: false };
+
+    // swap the dex entries — the sparkle travels with each Pokemon.
+    // Delete BEFORE setting: when both kids trade the same species
+    // (shiny Pikachu for plain Pikachu) the keys are identical, and
+    // set-then-delete would erase the Pokemon from both dexes.
+    delete me.dex[myKey];
+    delete you.dex[theirKey];
+    me.dex[theirKey] = { shiny: !!yourEntry.shiny };
+    you.dex[myKey] = { shiny: !!myEntry.shiny };
+
+    // party fixups: drop keys no longer owned; never leave a trainer partnerless
+    me.party = (me.party || []).filter(k => me.dex[k]).slice(0, PARTY_MAX);
+    you.party = (you.party || []).filter(k => you.dex[k]).slice(0, PARTY_MAX);
+    if (!me.party.length && me.dex[theirKey]) me.party.push(theirKey);
+    if (!you.party.length && you.dex[myKey]) you.party.push(myKey);
+
+    // counters + first-trade trophy for BOTH trainers
+    me.counters.trades = (me.counters.trades || 0) + 1;
+    you.counters.trades = (you.counters.trades || 0) + 1;
+    const myTrophies = [];
+    this.awardFor(me, "trade-1", myTrophies);
+    this.awardFor(you, "trade-1", null); // the partner sees it next time they play
+
+    this.save();
+    return { ok: true, myTrophies };
   },
 
   // ---- Puzzle Lab: bank a solved stage (best stars & fewest blocks only) ----
