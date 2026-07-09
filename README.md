@@ -188,11 +188,16 @@ mystery Pokemon — then the clock starts.
   (only while you type) and you race your own best time and best WPM. Four
   difficulties — Easy, Medium, Hard, Expert — unlock alongside the story worlds
   and keep separate records. New records pay bonus XP; relaxed practice, real
-  progress.
+  progress. **Race a sibling's ghost:** once another family member has set a
+  record, a little "🏁 Race:" picker under each drill lets you chase their
+  👻 ghost instead of your own — the marker shows their name and the results
+  card cheers "You beat Maya's ghost by 3.2s!" (earning the 🏁 Family Race
+  trophy the first time).
 - **📖 Story Typing** — also inside the Trainer School, unlocked once you reach
   the 👑 Hall of Fame (you'll need your capitals and punctuation). Type a whole
   short story as flowing prose — ten to choose from — with no countdown: the
-  stopwatch counts up while you type and you race your own best WPM.
+  stopwatch counts up while you type and you race your own best WPM (or a
+  sibling's ghost, with the same 🏁 Race picker as the speed drills).
 - **🧩 Puzzle Lab (block coding + math)** — a second side-building beside the
   Trainer School, opening once you reach Mt. Moon. **No keyboard needed to
   play:** snap code blocks together to guide a Pokemon through grid puzzles,
@@ -204,6 +209,15 @@ mystery Pokemon — then the clock starts.
   **💡 Hint** for a gentle ladder of tips (with a "Watch a bit" demo on the very
   first stages). **24 new Pokemon live only here** — solving stages is the one
   way to catch them. No clocks, no fail states: hints teach, they never scold.
+- **🤝 Family Trading Post** — a market stall on the south shore where two
+  family trainers swap Pokemon one-for-one on the shared device. Pick a
+  sibling, each side offers one Pokemon from their Pokedex, then a big
+  both-agree ritual ("Do you BOTH agree to trade X for Y?") seals it — two
+  pokeballs arc across and both trainers earn the 🤝 Best Friends trophy on
+  their first trade. Shinies can be traded (the sparkle travels with the
+  Pokemon); candy stays home; and every trade is undoable, since trading back
+  is free and wild, egg, roamer and Puzzle Lab Pokemon all become catchable
+  again once they leave your dex. Cancel is always one tap — no pressure, ever.
 - **Create your own trainer** — pick skin tone, hair style and color, hat
   and shirt when making a player (🎲 randomizes). Your trainer appears in
   the top bar, standing on the map, and in every battle. Existing players
@@ -216,7 +230,7 @@ mystery Pokemon — then the clock starts.
   Kelvin Shadewing (via the Tuxemon project — see CREDITS.md).
 - **Combos** — 25 correct keys in a row triggers SUPER MODE.
 - **XP, levels and titles** — from Rookie all the way to Typing Legend.
-- **43 trophies**, daily play streaks, and a personal-best speed chart.
+- **45 trophies**, daily play streaks, and a personal-best speed chart.
 - **🥷 Ninja Mode** — hide the on-screen keyboard for 1.5× XP (this is the
   real goal: typing without looking!).
 

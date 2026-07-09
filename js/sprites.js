@@ -167,6 +167,25 @@ const MAP_SPRITES = (() => {
     wave: s => svg(60, 22, s, `
       <path d="M4 16 Q12 4 20 14 M24 18 Q34 4 44 14 M46 16 Q52 8 56 14"
         stroke="#dff1ff" stroke-width="4" fill="none" stroke-linecap="round" opacity=".85"/>`),
+
+    // Family Trading Post — a little market stall: striped awning over a
+    // wooden counter with two pokeballs waiting to be swapped
+    trade: s => svg(96, 80, s, `
+      <rect x="10" y="34" width="6" height="40" rx="2" fill="#8a5a33" ${O}/>
+      <rect x="80" y="34" width="6" height="40" rx="2" fill="#8a5a33" ${O}/>
+      <rect x="12" y="46" width="72" height="28" rx="3" fill="#f3e9d2" ${O}/>
+      <rect x="12" y="46" width="72" height="8" rx="3" fill="#e0d2b4"/>
+      <polygon points="6,34 90,34 84,14 12,14" fill="#e3492f" ${O}/>
+      <polygon points="12,34 26,14 40,34" fill="#fdf6dd"/>
+      <polygon points="40,34 54,14 68,34" fill="#fdf6dd"/>
+      <polygon points="68,34 82,14 90,34 90,34" fill="#fdf6dd"/>
+      <path d="M6 34 q7 8 14 0 q7 8 14 0 q7 8 14 0 q7 8 14 0 q7 8 14 0 q7 8 12 0 L84 34 Z" fill="#e3492f" ${O}/>
+      <circle cx="34" cy="60" r="7" fill="#fff" ${O}/>
+      <path d="M27.2 58.5 a7 7 0 0 1 13.6 0 Z" fill="#e3492f"/>
+      <circle cx="34" cy="60" r="2.3" fill="#fff" ${O}/>
+      <circle cx="62" cy="60" r="7" fill="#fff" ${O}/>
+      <path d="M55.2 58.5 a7 7 0 0 1 13.6 0 Z" fill="#3a6fd8"/>
+      <circle cx="62" cy="60" r="2.3" fill="#fff" ${O}/>`),
   };
 })();
 

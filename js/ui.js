@@ -681,6 +681,11 @@ const UI = {
       style="left:585px;top:1372px" title="${daily.done ? "Daily Drill done — back tomorrow!" : "Professor's Daily Drill — one special run a day!"}">
       <span class="${daily.done ? "" : "podium-glow"}">${daily.done ? "✅" : "📋"}</span><b>Daily Drill</b></button>`;
 
+    // Family Trading Post: a market stall on the south shore where two family
+    // trainers swap Pokemon 1-for-1
+    html += `<button class="map-trade" style="left:770px;top:1418px" title="Trading Post — swap Pokemon with your family!">
+      <span>${mapSprite("trade", 74)}</span><b>🤝 Trading Post</b></button>`;
+
     WORLDS.forEach((w, wi) => {
       const ns = nodes[wi];
       const unlocked = SAVE.worldUnlocked(wi);
@@ -863,6 +868,151 @@ const UI = {
 
   closeAreaPanel() {
     this.$("area-panel").classList.add("hidden");
+  },
+
+  // ---------- Family Trading Post ----------
+  // Two family trainers swap one Pokemon each on a single shared device. The
+  // whole trade is rebuilt from live save data on open, so deleting a profile
+  // elsewhere can never corrupt a half-built swap. Nothing is written until the
+  // both-agree confirm; cancelling is always free.
+  openTradePost() {
+    if (!Object.keys(SAVE.state.dex).length) {
+      this.toast("🤝 Catch a Pokemon first — then you'll have something to trade!");
+      return;
+    }
+    const partners = SAVE.tradePartners();
+    if (!partners.length) {
+      this.toast("🤝 Ask a family member to make a trainer and catch a Pokemon — then you can trade together!");
+      return;
+    }
+    this._trade = { partnerPid: null, mine: null, theirs: null, stage: "partner" };
+    this.renderTrade();
+  },
+
+  closeTradePanel() {
+    this._trade = null;
+    this.$("trade-panel").classList.add("hidden");
+  },
+
+  // one owned Pokemon as a selectable tile in an offer column
+  tradeMonTile(c, side, sel) {
+    return `<button class="trade-mon ${sel ? "sel" : ""}" data-side="${side}" data-key="${c.key}"
+      title="${this.esc(c.n)}">
+      <span class="tm-sprite">${this.pokeHtml(c.id, c.e, { shiny: c.shiny })}</span>
+      <span class="tm-name">${c.shiny ? "✨" : ""}${this.esc(c.n)}</span></button>`;
+  },
+
+  renderTrade() {
+    const panel = this.$("trade-panel");
+    const T = this._trade;
+    if (!T) { panel.classList.add("hidden"); return; }
+    panel.classList.remove("hidden");
+    const close = `<button id="trade-close" aria-label="Close">✕</button>`;
+
+    // --- stage 1: pick a family trainer to trade with (rebuilt every open) ---
+    if (T.stage === "partner") {
+      const partners = SAVE.tradePartners();
+      if (!partners.length) { this.closeTradePanel(); return; }
+      const cards = partners.map(p => `<button class="trade-partner" data-pid="${p.pid}">
+        <span class="tp-av">${this.avatarHtml({ avatar: p.avatar, trainer: p.trainer })}</span>
+        <span class="tp-info"><b>${this.esc(p.name)}</b><i>🐾 ${p.count}</i></span></button>`).join("");
+      panel.innerHTML = `<div class="trade-card">${close}
+        <h3>🤝 Trading Post</h3>
+        <p class="trade-sub">Pick a family trainer to trade with:</p>
+        <div class="trade-partners">${cards}</div></div>`;
+      return;
+    }
+
+    const partner = SAVE.root.players[T.partnerPid];
+    // a partner deleted mid-trade drops us safely back to the picker
+    if (!partner) { T.stage = "partner"; T.partnerPid = T.mine = T.theirs = null; this.renderTrade(); return; }
+    const myName = SAVE.state.profile.name;
+
+    // --- stage 3: the both-agree ritual ---
+    if (T.stage === "confirm") {
+      const mine = SAVE.creatureByKey(T.mine);
+      const theirs = (() => { const [w, i] = T.theirs.split("-").map(Number); const c = CREATURES[w][i];
+        return { ...c, w, i, key: T.theirs, shiny: !!partner.dex[T.theirs].shiny }; })();
+      panel.innerHTML = `<div class="trade-card">${close}
+        <div class="trade-ritual">
+          <div class="tr-face"><span class="tr-av">${this.avatarHtml(SAVE.state.profile)}</span><b>${this.esc(myName)}</b></div>
+          <span class="tr-hands">🤝</span>
+          <div class="tr-face"><span class="tr-av">${this.avatarHtml(partner.profile)}</span><b>${this.esc(partner.profile.name)}</b></div>
+        </div>
+        <p class="trade-ask">Do you <b>BOTH</b> agree to trade<br>
+          <span class="tr-mon">${this.pokeHtml(mine.id, mine.e, { shiny: mine.shiny })} ${mine.shiny ? "✨" : ""}${this.esc(mine.n)}</span>
+          for
+          <span class="tr-mon">${this.pokeHtml(theirs.id, theirs.e, { shiny: theirs.shiny })} ${theirs.shiny ? "✨" : ""}${this.esc(theirs.n)}</span>?</p>
+        <button id="trade-go" class="big-btn trade-go">✅ Yes — trade!</button>
+        <button id="trade-cancel" class="link-btn">not yet — go back</button></div>`;
+      return;
+    }
+
+    // --- stage 4: the celebration after a completed swap ---
+    if (T.stage === "done") {
+      const got = T.gotCreature, gave = T.gaveCreature;
+      panel.innerHTML = `<div class="trade-card trade-done-card">${close}
+        <div class="trade-balls"><span class="trade-ball tb-l">${this.ballHtml()}</span><span class="trade-ball tb-r">${this.ballHtml()}</span></div>
+        <h3>🤝 Trade complete!</h3>
+        <div class="trade-done">
+          <div class="td-mon"><span>${this.pokeHtml(got.id, got.e, { shiny: got.shiny })}</span>
+            <b>${got.shiny ? "✨" : ""}${this.esc(got.n)}</b><i>joined your team!</i></div>
+        </div>
+        <p class="trade-sub">You sent ${this.esc(gave.n)} to ${this.esc(partner.profile.name)}. Best friends! 🤝</p>
+        <button id="trade-done-ok" class="big-btn">🎉 Yay!</button></div>`;
+      return;
+    }
+
+    // --- stage 2: each side picks exactly one Pokemon to offer ---
+    const myList = SAVE.dexList(SAVE.root.active);
+    const theirList = SAVE.dexList(T.partnerPid);
+    const col = (title, list, side, selKey) => `<div class="trade-col">
+      <h4>${this.esc(title)}</h4>
+      <div class="trade-grid">${list.map(c => this.tradeMonTile(c, side, c.key === selKey)).join("")}</div></div>`;
+    const ready = T.mine && T.theirs;
+    const chosen = (key, list) => { const c = list.find(x => x.key === key); return c
+      ? `${this.pokeHtml(c.id, c.e, { shiny: c.shiny })} ${c.shiny ? "✨" : ""}${this.esc(c.n)}` : "<i>pick one</i>"; };
+    panel.innerHTML = `<div class="trade-card trade-offer-card">${close}
+      <h3>🤝 ${this.esc(myName)} &amp; ${this.esc(partner.profile.name)}</h3>
+      <p class="trade-sub">Each trainer picks ONE Pokemon to offer.</p>
+      <div class="trade-cols">
+        ${col("Your offer", myList, "mine", T.mine)}
+        ${col(`${partner.profile.name}'s offer`, theirList, "theirs", T.theirs)}
+      </div>
+      <div class="trade-summary">
+        <span class="ts-side">${chosen(T.mine, myList)}</span>
+        <span class="ts-swap">🔁</span>
+        <span class="ts-side">${chosen(T.theirs, theirList)}</span>
+      </div>
+      <div class="trade-actions">
+        <button id="trade-back" class="link-btn">← partners</button>
+        <button id="trade-next" class="big-btn ${ready ? "" : "disabled"}" ${ready ? "" : "disabled"}>Trade ▶</button>
+      </div></div>`;
+  },
+
+  // run the confirmed swap, then celebrate
+  doTrade() {
+    const T = this._trade;
+    if (!T || !T.partnerPid || !T.mine || !T.theirs) return;
+    const partner = SAVE.root.players[T.partnerPid];
+    if (!partner) { T.stage = "partner"; this.renderTrade(); return; }
+    // capture display info BEFORE the swap moves the shiny flags around
+    const gave = SAVE.creatureByKey(T.mine);
+    const [tw, ti] = T.theirs.split("-").map(Number);
+    const got = { ...CREATURES[tw][ti], id: CREATURES[tw][ti].id, key: T.theirs, shiny: !!partner.dex[T.theirs].shiny };
+    const res = SAVE.executeTrade(T.partnerPid, T.mine, T.theirs);
+    if (!res.ok) { this.toast("🤝 That trade could not be completed — nothing changed."); this.closeTradePanel(); return; }
+    T.stage = "done";
+    T.gotCreature = got;
+    T.gaveCreature = gave;
+    this.renderTrade();
+    SFX.catchJingle();
+    this.confetti();
+    this.toast(`🤝 You traded <b>${this.esc(gave.n)}</b> and got <b>${got.shiny ? "✨" : ""}${this.esc(got.n)}</b>!`, "gold");
+    (res.myTrophies || []).forEach((t, i) => setTimeout(() => this.trophyToast(t), 700 + i * 800));
+    // refresh everything the trade touched so it's fresh when the panel closes
+    this.renderPartyBar();
+    if (this.current === "map") this.renderMap();
   },
 
   // ---------- Professor's Letters: features introduce themselves ----------
@@ -1053,6 +1203,11 @@ const UI = {
       if (e.key === "Escape") { e.preventDefault(); this.closeAreaPanel(); }
       return;
     }
+    // the Trading Post overlay owns keys while it's open
+    if (!this.$("trade-panel").classList.contains("hidden")) {
+      if (e.key === "Escape") { e.preventDefault(); this.closeTradePanel(); }
+      return;
+    }
     if (!this.$("day-card").classList.contains("hidden")) {
       if (e.key === "Escape" || e.key === "Enter") {
         e.preventDefault();
@@ -1217,6 +1372,12 @@ const UI = {
         else Engine.startDaily();
         return;
       }
+      const tr = e.target.closest(".map-trade");
+      if (tr) {
+        SFX.init();
+        this.openTradePost();
+        return;
+      }
       // wild Pokemon living on the map: say hi (caught) or open the
       // area guide so the mystery shows how it can be caught
       const pk = e.target.closest(".map-poke");
@@ -1254,11 +1415,14 @@ const UI = {
     });
 
     this.$("practice-tiers").addEventListener("click", e => {
+      const gp = e.target.closest(".ghost-pick");
+      if (gp) { this.pickRaceGhost(gp); return; }
       const t = e.target.closest(".tier-card");
       if (!t) return;
       SFX.init();
       if (!t.classList.contains("locked")) {
-        Engine.startPractice(t.dataset.tier);
+        const sel = this._raceGhost && this._raceGhost[`practice:${t.dataset.tier}`];
+        Engine.startPractice(t.dataset.tier, sel && sel !== "mine" ? sel : null);
       } else {
         SFX.error();
         t.classList.remove("denied");
@@ -1270,11 +1434,14 @@ const UI = {
     });
 
     this.$("paragraph-list").addEventListener("click", e => {
+      const gp = e.target.closest(".ghost-pick");
+      if (gp) { this.pickRaceGhost(gp); return; }
       const c = e.target.closest(".para-card");
       if (!c) return;
       SFX.init();
       if (!c.classList.contains("locked")) {
-        Engine.startParagraph(c.dataset.para);
+        const sel = this._raceGhost && this._raceGhost[`paragraph:${c.dataset.para}`];
+        Engine.startParagraph(c.dataset.para, sel && sel !== "mine" ? sel : null);
       } else {
         SFX.error();
         c.classList.remove("denied");
@@ -2261,12 +2428,19 @@ const UI = {
     this.$("boss-bar").classList.add("hidden");
     this.$("player-avatar").innerHTML = this.avatarHtml(SAVE.state.profile);
     // Practice Ghost marker — drills AND Story Typing race their best run
+    // (or, when racing a sibling, their recorded ghost: tinted + name-labelled)
     const ghost = this.$("ghost-marker");
     const hasGhost = !!(S.ghost && S.ghost.length);
     if (ghost) {
       ghost.classList.toggle("hidden", !hasGhost);
       ghost.classList.remove("ahead");
+      ghost.classList.toggle("sibling", !!S.ghostName);
       ghost.style.left = "0%";
+      const owner = this.$("ghost-owner");
+      if (owner) {
+        owner.textContent = S.ghostName ? `${S.ghostName}'s ghost` : "";
+        owner.classList.toggle("hidden", !(hasGhost && S.ghostName));
+      }
     }
     this.showPartner(S);
     this.partnerMeter(S);
@@ -2305,7 +2479,7 @@ const UI = {
       const pbHtml = pb
         ? `⏱ best ${this.fmtTime(pb.time)} · ⚡ best ${pb.wpm} wpm`
         : `no record yet — set one!`;
-      return `<button class="tier-card ${open ? "" : "locked"}" data-tier="${t.id}">
+      const card = `<button class="tier-card ${open ? "" : "locked"}" data-tier="${t.id}">
         <span class="tier-e">${t.e}</span>
         <span class="tier-info">
           <b>${t.label}</b>
@@ -2313,6 +2487,7 @@ const UI = {
           <em>${open ? `${t.count} words · ${pbHtml}` : "🔒"}</em>
         </span>
       </button>`;
+      return `<div class="tier-wrap">${card}${open ? this.ghostRaceHtml("practice", t.id, pb) : ""}</div>`;
     }).join("");
 
     this.$("paragraph-list").innerHTML = PARAGRAPHS.map(p => {
@@ -2320,7 +2495,7 @@ const UI = {
       const pb = (SAVE.state.paragraphs || {})[p.id];
       const pbHtml = pb ? `⚡ best ${pb.wpm} wpm · ${Math.round(pb.acc * 100)}%` : "no record yet — set one!";
       const words = p.text.trim().split(/\s+/).length;
-      return `<button class="para-card ${open ? "" : "locked"}" data-para="${p.id}">
+      const card = `<button class="para-card ${open ? "" : "locked"}" data-para="${p.id}">
         <span class="tier-e">${p.e}</span>
         <span class="tier-info">
           <b>${this.esc(p.title)}</b>
@@ -2328,13 +2503,47 @@ const UI = {
           <em>${open ? `${words} words · ${pbHtml}` : "🔒 capitals & punctuation"}</em>
         </span>
       </button>`;
+      return `<div class="tier-wrap">${card}${open ? this.ghostRaceHtml("paragraph", p.id, pb) : ""}</div>`;
     }).join("");
+  },
+
+  // Sibling ghost selector shown under a tier/story card when at least one
+  // OTHER profile has a recorded ghost for it. Default pick is your own ghost
+  // ("mine"); tapping a chip chooses whose ghost to race on the next run. The
+  // choice lives in memory only (per-launch, never persisted). Hidden entirely
+  // when no sibling ghosts exist (single-player stays clean).
+  ghostRaceHtml(kind, id, myRec) {
+    const sibs = SAVE.siblingGhosts(kind, id);
+    if (!sibs.length) return "";
+    const sel = (this._raceGhost && this._raceGhost[`${kind}:${id}`]) || "mine";
+    const chip = (pid, label, on) =>
+      `<button class="ghost-pick ${on ? "on" : ""}" data-gkind="${kind}" data-gid="${id}" data-gpid="${pid}">👻 ${label}</button>`;
+    const mineLabel = myRec && myRec.ghost
+      ? (kind === "paragraph" ? `mine (${myRec.wpm} wpm)` : `mine (${this.fmtTime(myRec.time)})`)
+      : "mine";
+    let html = `<div class="ghost-race"><span class="gr-label">🏁 Race:</span>` + chip("mine", mineLabel, sel === "mine");
+    sibs.forEach(s => {
+      const lab = kind === "paragraph"
+        ? `${this.esc(s.name)} (${s.wpm} wpm)`
+        : `${this.esc(s.name)} (${this.fmtTime(s.time)})`;
+      html += chip(s.pid, lab, sel === s.pid);
+    });
+    return html + `</div>`;
+  },
+
+  // remember which ghost this card will race next (per-launch, in memory only)
+  pickRaceGhost(chip) {
+    SFX.click();
+    if (!this._raceGhost) this._raceGhost = {};
+    this._raceGhost[`${chip.dataset.gkind}:${chip.dataset.gid}`] = chip.dataset.gpid;
+    this.renderPractice();
   },
 
   showPracticeResults(res) {
     this.show("results");
     this.renderTopbar();
     this._practiceNext = res.tier.id;
+    this._practiceGhostPid = res.ghostPid || null; // rematch the same ghost on Try Again
     this._paragraphNext = null;
     this._rematchNext = null;
     this._raidNext = null;
@@ -2359,12 +2568,14 @@ const UI = {
     if (res.betterTime) lines.push(`⏱ <b>NEW BEST TIME!</b>${res.prevTime ? ` (was ${this.fmtTime(res.prevTime)})` : ""}`);
     if (res.betterWpm) lines.push(`⚡ <b>NEW BEST SPEED!</b>${res.prevWpm ? ` (was ${res.prevWpm} wpm)` : ""}`);
     if (!record) lines.push(`Your records: ⏱ ${this.fmtTime(res.prevTime)} · ⚡ ${res.prevWpm} wpm — so close!`);
-    // Practice Ghost verdict: did you out-race the ghost of your best run?
+    // Practice Ghost verdict: did you out-race the ghost you raced?
     if (res.ghost) {
       const secs = (res.ghost.deltaMs / 1000).toFixed(1);
+      const who = res.ghost.name ? `${this.esc(res.ghost.name)}'s ghost` : "your ghost";
+      const Who = res.ghost.name ? `${this.esc(res.ghost.name)}'s ghost` : "Your ghost";
       lines.push(res.ghost.beat
-        ? `🏁 You beat your ghost by <b>${secs}s</b>!`
-        : `👻 Your ghost won by <b>${secs}s</b> — rematch?`);
+        ? `🏁 You beat ${who} by <b>${secs}s</b>!`
+        : `👻 ${Who} won by <b>${secs}s</b> — rematch?`);
     }
     const catchBox = this.$("results-catch");
     catchBox.className = "catch-result";
@@ -2396,6 +2607,7 @@ const UI = {
     this.show("results");
     this.renderTopbar();
     this._paragraphNext = res.def.id;
+    this._paragraphGhostPid = res.ghostPid || null; // rematch the same ghost on Read Again
     this._practiceNext = null;
     this._rematchNext = null;
     this._raidNext = null;
@@ -2417,12 +2629,14 @@ const UI = {
     const lines = [];
     if (res.betterWpm) lines.push(`⚡ <b>NEW BEST SPEED!</b>${res.prevWpm ? ` (was ${res.prevWpm} wpm)` : ""}`);
     else lines.push(`Your best: ⚡ ${res.prevWpm} wpm — read it again to beat it!`);
-    // Story Ghost verdict: did you out-read the ghost of your best run?
+    // Story Ghost verdict: did you out-read the ghost you raced?
     if (res.ghost) {
       const secs = (res.ghost.deltaMs / 1000).toFixed(1);
+      const who = res.ghost.name ? `${this.esc(res.ghost.name)}'s ghost` : "your ghost";
+      const Who = res.ghost.name ? `${this.esc(res.ghost.name)}'s ghost` : "Your ghost";
       lines.push(res.ghost.beat
-        ? `🏁 You beat your ghost by <b>${secs}s</b>!`
-        : `👻 Your ghost won by <b>${secs}s</b> — rematch?`);
+        ? `🏁 You beat ${who} by <b>${secs}s</b>!`
+        : `👻 ${Who} won by <b>${secs}s</b> — rematch?`);
     }
     const catchBox = this.$("results-catch");
     catchBox.className = "catch-result";
@@ -3574,8 +3788,8 @@ const UI = {
       if (this._raidNext === "claim") Engine.startRaidClaim();
       else if (this._raidNext === "attack") Engine.startRaid();
       else if (this._rematchNext) Engine.startRematch(this._rematchNext.w, this._rematchNext.tierId);
-      else if (this._paragraphNext) Engine.startParagraph(this._paragraphNext);
-      else if (this._practiceNext) Engine.startPractice(this._practiceNext);
+      else if (this._paragraphNext) Engine.startParagraph(this._paragraphNext, this._paragraphGhostPid);
+      else if (this._practiceNext) Engine.startPractice(this._practiceNext, this._practiceGhostPid);
       else if (this._nextTarget) {
         const [w, s] = this._nextTarget;
         Engine.startStage(w, s);
@@ -3643,6 +3857,34 @@ const UI = {
         SFX.click();
         this.closeAreaPanel();
       }
+    });
+
+    this.$("trade-panel").addEventListener("click", e => {
+      const T = this._trade;
+      if (e.target.closest("#trade-close") || e.target.id === "trade-panel") {
+        SFX.click(); this.closeTradePanel(); return;
+      }
+      if (!T) return;
+      const partner = e.target.closest(".trade-partner");
+      if (partner) {
+        SFX.click();
+        T.partnerPid = partner.dataset.pid; T.mine = T.theirs = null; T.stage = "offer";
+        this.renderTrade(); return;
+      }
+      const mon = e.target.closest(".trade-mon");
+      if (mon) {
+        SFX.click();
+        T[mon.dataset.side] = T[mon.dataset.side] === mon.dataset.key ? null : mon.dataset.key;
+        this.renderTrade(); return;
+      }
+      if (e.target.closest("#trade-back")) { SFX.click(); T.stage = "partner"; T.mine = T.theirs = null; this.renderTrade(); return; }
+      if (e.target.closest("#trade-next")) {
+        if (!(T.mine && T.theirs)) { SFX.error(); return; }
+        SFX.click(); T.stage = "confirm"; this.renderTrade(); return;
+      }
+      if (e.target.closest("#trade-cancel")) { SFX.click(); T.stage = "offer"; this.renderTrade(); return; }
+      if (e.target.closest("#trade-go")) { this.doTrade(); return; }
+      if (e.target.closest("#trade-done-ok")) { SFX.click(); this.closeTradePanel(); return; }
     });
 
     this.$("museum-tabs").addEventListener("click", e => {

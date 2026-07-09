@@ -1424,6 +1424,8 @@ const TROPHIES = [
   { id: "puzzle-code", e: "💻", name: "Master Coder", desc: "Earn a star on every coding stage in the Puzzle Lab" },
   { id: "puzzle-math", e: "🔢", name: "Number Wizard", desc: "Earn a star on every math stage in the Puzzle Lab" },
   { id: "puzzle-stars", e: "🌟", name: "Puzzle Perfect", desc: "Earn 3 stars on every stage in the Puzzle Lab" },
+  { id: "race-sibling", e: "🏁", name: "Family Race", desc: "Beat a sibling's ghost in Trainer School or Story Typing" },
+  { id: "trade-1", e: "🤝", name: "Best Friends", desc: "Trade a Pokemon with a family trainer" },
 ];
 
 const ENCOURAGE = [

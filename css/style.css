@@ -550,6 +550,20 @@ button:active { transform: translateY(1px) scale(.98); }
 .map-lab span { font-size: 42px; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)); }
 .map-lab b { font-size: 12px; background: rgba(10,13,30,.78); padding: 3px 9px; border-radius: 999px; border: 1px solid #b39df1; white-space: nowrap; color: #cdb8ff; animation: pulseGlow 1.8s ease-in-out infinite; }
 
+/* Family Trading Post: a market stall on the south shore (same billboard) */
+.map-trade {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: none;
+  border: none;
+  text-align: center;
+  z-index: 5;
+  padding: 8px;
+}
+.map-trade span { font-size: 42px; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)); }
+.map-trade b { font-size: 12px; background: rgba(10,13,30,.78); padding: 3px 9px; border-radius: 999px; border: 1px solid var(--gold); white-space: nowrap; color: var(--gold); animation: pulseGlow 1.8s ease-in-out infinite; }
+.map-trade:hover { background: radial-gradient(circle at 50% 55%, rgba(255, 211, 77, .3), transparent 72%); border-radius: 50%; }
+
 /* hover feedback on map pins must never change geometry (scale, size,
    font) — moving pixels under the cursor makes them hard to click.
    Glow instead. */
@@ -577,6 +591,30 @@ button:active { transform: translateY(1px) scale(.98); }
 .tier-card.locked .tier-e, .para-card.locked .tier-e { opacity: .4; filter: grayscale(1); }
 .tier-card.locked .tier-info b, .para-card.locked .tier-info b { color: var(--dim); }
 .para-card.denied { animation: deniedFlash .4s; }
+/* each card + its optional sibling-ghost selector stack as one unit */
+.tier-wrap { display: flex; flex-direction: column; gap: 6px; }
+.tier-wrap > .tier-card, .tier-wrap > .para-card { width: 100%; }
+.ghost-race {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px 2px 14px;
+}
+.gr-label { font-size: 12px; font-weight: 900; color: var(--dim); }
+.ghost-pick {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text);
+  background: var(--card2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.ghost-pick:hover { border-color: #c77bff; }
+.ghost-pick.on { border-color: #c77bff; background: rgba(199, 123, 255, .22); color: #e9d9ff; }
 .tier-e { font-size: 36px; flex: none; }
 .tier-info { display: flex; flex-direction: column; gap: 2px; }
 .tier-info b { font-size: 18px; font-weight: 900; }
@@ -619,7 +657,7 @@ button:active { transform: translateY(1px) scale(.98); }
 .egg-note.ready { border-color: var(--gold); animation: pulseGlow 1.4s ease-in-out infinite; }
 .msprite { display: block; }
 .tile { display: block; image-rendering: pixelated; background-repeat: no-repeat; margin: 0 auto; }
-.map-decor .msprite, .map-city .msprite, .map-school .msprite, .map-lab .msprite, .g-rustle .msprite { margin: 0 auto; }
+.map-decor .msprite, .map-city .msprite, .map-school .msprite, .map-lab .msprite, .map-trade .msprite, .g-rustle .msprite { margin: 0 auto; }
 .map-city { position: absolute; transform: translate(-50%, -50%); text-align: center; pointer-events: none; z-index: 2; }
 .map-city span { font-size: 38px; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)); }
 .map-city b { font-size: 12px; background: rgba(10,13,30,.78); padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; }
@@ -728,6 +766,25 @@ button:active { transform: translateY(1px) scale(.98); }
 }
 #ghost-marker.ahead { filter: drop-shadow(0 0 6px rgba(126, 231, 135, .95)); }
 #ghost-marker.hidden { display: none; }
+/* racing a sibling's ghost: tint it a friendly violet and name the owner */
+#ghost-marker.sibling { filter: hue-rotate(240deg) saturate(1.4) drop-shadow(0 0 5px rgba(199, 123, 255, .9)); }
+#ghost-marker.sibling.ahead { filter: drop-shadow(0 0 6px rgba(126, 231, 135, .95)); }
+#ghost-owner {
+  position: absolute;
+  top: 130%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-weight: 900;
+  font-style: normal;
+  white-space: nowrap;
+  color: #d9c2ff;
+  background: rgba(10, 13, 30, .85);
+  border: 1px solid rgba(199, 123, 255, .6);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+#ghost-owner.hidden { display: none; }
 #hud-right { display: flex; gap: 12px; align-items: center; font-weight: 900; font-size: 16px; }
 #hud-combo { color: var(--dim); transition: color .2s, transform .15s; }
 #hud-combo.hot { color: var(--gold); transform: scale(1.15); }
@@ -1256,7 +1313,7 @@ button:active { transform: translateY(1px) scale(.98); }
    ============================================================ */
 .mnode, .map-grass, .map-fish, .map-roamer, .map-school, .map-lab, .map-city,
 .region-label, .map-marker, .map-poke, .map-decor, .map-smoke, .map-parcel,
-.map-podium {
+.map-podium, .map-trade {
   transform: translate(-50%, -100%) rotateX(calc(-1 * var(--tilt)));
   transform-origin: 50% 100%;
   margin: 0;
@@ -1271,6 +1328,7 @@ button:active { transform: translateY(1px) scale(.98); }
 .region-label:hover, .region-label:active,
 .map-parcel:hover, .map-parcel:active,
 .map-podium:hover, .map-podium:active,
+.map-trade:hover, .map-trade:active,
 .map-poke:hover, .map-poke:active {
   transform: translate(-50%, -100%) rotateX(calc(-1 * var(--tilt)));
   filter: none; /* never toggle filters on 3D-positioned pins */
@@ -1278,7 +1336,7 @@ button:active { transform: translateY(1px) scale(.98); }
 /* hover glow = pure background paint: no transform, no filter, no
    stacking-context change — cannot move or reproject in any browser */
 .map-school:hover, .map-lab:hover, .map-fish:hover, .map-grass:hover,
-.map-roamer:hover, .map-poke:hover {
+.map-roamer:hover, .map-poke:hover, .map-trade:hover {
   background: radial-gradient(circle at 50% 55%, rgba(125, 200, 255, .32), transparent 72%);
   border-radius: 50%;
 }
@@ -1450,6 +1508,103 @@ button:active { transform: translateY(1px) scale(.98); }
 }
 .area-got { color: var(--good); font-weight: 900; font-size: 12.5px; flex: none; }
 .area-miss { color: var(--gold); font-weight: 800; font-size: 12.5px; flex: none; }
+
+/* ============ Family Trading Post ============ */
+#trade-panel {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 10, 24, .82);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.trade-card {
+  position: relative;
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: 20px;
+  padding: 22px 24px 18px;
+  width: min(680px, 94vw);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  animation: zoomIn .3s cubic-bezier(.2, 1.4, .4, 1);
+}
+.trade-card h3 { font-size: 24px; font-weight: 900; margin: 0 30px 2px 0; }
+.trade-sub { font-size: 14px; color: var(--dim); margin: 0 0 14px; font-weight: 700; }
+#trade-close {
+  position: absolute; top: 12px; right: 12px;
+  background: var(--card2); border: 1px solid var(--line); border-radius: 10px;
+  color: var(--text); font-size: 15px; padding: 4px 10px; cursor: pointer;
+}
+#trade-close:hover { border-color: var(--gold); }
+
+.trade-partners { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+.trade-partner {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--card2); border: 2px solid var(--line); border-radius: 16px;
+  padding: 12px 18px; cursor: pointer; transition: border-color .15s;
+}
+.trade-partner:hover { border-color: var(--gold); }
+.tp-av .avatar-emoji, .tp-av .trainer-svg { font-size: 34px; width: 40px; height: 40px; }
+.tp-info { text-align: left; }
+.tp-info b { display: block; font-size: 17px; }
+.tp-info i { font-size: 12px; color: var(--dim); }
+
+.trade-cols { display: flex; gap: 14px; overflow: hidden; }
+.trade-col { flex: 1; min-width: 0; background: var(--card2); border: 1px solid var(--line); border-radius: 14px; padding: 10px; }
+.trade-col h4 { font-size: 14px; font-weight: 900; margin: 0 0 8px; }
+.trade-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 6px; max-height: 42vh; overflow-y: auto; padding-right: 2px; }
+.trade-mon {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: var(--card); border: 2px solid var(--line); border-radius: 12px;
+  padding: 6px 4px; cursor: pointer; transition: border-color .12s, background .12s;
+}
+.trade-mon:hover { border-color: var(--info); }
+.trade-mon.sel { border-color: var(--gold); background: rgba(255, 211, 77, .18); box-shadow: 0 0 0 2px rgba(255, 211, 77, .3); }
+.tm-sprite { font-size: 30px; line-height: 1; }
+.tm-sprite .poke-img, .tm-sprite img { height: 38px; }
+.tm-name { font-size: 11px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+.trade-summary { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 14px 0 4px; font-weight: 900; font-size: 15px; }
+.trade-summary .poke-img, .trade-summary img { height: 30px; vertical-align: middle; }
+.ts-side i { color: var(--dim); font-weight: 700; }
+.ts-swap { font-size: 20px; }
+.trade-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+.big-btn.disabled { opacity: .45; cursor: not-allowed; }
+
+.trade-ritual { display: flex; align-items: center; justify-content: center; gap: 20px; margin: 6px 0 14px; }
+.tr-face { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.tr-face .avatar-emoji, .tr-face .trainer-svg { font-size: 52px; width: 64px; height: 64px; }
+.tr-face b { font-size: 15px; }
+.tr-hands { font-size: 40px; }
+.trade-ask { font-size: 18px; font-weight: 800; line-height: 1.5; margin: 0 0 16px; }
+.tr-mon { display: inline-flex; align-items: center; gap: 4px; font-weight: 900; color: var(--gold); }
+.tr-mon .poke-img, .tr-mon img { height: 34px; vertical-align: middle; }
+.trade-go { font-size: 22px; padding: 16px 28px; }
+#trade-cancel { margin-top: 10px; }
+
+.trade-done { display: flex; justify-content: center; margin: 8px 0 6px; }
+.td-mon { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.td-mon span { font-size: 60px; }
+.td-mon span .poke-img, .td-mon span img { height: 72px; }
+.td-mon b { font-size: 18px; font-weight: 900; }
+.td-mon i { font-size: 13px; color: var(--good); font-weight: 800; }
+/* two pokeballs arcing across as the trade seals */
+.trade-balls { position: relative; height: 0; }
+.trade-ball { position: absolute; top: -6px; font-size: 26px; }
+.trade-ball .ball-img, .trade-ball img { width: 26px; height: 26px; }
+.tb-l { left: 20%; animation: tradeArcR 1s ease-in-out; }
+.tb-r { left: 80%; animation: tradeArcL 1s ease-in-out; }
+@keyframes tradeArcR { 0% { left: 20%; transform: translateY(0); } 50% { transform: translateY(-40px); } 100% { left: 80%; transform: translateY(0); } }
+@keyframes tradeArcL { 0% { left: 80%; transform: translateY(0); } 50% { transform: translateY(40px); } 100% { left: 20%; transform: translateY(0); } }
+@media (max-width: 560px) {
+  .trade-cols { flex-direction: column; }
+  .trade-ritual { gap: 10px; }
+}
 
 /* dex cards: tiny "found in" icon line (hover an icon for details) */
 .dex-where { font-size: 13px; margin-top: 3px; letter-spacing: 2px; cursor: help; }
