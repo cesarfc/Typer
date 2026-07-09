@@ -7,6 +7,7 @@ window.addEventListener("DOMContentLoaded", () => {
   SFX.setEnabled(SAVE.state ? SAVE.state.settings.sound : true);
 
   Tutorial.bind();
+  Puzzle.init();
 
   // one routing point for keys, whether they arrive from a real keyboard
   // (keydown) or from a touch device's on-screen keyboard (beforeinput)
@@ -69,5 +70,5 @@ window.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("pointerdown", () => SFX.init(), { once: true });
 
   // Debug / tinkering handle
-  window.TQ = { SAVE, Engine, UI, SFX, Tutorial, WORLDS, CREATURES, routeKey };
+  window.TQ = { SAVE, Engine, UI, SFX, Tutorial, Puzzle, WORLDS, CREATURES, routeKey };
 });

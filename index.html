@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192.png">
-<link rel="stylesheet" href="css/style.css?v=49">
+<link rel="stylesheet" href="css/style.css?v=53">
 </head>
 <body>
 <div id="app">
@@ -181,6 +181,40 @@
       <div id="paragraph-list"></div>
     </section>
 
+    <!-- ============ PUZZLE LAB — picker ============ -->
+    <section id="screen-lab" class="screen hidden">
+      <h2 class="screen-title">🧩 Puzzle Lab</h2>
+      <p class="lab-sub">Snap code blocks together to guide a Pokemon through each puzzle — and catch new friends! No clock, no rush.</p>
+      <div id="lab-body"></div>
+    </section>
+
+    <!-- ============ PUZZLE LAB — stage playfield ============ -->
+    <section id="screen-puzzle" class="screen hidden">
+      <div id="puzzle-head">
+        <button id="puzzle-back" class="pz-headbtn">← Lab</button>
+        <div id="puzzle-title"></div>
+        <button id="puzzle-hint" class="pz-headbtn">💡 Hint</button>
+      </div>
+      <div id="puzzle-hud" class="hidden"></div>
+      <div id="puzzle-board">
+        <div id="puzzle-grid"></div>
+      </div>
+      <div id="puzzle-msg" class="hidden"></div>
+      <div id="puzzle-editor">
+        <div id="puzzle-palette"></div>
+        <div id="puzzle-program-wrap">
+          <div id="puzzle-plan-bar"><span id="puzzle-goal"></span><span id="puzzle-count"></span></div>
+          <div id="puzzle-program"></div>
+        </div>
+        <div id="puzzle-controls">
+          <button id="puzzle-run" class="big-btn">▶ Run</button>
+          <button id="puzzle-step" class="mid-btn" title="Do one block at a time">⏭ Step</button>
+          <button id="puzzle-reset" class="mid-btn">↺ Reset</button>
+          <button id="puzzle-speed" class="mid-btn" title="How fast it plays">🐇</button>
+        </div>
+      </div>
+    </section>
+
     <!-- ============ RESULTS ============ -->
     <section id="screen-results" class="screen hidden">
       <div id="results-card">
@@ -320,13 +354,14 @@
   <div id="area-panel" class="hidden"></div>
 
 </div>
-<script src="js/data.js?v=49"></script>
-<script src="js/audio.js?v=49"></script>
-<script src="js/save.js?v=49"></script>
-<script src="js/engine.js?v=49"></script>
-<script src="js/sprites.js?v=49"></script>
-<script src="js/ui.js?v=49"></script>
-<script src="js/tutorial.js?v=49"></script>
-<script src="js/main.js?v=49"></script>
+<script src="js/data.js?v=53"></script>
+<script src="js/audio.js?v=53"></script>
+<script src="js/save.js?v=53"></script>
+<script src="js/engine.js?v=53"></script>
+<script src="js/sprites.js?v=53"></script>
+<script src="js/ui.js?v=53"></script>
+<script src="js/puzzle.js?v=53"></script>
+<script src="js/tutorial.js?v=53"></script>
+<script src="js/main.js?v=53"></script>
 </body>
 </html>

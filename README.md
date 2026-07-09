@@ -151,7 +151,7 @@ mystery Pokemon — then the clock starts.
 
 ## What keeps kids coming back
 
-- **96 Pokemon to collect** — from Magikarp to Arceus. Finish a level, then
+- **120 Pokemon to collect** — from Magikarp to Arceus. Finish a level, then
   type the wild Pokemon's name fast enough to catch it. Rarer Pokemon only
   appear after better runs (common 1★ · rare 2★ · epic 3★), and 3-star
   catches can be ✨ **shiny**.
@@ -193,6 +193,17 @@ mystery Pokemon — then the clock starts.
   the 👑 Hall of Fame (you'll need your capitals and punctuation). Type a whole
   short story as flowing prose — ten to choose from — with no countdown: the
   stopwatch counts up while you type and you race your own best WPM.
+- **🧩 Puzzle Lab (block coding + math)** — a second side-building beside the
+  Trainer School, opening once you reach Mt. Moon. **No keyboard needed to
+  play:** snap code blocks together to guide a Pokemon through grid puzzles,
+  then catch a new friend the usual way — by typing its name (the only typing
+  in the Lab). A **Coding Wing** teaches walking, loops, ifs and AND/OR/NOT
+  logic across five chapters; a **Math Wing** (opens after the Loops chapter)
+  turns counting, times-tables and number-line hops into moves. Tap **⏭ Step**
+  to walk your plan one block at a time, pick a 🐢/🐇/⚡ playback speed, and tap
+  **💡 Hint** for a gentle ladder of tips (with a "Watch a bit" demo on the very
+  first stages). **24 new Pokemon live only here** — solving stages is the one
+  way to catch them. No clocks, no fail states: hints teach, they never scold.
 - **Create your own trainer** — pick skin tone, hair style and color, hat
   and shirt when making a player (🎲 randomizes). Your trainer appears in
   the top bar, standing on the map, and in every battle. Existing players
@@ -205,7 +216,7 @@ mystery Pokemon — then the clock starts.
   Kelvin Shadewing (via the Tuxemon project — see CREDITS.md).
 - **Combos** — 25 correct keys in a row triggers SUPER MODE.
 - **XP, levels and titles** — from Rookie all the way to Typing Legend.
-- **36 trophies**, daily play streaks, and a personal-best speed chart.
+- **43 trophies**, daily play streaks, and a personal-best speed chart.
 - **🥷 Ninja Mode** — hide the on-screen keyboard for 1.5× XP (this is the
   real goal: typing without looking!).
 

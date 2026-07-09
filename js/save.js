@@ -55,6 +55,7 @@ const SAVE = {
       practice: {},                // tier id -> { time: bestMs, wpm: best, ghost: [ms...] }
       rematch: {},                 // world index -> best rematch tier (1 silver, 2 gold)
       paragraphs: {},              // story id -> { wpm, acc } personal bests
+      puzzle: {},                  // Puzzle Lab: stageId -> { stars, caught, bestBlocks }
       flags: {},                   // one-time hints / NEW badges bookkeeping
       trophies: {},                // id -> true
       settings: { sound: true, hints: true, difficulty: "normal" },
@@ -174,7 +175,7 @@ const SAVE = {
     let h = 0;
     for (const ch of wk) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
     const W6 = HALL_W;
-    const pool = CREATURES[W6].map((c, i) => ({ c, i })).filter(x => !x.c.evoOnly);
+    const pool = CREATURES[W6].map((c, i) => ({ c, i })).filter(x => catchable(x.c));
     const un = pool.filter(x => !this.state.dex[`${W6}-${x.i}`]);
     const list = un.length ? un : pool;
     const x = list[h % list.length];
@@ -213,7 +214,7 @@ const SAVE = {
   // deterministic weekly pick, offset from the roamer's hash so the raid boss
   // and the roaming legendary are (almost) never the same creature in a week
   raidPick(wk) {
-    const pool = CREATURES[HALL_W].map((c, i) => ({ c, i })).filter(x => !x.c.evoOnly);
+    const pool = CREATURES[HALL_W].map((c, i) => ({ c, i })).filter(x => catchable(x.c));
     if (!pool.length) return 0;
     let h = 0;
     for (const ch of wk) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
@@ -604,7 +605,7 @@ const SAVE = {
   // Rarity is star-gated (common 1★, rare 2★, epic+ 3★); when nothing
   // new is available the round offers a duplicate, which earns candy.
   pickCatch(w, stars) {
-    const pool = CREATURES[w].map((c, i) => ({ c, i })).filter(x => !x.c.evoOnly);
+    const pool = CREATURES[w].map((c, i) => ({ c, i })).filter(x => catchable(x.c));
     const gate = r => (r <= 1 ? 1 : r === 2 ? 2 : 3);
     const pickFrom = list => {
       const x = list[Math.floor(Math.random() * list.length)];
@@ -681,7 +682,7 @@ const SAVE = {
       const x = list[acc.findIndex(a => roll < a)];
       return { ...x.c, w: x.w !== undefined ? x.w : w, i: x.i };
     };
-    const pool = CREATURES[w].map((c, i) => ({ c, i })).filter(x => !x.c.evoOnly);
+    const pool = CREATURES[w].map((c, i) => ({ c, i })).filter(x => catchable(x.c));
     const un = pool.filter(x => !this.state.dex[`${w}-${x.i}`]);
     if (un.length) return { ...pickW(un), duplicate: false };
     const caught = pool.filter(x => this.state.dex[`${w}-${x.i}`]);
@@ -822,6 +823,100 @@ const SAVE = {
     return { xp, betterWpm, betterAcc, prevWpm: prev.wpm || null, newTrophies };
   },
 
+  // ---- Puzzle Lab: bank a solved stage (best stars & fewest blocks only) ----
+  // Light pattern like applyPractice: Math.max the record, award XP, count the
+  // day's school stamp. The catch itself is a separate ceremony (startPuzzleCatch),
+  // so this never touches the dex. Returns what the win card needs to show.
+  applyPuzzle(stageId, stars, blocks) {
+    const st = this.state;
+    if (!st.puzzle) st.puzzle = {};
+    const stage = PUZZLE_STAGES.find(s => s.id === stageId);
+    const prev = st.puzzle[stageId];
+    const firstClear = !prev || !prev.stars;
+    const rec = st.puzzle[stageId] = {
+      stars: Math.max(stars, prev ? prev.stars || 0 : 0),
+      caught: !!(prev && prev.caught),
+      bestBlocks: prev && prev.bestBlocks ? Math.min(prev.bestBlocks, blocks) : blocks,
+    };
+    // XP scaled like applyPractice/applyParagraph: a solve pays, mastery pays
+    // more, and the first clear (plus capstones) gets a bonus.
+    let xp = 15 + 10 * stars + (firstClear ? 10 : 0);
+    if (stage && stage.capstone) xp += 15;
+    st.xp += xp;
+    this.dayInfo().school = true; // a lab solve counts for the day's third stamp
+    const newTrophies = [];
+    this.award("puzzle-1", newTrophies);                                  // 🧩 first solve ever
+    if (this.allCodingStagesSolved()) this.award("puzzle-code", newTrophies); // 💻 all 18 coding stages
+    if (this.allMathStagesSolved()) this.award("puzzle-math", newTrophies);   // 🔢 all 14 math stages
+    if (this.allStagesThreeStars()) this.award("puzzle-stars", newTrophies);  // 🌟 3★ on every stage
+    this.collectTrophies(newTrophies); // harmless now; catches add the real dex growth
+    this.save();
+    return { xp, newTrophies, firstClear, record: rec };
+  },
+
+  // ---- Puzzle Lab gating helpers ----
+  // a chapter opens once EVERY stage of the chapter before it has >=1 star
+  puzzleChapterComplete(pack, ch) {
+    const list = PUZZLE_STAGES.filter(s => s.pack === pack && s.chapter === ch);
+    return list.length > 0 && list.every(s => {
+      const r = this.state.puzzle[s.id];
+      return !!(r && r.stars > 0);
+    });
+  },
+  // Master Coder: a star on all 18 coding stages
+  allCodingStagesSolved() {
+    return PUZZLE_STAGES.filter(s => s.pack === "code").every(s => {
+      const r = this.state.puzzle[s.id];
+      return !!(r && r.stars > 0);
+    });
+  },
+  // Number Wizard: a star on all 14 math stages
+  allMathStagesSolved() {
+    return PUZZLE_STAGES.filter(s => s.pack === "math").every(s => {
+      const r = this.state.puzzle[s.id];
+      return !!(r && r.stars > 0);
+    });
+  },
+  // Puzzle Perfect: three stars on EVERY stage (both packs). All these
+  // completion checks look up records by stage id, so bookkeeping keys like
+  // `_speed` on state.puzzle are never mistaken for a stage record.
+  allStagesThreeStars() {
+    return PUZZLE_STAGES.every(s => {
+      const r = this.state.puzzle[s.id];
+      return !!(r && r.stars >= 3);
+    });
+  },
+
+  // ---- Puzzle Lab playback speed (🐢/🐇/⚡) — one setting per player, stored on
+  // the puzzle save object under an underscore key so it never collides with a
+  // stage id. Persists across reloads; defaults to medium. ----
+  puzzleSpeed() {
+    const s = this.state.puzzle && this.state.puzzle._speed;
+    return (s === 0 || s === 1 || s === 2) ? s : 1;
+  },
+  setPuzzleSpeed(idx) {
+    if (!this.state.puzzle) this.state.puzzle = {};
+    this.state.puzzle._speed = idx;
+    this.save();
+  },
+
+  // mark a lab reward as caught once its ceremony awards it (bookkeeping so the
+  // record schema stays honest; the dex is the real source of truth)
+  markPuzzleCaught(stageId) {
+    if (this.state.puzzle && this.state.puzzle[stageId]) {
+      this.state.puzzle[stageId].caught = true;
+      this.save();
+    }
+  },
+
+  // build the creature object the catch ceremony needs from a "w-i" dex key
+  puzzleCatchPick(key) {
+    const [w, i] = key.split("-").map(Number);
+    const c = CREATURES[w] && CREATURES[w][i];
+    if (!c) return null;
+    return { ...c, w, i, key, duplicate: !!this.state.dex[key] };
+  },
+
   // ---- Mystery Egg: what hatches depends on streak (better odds when
   // playing daily) and the current dex; duplicates hatch into 3 candy ----
   eggPick() {
@@ -833,7 +928,7 @@ const SAVE = {
     const avail = [];
     CREATURES.forEach((list, w) => {
       if (!this.worldUnlocked(w)) return;
-      list.forEach((c, i) => { if (!c.evoOnly && !this.state.dex[`${w}-${i}`]) avail.push({ c, w, i }); });
+      list.forEach((c, i) => { if (catchable(c) && !this.state.dex[`${w}-${i}`]) avail.push({ c, w, i }); });
     });
     const pickW = list => {
       let t = 0;
@@ -845,7 +940,7 @@ const SAVE = {
     if (avail.length) return { ...pickW(avail), duplicate: false };
     const caught = [];
     CREATURES.forEach((list, w) => list.forEach((c, i) => {
-      if (!c.evoOnly && this.state.dex[`${w}-${i}`] && EVOLUTIONS.some(f => f.base === `${w}-${i}`)) {
+      if (catchable(c) && this.state.dex[`${w}-${i}`] && EVOLUTIONS.some(f => f.base === `${w}-${i}`)) {
         caught.push({ c, w, i });
       }
     }));

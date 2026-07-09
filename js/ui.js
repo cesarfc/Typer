@@ -151,7 +151,9 @@ const UI = {
     document.querySelectorAll(".screen").forEach(s => s.classList.add("hidden"));
     this.$(`screen-${name}`).classList.remove("hidden");
     const bar = this.$("topbar");
-    if (name === "title" || name === "game" || name === "tutorial") bar.classList.add("hidden");
+    // the puzzle playfield is a full-screen mode like the game; the lab picker
+    // keeps the topbar like the practice picker
+    if (name === "title" || name === "game" || name === "tutorial" || name === "puzzle") bar.classList.add("hidden");
     else bar.classList.remove("hidden");
     document.querySelectorAll(".navbtn").forEach(b =>
       b.classList.toggle("active", b.dataset.nav === name));
@@ -161,6 +163,7 @@ const UI = {
     if (name === "journal") this.renderJournal();
     if (name === "stats") this.renderStats();
     if (name === "practice") this.renderPractice();
+    if (name === "lab") Puzzle.renderPicker();
     if (name !== "title" && name !== "game") this.renderTopbar();
     this.touchKeyboard(name);
     if (name === "map") this.maybeDayCard();
@@ -664,6 +667,13 @@ const UI = {
     // Trainer School: practice with no countdown, any time
     html += `<button class="map-school" style="left:430px;top:1330px" title="Trainer School — no countdown, race your records!">
       <span>${mapSprite("school", 68)}</span><b>Trainer School</b></button>`;
+
+    // Puzzle Lab: a side building beside the school — opens once Mt. Moon is
+    // reached, so a brand-new trainer never sees it
+    if (SAVE.worldUnlocked(1)) {
+      html += `<button class="map-lab" style="left:238px;top:1392px" title="Puzzle Lab — code your way to new Pokemon!">
+        <span>${mapSprite("lab", 70)}</span><b>🧩 Puzzle Lab</b></button>`;
+    }
 
     // Professor's Daily Drill podium beside the school
     const daily = SAVE.dailyInfo();
@@ -1192,6 +1202,12 @@ const UI = {
       if (sc) {
         SFX.init();
         this.show("practice");
+        return;
+      }
+      const lab = e.target.closest(".map-lab");
+      if (lab) {
+        SFX.init();
+        this.show("lab");
         return;
       }
       const pd = e.target.closest(".map-podium");
@@ -2787,6 +2803,85 @@ const UI = {
     this.speech("Welcome me! Type my name — no rush!", 3200);
     this.renderPromptText(S);
     this.$("timer-fill").style.width = "100%";
+  },
+
+  // Puzzle Lab catch: a Poke Ball wobbles open to reveal the puzzle's reward.
+  // Modeled on hatchReveal (same "no rush" staging), then hands off to the
+  // welcome-state "type its name" ceremony.
+  puzzleCatchReveal(S, done) {
+    this.show("game");
+    this.$("screen-game").classList.remove("paragraph-mode");
+    const c = S.pcatch.creature;
+    document.body.classList.remove("super-mode");
+    this.$("capslock-warn").classList.add("hidden");
+    this.$("kb-flex").classList.remove("ninja");
+    this.$("hud-stage").textContent = "🧩 Puzzle solved — a new friend appears!";
+    this.$("hud-progress").classList.remove("hidden");
+    this.$("hud-progress-fill").style.width = "100%";
+    this.$("hud-hearts").classList.add("hidden");
+    this.$("boss-bar").classList.add("hidden");
+    this.practiceTimerUI(false);
+    this.$("timer-bar").classList.add("hidden"); // "no rush" should look like no rush
+    this.showPartner(S);
+    this.partnerMeter(S);
+    this.$("player-avatar").innerHTML = this.avatarHtml(SAVE.state.profile);
+    this.updateHud(S);
+    const arena = this.$("arena");
+    arena.style.background = "linear-gradient(160deg, #2a1f4a, #3aa06a)";
+    arena.style.setProperty("--wa", "#43e97b");
+    const scene = this.$("scene-emojis");
+    scene.innerHTML = "";
+    ["🧩", "✨", "🍃", "💫"].forEach((e2, i) => {
+      const sp = document.createElement("span");
+      sp.textContent = e2;
+      sp.style.left = `${12 + i * 24}%`;
+      sp.style.top = `${15 + (i % 2) * 50}%`;
+      sp.style.fontSize = "20px";
+      scene.appendChild(sp);
+    });
+    const wrap = this.$("target-wrap");
+    const target = this.$("target");
+    this.$("target-label").classList.add("hidden");
+    wrap.style.opacity = 1;
+    wrap.style.transform = "none";
+    wrap.classList.remove("enter", "hit", "flee", "wobble");
+    target.className = "catch-size";
+    target.innerHTML = `<span class="ball-reveal drop">${this.ballHtml()}</span>`;
+    this.$("prompt-word").innerHTML = [...S.text].map(() => `<span class="ch mystery">?</span>`).join("");
+    const tf = this.$("timer-fill");
+    tf.style.width = "100%";
+    tf.classList.remove("low");
+    this.highlightKey(null);
+    SFX.thump();
+    this.announce("Who did you guide home... ?", 1400);
+    const alive = () => Engine.session === S && S.state === "reveal";
+    setTimeout(() => {
+      if (!alive()) return;
+      const ball = target.querySelector(".ball-reveal");
+      if (ball) ball.classList.add("wobbling");
+      SFX.tick();
+    }, 520);
+    setTimeout(() => { if (alive()) SFX.tick(); }, 1000);
+    setTimeout(() => { if (alive()) SFX.tick(); }, 1460);
+    setTimeout(() => {
+      if (!alive()) return;
+      SFX.pop();
+      const r = target.getBoundingClientRect();
+      this.burst(r.left + r.width / 2, r.top + r.height / 2, ["#fff", "#43e97b", "#7fd4ff"], 30, 6);
+      const flash = document.createElement("div");
+      flash.className = "poke-flash";
+      wrap.appendChild(flash);
+      setTimeout(() => flash.remove(), 550);
+      target.className = "catch-size" + (S.pcatch.shiny ? " shiny-poke" : "");
+      target.innerHTML = `<span class="poke-pop">${this.pokeHtml(c.id, c.e, { shiny: S.pcatch.shiny })}</span>`;
+      if (S.pcatch.shiny) this.shinyReveal(S);
+    }, 1820);
+    setTimeout(() => {
+      if (!alive()) return;
+      this.announce(`It's ${c.n}!${S.pcatch.shiny ? " ✨" : ""}`, 1800);
+      SFX.catchJingle();
+      done();
+    }, 2420);
   },
 
   // ---------- evolution scene ----------
