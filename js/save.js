@@ -53,6 +53,7 @@ const SAVE = {
       party: [],                   // up to 6 dex keys; first one is the lead partner
       roamer: null,                // { week, done } — weekly legendary attempt
       practice: {},                // tier id -> { time: bestMs, wpm: best, ghost: [ms...] }
+      wordPacks: [],               // My Words: [{ id, name, words: [] }] custom spelling drills
       rematch: {},                 // world index -> best rematch tier (1 silver, 2 gold)
       paragraphs: {},              // story id -> { wpm, acc } personal bests
       puzzle: {},                  // Puzzle Lab: stageId -> { stars, caught, bestBlocks }
@@ -801,6 +802,85 @@ const SAVE = {
     return result;
   },
 
+  // ---- My Words: parent-entered spelling lists that run as practice drills ----
+  wordPacks() {
+    return this.state.wordPacks || (this.state.wordPacks = []);
+  },
+
+  wordPackById(id) {
+    return this.wordPacks().find(p => p.id === id) || null;
+  },
+
+  // Validate a name + raw textarea (one word per line). Returns
+  // { ok:true, name, words } or { ok:false, error } with a kind message.
+  // `existingId` is the pack being edited (so its own slot doesn't count toward
+  // the 10-pack cap). Curly quotes/dashes are folded to plain ASCII first.
+  validateWordPack(rawName, rawText, existingId) {
+    const name = (rawName || "").trim();
+    if (!name) return { ok: false, error: "Give your word pack a name first! 📛" };
+    if (name.length > WORDPACK_NAME_MAXLEN) {
+      return { ok: false, error: `That name is a bit long — keep it under ${WORDPACK_NAME_MAXLEN} letters.` };
+    }
+    const words = [];
+    for (let line of (rawText || "").split("\n")) {
+      const word = Array.from(line.trim()).map(normalizeKey).join("");
+      if (!word) continue; // blank lines are fine — just skipped
+      if (word.length > WORDPACK_WORD_MAXLEN) {
+        return { ok: false, error: `“${word.slice(0, 12)}…” is too long — keep each word under ${WORDPACK_WORD_MAXLEN} letters.` };
+      }
+      for (const ch of word) {
+        if (!WORDPACK_ALLOWED.test(ch)) {
+          return { ok: false, error: `Oops — “${word}” has ${charName(ch)}, which we can’t teach yet. Try letters, spaces, or . , ' ! ?` };
+        }
+      }
+      words.push(word);
+      if (words.length > WORDPACK_WORDS_MAX) {
+        return { ok: false, error: `That’s a lot of words! A pack holds up to ${WORDPACK_WORDS_MAX}. ✂️` };
+      }
+    }
+    if (!words.length) return { ok: false, error: "Add at least one word to practice! ✏️" };
+    if (!existingId && this.wordPacks().length >= WORDPACK_MAX) {
+      return { ok: false, error: `You already have ${WORDPACK_MAX} word packs — delete one to make room.` };
+    }
+    return { ok: true, name, words };
+  },
+
+  // create (existingId null) or update a pack after validation. Returns
+  // { ok, pack } or the validation error object.
+  saveWordPack(existingId, rawName, rawText) {
+    const v = this.validateWordPack(rawName, rawText, existingId);
+    if (!v.ok) return v;
+    let pack;
+    if (existingId && (pack = this.wordPackById(existingId))) {
+      pack.name = v.name;
+      pack.words = v.words;
+    } else {
+      pack = { id: "wp" + Date.now().toString(36) + Math.floor(Math.random() * 100), name: v.name, words: v.words };
+      this.wordPacks().push(pack);
+    }
+    this.save();
+    return { ok: true, pack };
+  },
+
+  // delete a pack and its records/ghost. XP + trophies already earned stay.
+  deleteWordPack(id) {
+    const packs = this.wordPacks();
+    const i = packs.findIndex(p => p.id === id);
+    if (i < 0) return false;
+    packs.splice(i, 1);
+    delete this.state.practice["custom-" + id];
+    this.save();
+    return true;
+  },
+
+  // finishing a My Words drill for the first time earns 📚 Word Collector
+  awardWordCollector() {
+    const list = [];
+    this.award("words-1", list);
+    if (list.length) this.save();
+    return list;
+  },
+
   // ---- Story Typing: personal bests per paragraph ----
   applyParagraph(id, timeMs, wpm, acc, wordTimes) {
     const st = this.state;
@@ -839,13 +919,24 @@ const SAVE = {
     for (const pid of Object.keys(this.root.players)) {
       if (pid === activePid) continue;
       const p = this.root.players[pid];
-      const rec = kind === "paragraph"
-        ? (p.paragraphs && p.paragraphs[id])
-        : (p.practice && p.practice[id]);
+      const rec = this._ghostRec(p, kind, id);
       if (!rec || !rec.ghost || !rec.ghost.length) continue;
       out.push({ pid, name: p.profile.name, time: rec.time || null, wpm: rec.wpm || null });
     }
     return out;
+  },
+
+  // resolve a player's ghost record for a kind/id. "pack" matches a custom word
+  // pack by NAME (case-insensitive) since pack ids differ per player; the other
+  // kinds share ids across players and look up directly.
+  _ghostRec(p, kind, id) {
+    if (kind === "pack") {
+      const pk = (p.wordPacks || []).find(w => w.name.toLowerCase() === String(id).toLowerCase());
+      return pk && p.practice && p.practice["custom-" + pk.id];
+    }
+    return kind === "paragraph"
+      ? (p.paragraphs && p.paragraphs[id])
+      : (p.practice && p.practice[id]);
   },
 
   // Load a specific profile's ghost for a tier/story (read-only — racing a
@@ -854,9 +945,7 @@ const SAVE = {
   ghostFrom(kind, id, pid) {
     const p = this.root.players[pid];
     if (!p) return null;
-    const rec = kind === "paragraph"
-      ? (p.paragraphs && p.paragraphs[id])
-      : (p.practice && p.practice[id]);
+    const rec = this._ghostRec(p, kind, id);
     if (!rec || !rec.ghost || !rec.ghost.length) return null;
     return { ghost: rec.ghost, name: p.profile.name };
   },

@@ -622,6 +622,43 @@ button:active { transform: translateY(1px) scale(.98); }
 .tier-info em { font-style: normal; font-size: 12.5px; color: var(--info); font-weight: 700; }
 .para-card .tier-info em { color: var(--good); }
 
+/* ---- My Words: custom spelling packs ---- */
+#wordpack-list { display: flex; flex-direction: column; gap: 12px; width: min(560px, 94%); margin: 0 auto 14px; }
+.wordpack-row { display: flex; align-items: stretch; gap: 8px; }
+.wordpack-row > .wordpack-card { flex: 1; }
+.wordpack-card:hover { border-color: #c77bff; }
+.wordpack-card .tier-info em { color: #c77bff; }
+.wp-actions { display: flex; flex-direction: column; gap: 6px; justify-content: center; }
+.wp-edit, .wp-del {
+  font-size: 13px; font-weight: 800; color: var(--dim);
+  background: var(--card2); border: 1px solid var(--line);
+  border-radius: 10px; padding: 6px 10px; cursor: pointer; white-space: nowrap;
+}
+.wp-edit:hover { color: var(--info); border-color: var(--info); }
+.wp-del:hover { color: var(--bad); border-color: var(--bad); }
+.wordpack-new { width: 100%; border-style: dashed; }
+.wordpack-new:hover { border-color: #c77bff; }
+.wordpack-full { text-align: center; color: var(--dim); font-size: 13px; }
+
+/* the create/edit form panel */
+#wordpack-form { width: min(560px, 94%); margin: 0 auto 24px; }
+.wp-form-inner {
+  background: var(--card); border: 2px solid #c77bff; border-radius: 16px;
+  padding: 16px 18px; display: flex; flex-direction: column; gap: 10px;
+}
+.wp-form-inner h4 { font-size: 16px; font-weight: 900; }
+.wp-field { display: flex; flex-direction: column; gap: 4px; text-align: left; }
+.wp-field > span { font-size: 13px; font-weight: 700; color: var(--dim); }
+#wp-name, #wp-words {
+  font: inherit; color: var(--text); background: var(--card2);
+  border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; width: 100%;
+}
+#wp-words { resize: vertical; line-height: 1.5; }
+#wp-name:focus, #wp-words:focus { outline: none; border-color: #c77bff; }
+.wp-hint { font-size: 12px; color: var(--dim); }
+.wp-error { font-size: 13px; font-weight: 700; color: var(--bad); background: #2a1626; border-radius: 10px; padding: 8px 11px; }
+.wp-form-btns { display: flex; gap: 10px; margin-top: 2px; }
+
 #stopwatch {
   width: min(460px, 90%);
   margin: 10px auto 0;

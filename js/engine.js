@@ -268,7 +268,10 @@ const Engine = {
   },
 
   // ---- Trainer School: no countdown, race your own best ----
+  // Virtual tier ids route to sibling systems that reuse the same machinery:
+  //   "custom-<packId>"  → My Words spelling drill
   startPractice(tierId, ghostPid) {
+    if (typeof tierId === "string" && tierId.startsWith("custom-")) { this.startWordPack(tierId.slice(7), ghostPid); return; }
     const tier = PRACTICE_TIERS.find(t => t.id === tierId);
     if (!tier || !SAVE.worldUnlocked(tier.need)) return;
     const pool = new Set();
@@ -307,6 +310,48 @@ const Engine = {
       baseTime: 0, state: "play", practice: tier,
       wordTimes: [], ghost, // cumulative ms per word; ghost = best run's snapshots
       ghostName, ghostPid: ghostOwnerPid, // set only when racing a sibling's ghost
+      partner: SAVE.leadCreature(), charge: 0, partnerReady: false, meterOn: false,
+      ninjaEligible: false, pendingRes: null, catchCreature: null,
+    };
+    UI.practiceScene(this.session);
+    this.nextPrompt();
+  },
+
+  // ---- My Words: a custom spelling pack runs exactly like a practice tier.
+  // Records live under practice["custom-"+packId], so applyPractice + the ghost
+  // machinery just work. Sibling ghosts match by pack NAME (kind "pack").
+  startWordPack(packId, ghostPid) {
+    const pack = SAVE.wordPackById(packId);
+    if (!pack || !pack.words.length) return;
+    const prompts = shuffle(pack.words.slice());
+    const key = "custom-" + pack.id;
+
+    const rec = SAVE.state.practice[key] || {};
+    let ghost = rec.ghost && rec.ghost.length ? rec.ghost : null;
+    let ghostName = null, ghostOwnerPid = null;
+    if (ghostPid && ghostPid !== SAVE.root.active) {
+      const g = SAVE.ghostFrom("pack", pack.name, ghostPid);
+      if (g) { ghost = g.ghost; ghostName = g.name; ghostOwnerPid = ghostPid; }
+    }
+
+    this.paused = false;
+    this.pendingNext = false;
+    this.session = {
+      w: 0, s: -4, isBoss: false,
+      world: {
+        name: "My Words", gradient: ["#2a1b42", "#5a3f6e"], accent: "#c77bff",
+        targets: ["📚", "✏️", "⭐"], projectile: "⚡",
+        hitText: ["Nice!", "Sharp!", "Clean!", "Spelled it!"],
+        sceneEmojis: ["📚", "✏️", "⭐", "🏫"], levels: [],
+      },
+      prompts, idx: -1, text: "", pos: 0,
+      score: 0, combo: 0, bestCombo: 0,
+      hits: 0, errors: 0, errorsThisPrompt: 0, timeouts: 0, hearts: 3,
+      typingMs: 0, promptStart: 0, timerMs: 0, timerRemaining: 0,
+      baseTime: 0, state: "play",
+      practice: { id: key, label: pack.name }, custom: pack, packName: pack.name,
+      wordTimes: [], ghost,
+      ghostName, ghostPid: ghostOwnerPid,
       partner: SAVE.leadCreature(), charge: 0, partnerReady: false, meterOn: false,
       ninjaEligible: false, pendingRes: null, catchCreature: null,
     };
@@ -372,8 +417,13 @@ const Engine = {
       if (S.ghostName && ghost && ghost.beat) {
         applied.newTrophies = (applied.newTrophies || []).concat(SAVE.awardSiblingRace());
       }
+      // My Words: finishing any custom-pack drill earns 📚 Word Collector once
+      if (S.custom) {
+        applied.newTrophies = (applied.newTrophies || []).concat(SAVE.awardWordCollector());
+      }
       UI.showPracticeResults({
-        tier: S.practice, timeMs, wpm, acc, bestCombo: S.bestCombo, ghost, ghostPid: S.ghostPid, ...applied,
+        tier: S.practice, timeMs, wpm, acc, bestCombo: S.bestCombo, ghost, ghostPid: S.ghostPid,
+        custom: !!S.custom, ...applied,
       });
       return;
     }

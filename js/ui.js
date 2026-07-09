@@ -1451,6 +1451,22 @@ const UI = {
       }
     });
 
+    this.$("wordpack-list").addEventListener("click", e => {
+      const gp = e.target.closest(".ghost-pick");
+      if (gp) { this.pickRaceGhost(gp); return; }
+      const edit = e.target.closest(".wp-edit");
+      if (edit) { this.openWordPackForm(edit.dataset.pack); return; }
+      const del = e.target.closest(".wp-del");
+      if (del) { this.deleteWordPackFlow(del.dataset.pack); return; }
+      if (e.target.closest(".wordpack-new")) { this.openWordPackForm(null); return; }
+      const card = e.target.closest(".wordpack-card");
+      if (!card) return;
+      SFX.init();
+      const pack = SAVE.wordPackById(card.dataset.pack);
+      const sel = pack && this._raceGhost && this._raceGhost[`pack:${pack.name}`];
+      Engine.startPractice(`custom-${card.dataset.pack}`, sel && sel !== "mine" ? sel : null);
+    });
+
     this.$("party-bar").addEventListener("click", e => {
       const slot = e.target.closest(".party-slot.filled");
       if (!slot) return;
@@ -2505,6 +2521,117 @@ const UI = {
       </button>`;
       return `<div class="tier-wrap">${card}${open ? this.ghostRaceHtml("paragraph", p.id, pb) : ""}</div>`;
     }).join("");
+
+    this.renderWordPacks();
+  },
+
+  // ---- My Words: list custom spelling packs as playable tier-cards, each with
+  // edit/delete, plus a "New word pack" card that opens the form. ----
+  renderWordPacks() {
+    const list = this.$("wordpack-list");
+    if (!list) return;
+    const packs = SAVE.wordPacks();
+    let html = packs.map(pk => {
+      const pb = SAVE.state.practice["custom-" + pk.id];
+      const pbHtml = pb
+        ? `⏱ best ${this.fmtTime(pb.time)} · ⚡ best ${pb.wpm} wpm`
+        : `no record yet — set one!`;
+      const card = `<button class="tier-card wordpack-card" data-pack="${this.esc(pk.id)}">
+        <span class="tier-e">📚</span>
+        <span class="tier-info">
+          <b>${this.esc(pk.name)}</b>
+          <i>${pk.words.length} word${pk.words.length === 1 ? "" : "s"}</i>
+          <em>${pbHtml}</em>
+        </span>
+      </button>`;
+      const actions = `<div class="wp-actions">
+        <button class="wp-edit" data-pack="${this.esc(pk.id)}" title="Edit this pack">✏️ Edit</button>
+        <button class="wp-del" data-pack="${this.esc(pk.id)}" title="Delete this pack">🗑️</button>
+      </div>`;
+      return `<div class="tier-wrap"><div class="wordpack-row">${card}${actions}</div>${this.ghostRaceHtml("pack", pk.name, pb)}</div>`;
+    }).join("");
+
+    if (packs.length < WORDPACK_MAX) {
+      html += `<button class="tier-card wordpack-new" data-newpack="1">
+        <span class="tier-e">➕</span>
+        <span class="tier-info"><b>New word pack</b><i>Turn a spelling list into a drill</i></span>
+      </button>`;
+    } else {
+      html += `<p class="wordpack-full">📚 You have all ${WORDPACK_MAX} word packs — delete one to add more.</p>`;
+    }
+    list.innerHTML = html;
+  },
+
+  // open the create/edit form. packId null → create; otherwise prefill for edit.
+  openWordPackForm(packId) {
+    SFX.click();
+    const form = this.$("wordpack-form");
+    const pack = packId ? SAVE.wordPackById(packId) : null;
+    const name = pack ? pack.name : "";
+    const words = pack ? pack.words.join("\n") : "";
+    form.dataset.editing = packId || "";
+    form.innerHTML = `
+      <div class="wp-form-inner">
+        <h4>${pack ? "✏️ Edit word pack" : "📚 New word pack"}</h4>
+        <label class="wp-field">
+          <span>Pack name</span>
+          <input id="wp-name" type="text" maxlength="${WORDPACK_NAME_MAXLEN}" placeholder="e.g. Week 12 Spelling" value="${this.esc(name)}">
+        </label>
+        <label class="wp-field">
+          <span>Words — one per line (up to ${WORDPACK_WORDS_MAX})</span>
+          <textarea id="wp-words" rows="7" placeholder="friend\nbecause\nlittle\n...">${this.esc(words)}</textarea>
+        </label>
+        <p class="wp-hint">Letters, spaces, and . , ' ! ? are welcome. Capitals are fine!</p>
+        <div id="wp-error" class="wp-error hidden"></div>
+        <div class="wp-form-btns">
+          <button id="wp-save" class="btn primary">💾 Save pack</button>
+          <button id="wp-cancel" class="btn">Cancel</button>
+        </div>
+      </div>`;
+    form.classList.remove("hidden");
+    this.$("wp-save").addEventListener("click", () => this.saveWordPackForm());
+    this.$("wp-cancel").addEventListener("click", () => this.closeWordPackForm());
+    const nameEl = this.$("wp-name");
+    nameEl.focus();
+    form.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  },
+
+  closeWordPackForm() {
+    SFX.click();
+    const form = this.$("wordpack-form");
+    form.classList.add("hidden");
+    form.innerHTML = "";
+    form.dataset.editing = "";
+  },
+
+  saveWordPackForm() {
+    const form = this.$("wordpack-form");
+    const editing = form.dataset.editing || null;
+    const name = this.$("wp-name").value;
+    const words = this.$("wp-words").value;
+    const res = SAVE.saveWordPack(editing, name, words);
+    if (!res.ok) {
+      SFX.error();
+      const err = this.$("wp-error");
+      err.textContent = res.error;
+      err.classList.remove("hidden");
+      return;
+    }
+    SFX.correct();
+    this.closeWordPackForm();
+    this.renderWordPacks();
+    this.toast(editing ? `📚 Updated “${res.pack.name}”!` : `📚 New pack “${res.pack.name}” ready — go practice!`, "gold");
+  },
+
+  deleteWordPackFlow(packId) {
+    const pack = SAVE.wordPackById(packId);
+    if (!pack) return;
+    if (!confirm(`Delete “${pack.name}”? Its best times go too, but any XP and trophies you earned stay yours. 💛`)) return;
+    SAVE.deleteWordPack(packId);
+    SFX.click();
+    this.closeWordPackForm();
+    this.renderWordPacks();
+    this.toast(`📚 “${pack.name}” removed.`);
   },
 
   // Sibling ghost selector shown under a tier/story card when at least one
@@ -2555,7 +2682,9 @@ const UI = {
     const card = this.$("results-card");
     card.classList.remove("defeat");
     card.style.setProperty("--wa", "#4dc3ff");
-    this.$("results-title").textContent = `🏫 Practice · ${res.tier.label}`;
+    this.$("results-title").textContent = res.custom
+      ? `📚 My Words · ${res.tier.label}`
+      : `🏫 Practice · ${res.tier.label}`;
     this.$("results-stars").classList.add("hidden");
     this.$("results-grid").innerHTML = `
       <div class="rstat"><div class="rstat-v">${this.fmtTime(res.timeMs)}</div><div class="rstat-l">your time</div></div>

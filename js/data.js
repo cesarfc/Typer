@@ -754,6 +754,30 @@ const PRACTICE_TIERS = [
   { id: "expert", label: "Expert", e: "👑", desc: "Capitals & full sentences · Hall of Fame", worlds: [5], count: 6,  need: 5 },
 ];
 
+// ---- My Words: parents type weekly spelling lists that run as practice drills.
+// Caps keep saves tidy and each word typeable with the taught keys. The allowed
+// charset is exactly what the finger guide (KB rows + SHIFT_MAP + KEY_FINGER)
+// can teach: letters (capitals fine), spaces, and the taught punctuation . , ' ! ?
+const WORDPACK_MAX = 10;          // packs per player
+const WORDPACK_WORDS_MAX = 30;    // words per pack
+const WORDPACK_WORD_MAXLEN = 24;  // characters per word
+const WORDPACK_NAME_MAXLEN = 24;  // characters in a pack name
+const WORDPACK_ALLOWED = /[A-Za-z .,'!?]/;  // one allowed character
+
+// friendly name for a rejected character, so the message can say what to fix
+function charName(ch) {
+  const names = { " ": "a space", "\t": "a tab", "\n": "a line break",
+    "0": "the digit 0", "1": "the digit 1", "2": "the digit 2", "3": "the digit 3",
+    "4": "the digit 4", "5": "the digit 5", "6": "the digit 6", "7": "the digit 7",
+    "8": "the digit 8", "9": "the digit 9",
+    '"': "a double-quote", ":": "a colon", ";": "a semicolon", "-": "a dash",
+    "@": "an @ sign", "#": "a # sign", "&": "an & sign", "/": "a slash", "\\": "a backslash",
+    "(": "a (", ")": "a )", "%": "a percent sign" };
+  if (names[ch]) return names[ch];
+  if (/\d/.test(ch)) return `the digit ${ch}`;
+  return `“${ch}”`;
+}
+
 // ============================================================
 // Puzzle Lab — a no-keyboard side building: snap code blocks to guide a
 // Pokemon through a grid, then catch it with the type-its-name ceremony.
@@ -1426,6 +1450,7 @@ const TROPHIES = [
   { id: "puzzle-stars", e: "🌟", name: "Puzzle Perfect", desc: "Earn 3 stars on every stage in the Puzzle Lab" },
   { id: "race-sibling", e: "🏁", name: "Family Race", desc: "Beat a sibling's ghost in Trainer School or Story Typing" },
   { id: "trade-1", e: "🤝", name: "Best Friends", desc: "Trade a Pokemon with a family trainer" },
+  { id: "words-1", e: "📚", name: "Word Collector", desc: "Finish a My Words spelling drill" },
 ];
 
 const ENCOURAGE = [
