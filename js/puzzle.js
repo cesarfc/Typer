@@ -24,6 +24,7 @@ const Puzzle = {
   condPicker: null,  // the tap-only condition overlay element
   _condPath: null,   // which if/else card the picker is editing
   _cond: null,       // working condition model {a,join,b}
+  _makerCtx: null,   // when set, this run is a Maker Hut proof/play (see openMakerStage)
 
   $(id) { return document.getElementById(id); },
 
@@ -77,7 +78,16 @@ const Puzzle = {
     this.$("puzzle-reset").addEventListener("click", () => { if (!this.playing) { SFX.click(); this.resetRun(); } });
     this.$("puzzle-speed").addEventListener("click", () => { SFX.click(); this.cycleSpeed(); });
     this.$("puzzle-hint").addEventListener("click", () => { SFX.click(); this.showHint(); });
-    this.$("puzzle-back").addEventListener("click", () => { SFX.click(); this.stopPlayback(); this.closeCondPicker(); UI.show("lab"); });
+    this.$("puzzle-back").addEventListener("click", () => {
+      SFX.click(); this.stopPlayback(); this.closeCondPicker();
+      // maker proof/play runs return to the Maker Hut, not the isle
+      if (this._makerCtx) {
+        const ctx = this._makerCtx;
+        (ctx.mode === "prove") ? Maker.showEditor() : Maker.openHut();
+      } else {
+        UI.show("lab");
+      }
+    });
 
     // the tap-only condition picker (built once, shown over the playfield)
     const cp = this.condPicker = document.createElement("div");
@@ -105,6 +115,18 @@ const Puzzle = {
     this.$("lab-body").addEventListener("click", e => {
       const home = e.target.closest(".fly-home");
       if (home) { SFX.click(); UI.flyHome(); return; }
+      const hut = e.target.closest(".isle-hut");
+      if (hut) {
+        SFX.init();
+        if (hut.classList.contains("locked")) {
+          hut.classList.remove("denied"); void hut.offsetWidth; hut.classList.add("denied");
+          SFX.error();
+          UI.toast("🔨 The Maker Hut opens once you’ve earned a ⭐ on every Chapter 1 puzzle here — learn the blocks, then build your own!");
+        } else {
+          Maker.openHut();
+        }
+        return;
+      }
       const node = e.target.closest(".isle-node");
       if (node) {
         SFX.init();
@@ -354,6 +376,17 @@ const Puzzle = {
       </button>`;
     });
 
+    // ----- the Maker Hut: a small workshop off-trail (top-left). Unlocks once
+    // every Chapter 1 puzzle here has a star, so builders know their blocks. -----
+    const makerOpen = SAVE.puzzleChapterComplete(pack, 1);
+    const hutArt = artSprite("tq-town-house", 62) || "🔨";
+    const hut = `<button class="isle-hut ${makerOpen ? "" : "locked"}"
+        style="left:${(112 / this.ISLE_W) * 100}%;top:${(150 / this.ISLE_H) * 100}%"
+        title="${makerOpen ? "Build your own puzzle stages for the family!" : "Finish Chapter 1 to open the Maker Hut"}">
+      <span class="isle-hut-art">${hutArt}</span>
+      <span class="isle-hut-lbl">🔨 Maker Hut${makerOpen ? "" : " 🔒"}</span>
+    </button>`;
+
     this.$("lab-body").innerHTML = `<div class="isle-scene" data-pack="${pack}">
       <div class="isle-topbar">
         <button class="fly-home">🏠 Fly home</button>
@@ -364,6 +397,7 @@ const Puzzle = {
         ${this.isleTerrainSvg(pack, pts)}
         ${decor}
         ${labels}
+        ${hut}
         ${nodes}
       </div>
     </div>`;
@@ -373,8 +407,24 @@ const Puzzle = {
   openStage(stageId) {
     const stage = PUZZLE_STAGES.find(s => s.id === stageId);
     if (!stage) return;
+    this._makerCtx = null; // a normal pack stage — leave the Maker plumbing off
     this.currentPack = stage.pack || this.currentPack; // return to this stage's isle
     this.stage = stage;
+    this.mountStage();
+  },
+
+  // Maker Hut entry point: mount a kid-authored stage def directly (it is NOT in
+  // PUZZLE_STAGES). `ctx` = { mode:"prove"|"play", mine, creatorName, creatorOptimal }.
+  // The win handler branches on this._makerCtx so nothing is banked to state.puzzle.
+  openMakerStage(stage, ctx) {
+    this._makerCtx = ctx || { mode: "play" };
+    this.stage = stage;
+    this.mountStage();
+  },
+
+  // shared mount: reset run state and paint the playfield for this.stage
+  mountStage() {
+    const stage = this.stage;
     this.program = [];
     this.caret = { cont: "", idx: 0 };
     this.hintIdx = 0;
@@ -384,6 +434,16 @@ const Puzzle = {
     this.closeCondPicker();
     UI.show("puzzle");
     this.renderSpeed();
+    // the Maker playfield borrows the same screen but hides the hint ladder
+    // (maker stages carry no authored hints) and points "back" at the Hut
+    const back = this.$("puzzle-back"), hintBtn = this.$("puzzle-hint");
+    if (this._makerCtx) {
+      back.textContent = "← Hut";
+      hintBtn.classList.add("hidden");
+    } else {
+      back.textContent = "← Isle";
+      hintBtn.classList.remove("hidden");
+    }
     const goalText = this.goalText(stage);
     this.$("puzzle-title").innerHTML = `<b>${UI.esc(stage.name)}</b><i>${goalText}</i>`;
     this.$("puzzle-goal").textContent = goalText;
@@ -688,7 +748,14 @@ const Puzzle = {
 
   updateCount() {
     const n = this.countBlocks(this.program);
-    this.$("puzzle-count").innerHTML = `🧱 ${n} block${n === 1 ? "" : "s"} · ⭐ ${this.stage.optimal} = perfect`;
+    const label = `🧱 ${n} block${n === 1 ? "" : "s"}`;
+    // while proving a maker stage there is no `optimal` yet — the winning count
+    // BECOMES it — so we coach toward solving rather than toward a target.
+    if (this._makerCtx && this._makerCtx.mode === "prove") {
+      this.$("puzzle-count").innerHTML = `${label} · reach the flag to set the record!`;
+    } else {
+      this.$("puzzle-count").innerHTML = `${label} · ⭐ ${this.stage.optimal} = perfect`;
+    }
   },
 
   countBlocks(nodes) {
@@ -1169,6 +1236,9 @@ const Puzzle = {
   },
 
   onWin(sim) {
+    // Maker Hut proof/play never routes through applyPuzzle — it must not bank a
+    // record, catch a Pokemon, or award a pack trophy. Branch away first.
+    if (this._makerCtx) return this.onMakerWin(sim);
     const stage = this.stage;
     const res = SAVE.applyPuzzle(stage.id, sim.stars, sim.blocks);
     const catchKey = stage.reward && stage.reward.catch;
@@ -1235,6 +1305,71 @@ const Puzzle = {
         if (c) Engine.startPuzzleCatch(c, this.stage.id);
         else UI.show("lab");
       }
+    };
+  },
+
+  // ---------- Maker Hut win handling ----------
+  // A maker proof/play win. Proof mode captures the winning block count so it can
+  // become the stage's `optimal`; play mode banks a small XP treat (no catch, no
+  // records) and delights when a sibling beats the creator's record.
+  onMakerWin(sim) {
+    const ctx = this._makerCtx;
+    UI.confetti();
+    SFX.fanfare();
+    const nstar = ctx.mode === "prove" ? 3 : sim.stars;
+    for (let i = 0; i < nstar; i++) setTimeout(() => SFX.star(i), 250 + i * 320);
+    if (ctx.mode === "prove") { this.showMakerProofCard(sim); return; }
+    const res = SAVE.applyMakerPlay(sim.stars);
+    const beat = !ctx.mine && ctx.creatorOptimal != null && sim.blocks <= ctx.creatorOptimal;
+    this.showMakerPlayCard(sim, res, beat, ctx);
+  },
+
+  // the proof card: the creator just solved their own stage. Their block count is
+  // the record to beat; from here they publish (or keep building).
+  showMakerProofCard(sim) {
+    const box = this.$("puzzle-msg");
+    box.className = "pz-msg win";
+    box.innerHTML = `<div class="pz-win-title">🎉 It works!</div>
+      <div class="pz-win-math">You solved your own stage in <b>${sim.blocks}</b> block${sim.blocks === 1 ? "" : "s"}!</div>
+      <span class="pz-win-stars">★★★</span>
+      <div class="pz-win-note">That becomes the record for the family to beat. Ready to share it?</div>
+      <div class="pz-win-btns">
+        <button class="big-btn" data-act="mk-publish">📢 Publish it!</button>
+        <button class="mid-btn" data-act="mk-editproof">✏️ Keep building</button>
+      </div>`;
+    box.onclick = e => {
+      const btn = e.target.closest("[data-act]");
+      if (!btn) return;
+      SFX.init();
+      Maker.afterProof(sim.blocks, btn.dataset.act === "mk-publish");
+    };
+  },
+
+  // the play card: someone solved a published stage. Small XP, no catch — and a
+  // delighted callout when they beat the creator's own best.
+  showMakerPlayCard(sim, res, beat, ctx) {
+    const starHtml = `<span class="pz-win-stars">${"★".repeat(sim.stars)}<span class="off">${"★".repeat(3 - sim.stars)}</span></span>`;
+    const beatHtml = beat ? `<div class="pz-win-math">🏅 You beat ${UI.esc(ctx.creatorName)}’s record!</div>` : "";
+    const note = ctx.mine
+      ? "You solved your very own stage! 🔨"
+      : `A stage by ${UI.esc(ctx.creatorName || "a family trainer")}.`;
+    const box = this.$("puzzle-msg");
+    box.className = "pz-msg win";
+    box.innerHTML = `<div class="pz-win-title">🎉 Puzzle solved!</div>
+      ${beatHtml}
+      ${starHtml}
+      <div class="pz-win-note">${note}</div>
+      <div class="pz-win-xp">+${res.xp} XP</div>
+      <div class="pz-win-btns">
+        <button class="big-btn" data-act="mk-hut">🔨 Back to the Hut</button>
+        <button class="mid-btn" data-act="replay">↺ Play again</button>
+      </div>`;
+    box.onclick = e => {
+      const btn = e.target.closest("[data-act]");
+      if (!btn) return;
+      SFX.init();
+      if (btn.dataset.act === "mk-hut") Maker.openHut();
+      else { this.hideMsg(); this.resetRun(); }
     };
   },
 

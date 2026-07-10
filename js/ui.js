@@ -2875,7 +2875,7 @@ const UI = {
       err.classList.remove("hidden");
       return;
     }
-    SFX.correct();
+    SFX.word();
     this.closeWordPackForm();
     this.renderWordPacks();
     this.toast(editing ? `📚 Updated “${res.pack.name}”!` : `📚 New pack “${res.pack.name}” ready — go practice!`, "gold");
