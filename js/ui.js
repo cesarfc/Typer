@@ -250,7 +250,11 @@ const UI = {
         <circle cx="50" cy="55.5" r="3.1" fill="#ffd34d" stroke="#b8901f" stroke-width="1"/>`;
     }
 
+    // thick charcoal-brown linework so trainers sit in the Lost Legends
+    // world; a group stroke wraps every part (elements with their own
+    // stroke — the cape trim, mouth — keep it and override).
     return `<svg class="${cls}" viewBox="0 0 100 118" aria-hidden="true">
+      <g stroke="#3a3130" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">
       ${hairBack}
       ${capeSvg}
       <rect x="38" y="88" width="9" height="21" rx="4" fill="#27314f"/>
@@ -265,9 +269,10 @@ const UI = {
       <circle cx="50" cy="36" r="22" fill="${skin}"/>
       ${hairFront}
       ${hatSvg}
-      <circle cx="42" cy="39" r="2.6" fill="#1d2030"/>
-      <circle cx="58" cy="39" r="2.6" fill="#1d2030"/>
+      <circle cx="42" cy="39" r="2.6" fill="#1d2030" stroke="none"/>
+      <circle cx="58" cy="39" r="2.6" fill="#1d2030" stroke="none"/>
       <path d="M44 48 Q50 53 56 48" stroke="#1d2030" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+      </g>
     </svg>`;
   },
 
@@ -423,13 +428,13 @@ const UI = {
 
   MAP_CITIES: [
     { x: 180, y: 1330, t: "centerRed", sc: 1.9, n: "Pallet Town" },
-    { x: 545, y: 455, sp: "mine", s: 64, n: "Moonstone City" },
+    { x: 545, y: 455, sp: "mine", s: 100, n: "Moonstone City" },
     { x: 1340, y: 1165, t: "martBlue", sc: 1.9, n: "Victory City" },
-    { x: 1905, y: 290, sp: "volcano", s: 72, n: "Ember Town" },
-    { x: 2010, y: 1190, sp: "lanternpost", s: 48, n: "Lantern Village" },
-    { x: 2625, y: 425, sp: "hall", s: 80, n: "Hall of Fame" },
-    { x: 905, y: 1300, sp: "pier", s: 66, n: "Fishing Pier" },
-    { x: 1565, y: 690, sp: "berrybush", s: 48, n: "Berry Farm" },
+    { x: 1905, y: 290, sp: "volcano", s: 108, n: "Ember Town" },
+    { x: 2010, y: 1190, sp: "lanternpost", s: 46, n: "Lantern Village" },
+    { x: 2625, y: 425, sp: "hall", s: 104, n: "Hall of Fame" },
+    { x: 905, y: 1300, sp: "pier", s: 98, n: "Fishing Pier" },
+    { x: 1565, y: 690, sp: "berrybush", s: 56, n: "Berry Farm" },
   ],
   MAP_DECOR: [
     // Pallet Meadow
@@ -451,13 +456,23 @@ const UI = {
     { x: 1690, y: 220, sp: "mountain", s: 70 }, { x: 1840, y: 140, e: "☁️", s: 30 },
     // Eterna Forest
     { x: 2015, y: 895, t: "pineBig", sc: 2 }, { x: 2245, y: 1185, t: "pineBig", sc: 1.8 }, { x: 2085, y: 1125, sp: "lanternpost", s: 34 },
-    { x: 2305, y: 905, e: "🌫️", s: 30 }, { x: 2200, y: 1320, t: "pine", sc: 2 }, { x: 2450, y: 980, t: "pineBig", sc: 1.7 },
+    { x: 2305, y: 905, e: "☁️", s: 26 }, { x: 2200, y: 1320, t: "pine", sc: 2 }, { x: 2450, y: 980, t: "pineBig", sc: 1.7 },
     { x: 2120, y: 1010, t: "pine", sc: 2.1 }, { x: 2330, y: 1100, t: "pine", sc: 1.8 }, { x: 2270, y: 990, t: "mushroomT", sc: 1.8 },
     // Hall of Fame
     { x: 2385, y: 680, e: "✨", s: 18 }, { x: 2565, y: 645, sp: "flag", s: 30, c: "#f5c84c" }, { x: 2705, y: 485, e: "👑", s: 22 },
     { x: 2530, y: 540, t: "bench", sc: 1.7 },
     // water
     { x: 705, y: 1185, sp: "wave", s: 42 }, { x: 825, y: 1245, sp: "wave", s: 34 }, { x: 1005, y: 1335, sp: "wave", s: 42 },
+    // Lost Legends landmark props (new art, placed directly by id)
+    { x: 405, y: 1210, art: "tq-clocktower", s: 74 },   // Pallet meadow clocktower
+    { x: 340, y: 1275, art: "tq-stone-well", s: 46 },
+    { x: 1610, y: 640, art: "tq-sparkle-pond", s: 74 }, // Berry Farm pond
+    { x: 660, y: 875, art: "tq-cliff-rocks", s: 62 },   // Mt. Moon cliffs
+    { x: 800, y: 690, art: "tq-mossy-boulder", s: 52 },
+    { x: 2160, y: 1180, art: "tq-mushroom-cluster", s: 40 },
+    { x: 2245, y: 1050, art: "tq-cauldron", s: 44 },    // Eterna Forest cauldron
+    { x: 1015, y: 1290, art: "tq-rope-bridge", s: 78 }, // over the pier lake
+    { x: 1520, y: 1010, art: "tq-raid-den", s: 96 },    // the Weekly Raid den (glowing portal)
   ],
 
   // tall grass candidates (3 per region) and fishing spots
@@ -512,20 +527,36 @@ const UI = {
     const forest = (cx, cy, s) => [[0, 0], [s, -s * .3], [-s * .9, s * .4], [s * .7, s * .6], [-s * .2, -s * .8]]
       .map(([dx, dy], i) => `<circle cx="${cx + dx}" cy="${cy + dy}" r="${s * (0.9 - i * 0.1)}" />`).join("");
     const mt = (x, y, s) =>
-      `<polygon points="${x},${y} ${x - s},${y + s * 1.25} ${x + s},${y + s * 1.25}" fill="#566077"/>` +
-      `<polygon points="${x},${y} ${x - s * .38},${y + s * .5} ${x + s * .38},${y + s * .5}" fill="#e8edf7"/>`;
+      `<polygon points="${x},${y} ${x - s},${y + s * 1.25} ${x + s},${y + s * 1.25}" fill="#8fa06a"/>` +
+      `<polygon points="${x},${y} ${x - s * .38},${y + s * .5} ${x + s * .38},${y + s * .5}" fill="#f4f7e6"/>`;
+    // sandy path/clearing blobs scattered along the route (organic patches)
+    const sand = (cx, cy, rx, ry) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="#f2ddb0"/>`;
     return `<svg id="terrain-svg" width="${this.MAP_W}" height="${this.MAP_H}" viewBox="0 0 ${this.MAP_W} ${this.MAP_H}">
-      <rect width="100%" height="100%" fill="#0d2a40"/>
-      <path d="${coast}" fill="none" stroke="#7fb2d9" stroke-width="34" opacity=".14"/>
-      <path d="${coast}" fill="none" stroke="#d9c081" stroke-width="16" opacity=".55"/>
-      <path d="${coast}" fill="#17301f"/>
+      <!-- bright teal sea beyond the island -->
+      <rect width="100%" height="100%" fill="#6fcfe0"/>
+      <path d="${coast}" fill="none" stroke="#bfeef4" stroke-width="34" opacity=".5"/>
+      <path d="${coast}" fill="none" stroke="#f2ddb0" stroke-width="20" opacity=".9"/>
+      <!-- the island: lively lime-green grass -->
+      <path d="${coast}" fill="#8fd14f"/>
+      <path d="${coast}" fill="#9ad95a" opacity=".55" transform="translate(0,-14)"/>
+      <!-- warm sandy clearings along the trail -->
+      <g opacity=".85">
+        ${sand(230, 1190, 150, 90)}${sand(660, 640, 130, 80)}${sand(1210, 1010, 150, 90)}
+        ${sand(1730, 430, 130, 80)}${sand(2140, 1030, 150, 90)}${sand(2480, 560, 130, 80)}
+        ${sand(2680, 300, 110, 70)}${sand(430, 1330, 120, 66)}
+      </g>
+      <!-- a sandy trail hugging the winding route -->
+      <path d="M230,1190 Q450,900 660,640 Q940,820 1210,1010 Q1470,720 1730,430 Q1940,730 2140,1030 Q2310,800 2480,560 L2680,300" fill="none"
+        stroke="#f2ddb0" stroke-width="46" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/>
+      <!-- fishing lakes & pond: bright teal water -->
       <path d="M700,620 C 770,810 850,930 890,1080 C 910,1170 930,1240 945,1295" fill="none"
-        stroke="#2e6e9d" stroke-width="22" stroke-linecap="round" opacity=".85"/>
-      <ellipse cx="945" cy="1310" rx="175" ry="78" fill="#2e6e9d"/>
-      <ellipse cx="915" cy="1295" rx="80" ry="26" fill="#5d9ec9" opacity=".5"/>
-      <ellipse cx="2245" cy="1195" rx="95" ry="46" fill="#2e6e9d"/>
-      <ellipse cx="2228" cy="1186" rx="42" ry="14" fill="#5d9ec9" opacity=".5"/>
-      <g fill="#0f3d24" opacity=".85">
+        stroke="#3fb5cf" stroke-width="24" stroke-linecap="round" opacity=".9"/>
+      <ellipse cx="945" cy="1310" rx="175" ry="78" fill="#3fb5cf"/>
+      <ellipse cx="915" cy="1295" rx="80" ry="26" fill="#a7e6f0" opacity=".6"/>
+      <ellipse cx="2245" cy="1195" rx="95" ry="46" fill="#3fb5cf"/>
+      <ellipse cx="2228" cy="1186" rx="42" ry="14" fill="#a7e6f0" opacity=".6"/>
+      <!-- soft darker-green woodland shading (kept subtle & bright) -->
+      <g fill="#79c247" opacity=".38">
         ${forest(265, 1075, 62)}${forest(470, 1180, 48)}${forest(1115, 800, 52)}
         ${forest(2120, 930, 66)}${forest(2330, 1110, 52)}${forest(2520, 470, 46)}
       </g>
@@ -618,7 +649,7 @@ const UI = {
     let html = this.terrainSvg();
     const blobs = WORLDS.map((w, i) => {
       const [ax, ay] = this.mapAnchors[i], [bx, by] = this.mapAnchors[i + 1];
-      return `radial-gradient(740px 580px at ${Math.round((ax + bx) / 2)}px ${Math.round((ay + by) / 2)}px, ${w.gradient[1]}59, transparent 72%)`;
+      return `radial-gradient(740px 580px at ${Math.round((ax + bx) / 2)}px ${Math.round((ay + by) / 2)}px, ${w.gradient[1]}33, transparent 72%)`;
     }).join(",");
     html += `<div class="region-tints" style="background-image:${blobs}"></div>`;
 
@@ -644,7 +675,7 @@ const UI = {
     const wild = SAVE.wildToday();
     const patches = this.grassSpotsToday().filter(s => !wild.grassUsed.includes(s.id));
     html += patches.map(s =>
-      `<button class="map-grass" data-spot="${s.id}" data-w="${s.w}" style="left:${s.x}px;top:${s.y}px" title="Something is rustling in the grass!"><span class="g-rustle">${mapSprite("grasstuft", 38)}</span></button>`).join("");
+      `<button class="map-grass" data-spot="${s.id}" data-w="${s.w}" style="left:${s.x}px;top:${s.y}px" title="Something is rustling in the grass!"><span class="g-rustle">${worldSprite("grasstuft", 40)}</span></button>`).join("");
     const castsLeft = Math.max(0, this.CASTS_PER_DAY - wild.casts);
     this.FISH_SPOTS.filter(f => SAVE.worldUnlocked(f.need)).forEach(f => {
       html += `<button class="map-fish ${castsLeft ? "" : "spent"}" style="left:${f.x}px;top:${f.y}px" title="${castsLeft ? "Fishing spot — cast a line!" : "No more bites today"}"><span class="f-rod">🎣</span></button>`;
@@ -660,19 +691,19 @@ const UI = {
       this.toast("🌿 See the rustling grass? A wild Pokemon hides there — click it!", "gold");
     }
     html += this.MAP_DECOR.concat(this.scatterDecor()).map(o =>
-      `<span class="map-decor" style="left:${o.x}px;top:${o.y}px;${o.e ? `font-size:${o.s}px` : ""}">${o.t ? tileSprite(o.t, o.sc) : o.sp ? mapSprite(o.sp, o.s, o.c) : o.e}</span>`).join("");
+      `<span class="map-decor" style="left:${o.x}px;top:${o.y}px;${o.e ? `font-size:${o.s}px` : ""}">${o.art ? artSprite(o.art, o.s) : o.t ? worldTile(o.t, o.sc) : o.sp ? worldSprite(o.sp, o.s, o.c) : o.e}</span>`).join("");
     html += this.MAP_CITIES.map(c =>
-      `<div class="map-city" style="left:${c.x}px;top:${c.y}px"><span class="city-art">${c.t ? tileSprite(c.t, c.sc) : mapSprite(c.sp, c.s)}</span><b>${c.n}</b></div>`).join("");
+      `<div class="map-city" style="left:${c.x}px;top:${c.y}px"><span class="city-art">${c.t ? worldTile(c.t, c.sc) : worldSprite(c.sp, c.s)}</span><b>${c.n}</b></div>`).join("");
 
     // Trainer School: practice with no countdown, any time
     html += `<button class="map-school" style="left:430px;top:1330px" title="Trainer School — no countdown, race your records!">
-      <span>${mapSprite("school", 68)}</span><b>Trainer School</b></button>`;
+      <span>${worldSprite("school", 90)}</span><b>Trainer School</b></button>`;
 
     // Puzzle Lab: a side building beside the school — opens once Mt. Moon is
     // reached, so a brand-new trainer never sees it
     if (SAVE.worldUnlocked(1)) {
       html += `<button class="map-lab" style="left:238px;top:1392px" title="Puzzle Lab — code your way to new Pokemon!">
-        <span>${mapSprite("lab", 70)}</span><b>🧩 Puzzle Lab</b></button>`;
+        <span>${worldSprite("lab", 84)}</span><b>🧩 Puzzle Lab</b></button>`;
     }
 
     // Professor's Daily Drill podium beside the school
@@ -684,7 +715,7 @@ const UI = {
     // Family Trading Post: a market stall on the south shore where two family
     // trainers swap Pokemon 1-for-1
     html += `<button class="map-trade" style="left:770px;top:1418px" title="Trading Post — swap Pokemon with your family!">
-      <span>${mapSprite("trade", 74)}</span><b>🤝 Trading Post</b></button>`;
+      <span>${worldSprite("trade", 84)}</span><b>🤝 Trading Post</b></button>`;
 
     WORLDS.forEach((w, wi) => {
       const ns = nodes[wi];

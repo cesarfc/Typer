@@ -1,0 +1,693 @@
+{
+  "format": "cesarfc-land-pack",
+  "version": "1",
+  "style": "lost-legends",
+  "assets": [
+    {
+      "id": "tq-crossed-swords",
+      "kind": "icon",
+      "biome": "_icons",
+      "file": "icons/tq-crossed-swords.png",
+      "wpx": 102,
+      "hpx": 99,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": null,
+      "tags": [
+        "raid"
+      ]
+    },
+    {
+      "id": "tq-egg",
+      "kind": "icon",
+      "biome": "_icons",
+      "file": "icons/tq-egg.png",
+      "wpx": 94,
+      "hpx": 108,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": null,
+      "tags": [
+        "reward"
+      ]
+    },
+    {
+      "id": "tq-encyclopedia",
+      "kind": "icon",
+      "biome": "_icons",
+      "file": "icons/tq-encyclopedia.png",
+      "wpx": 101,
+      "hpx": 106,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": null,
+      "tags": [
+        "knowledge"
+      ]
+    },
+    {
+      "id": "tq-fishing-rod",
+      "kind": "icon",
+      "biome": "_icons",
+      "file": "icons/tq-fishing-rod.png",
+      "wpx": 101,
+      "hpx": 108,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": null,
+      "tags": [
+        "activity"
+      ]
+    },
+    {
+      "id": "tq-grad-cap",
+      "kind": "icon",
+      "biome": "_icons",
+      "file": "icons/tq-grad-cap.png",
+      "wpx": 114,
+      "hpx": 95,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": null,
+      "tags": [
+        "practice"
+      ]
+    },
+    {
+      "id": "tq-journal",
+      "kind": "icon",
+      "biome": "_icons",
+      "file": "icons/tq-journal.png",
+      "wpx": 96,
+      "hpx": 111,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": null,
+      "tags": [
+        "knowledge"
+      ]
+    },
+    {
+      "id": "tq-map",
+      "kind": "icon",
+      "biome": "_icons",
+      "file": "icons/tq-map.png",
+      "wpx": 108,
+      "hpx": 97,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": null,
+      "tags": [
+        "travel"
+      ]
+    },
+    {
+      "id": "tq-museum-column",
+      "kind": "icon",
+      "biome": "_icons",
+      "file": "icons/tq-museum-column.png",
+      "wpx": 90,
+      "hpx": 99,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": null,
+      "tags": [
+        "knowledge"
+      ]
+    },
+    {
+      "id": "tq-padlock",
+      "kind": "icon",
+      "biome": "_icons",
+      "file": "icons/tq-padlock.png",
+      "wpx": 88,
+      "hpx": 107,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": null,
+      "tags": [
+        "locked"
+      ]
+    },
+    {
+      "id": "tq-star",
+      "kind": "icon",
+      "biome": "_icons",
+      "file": "icons/tq-star.png",
+      "wpx": 109,
+      "hpx": 103,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": null,
+      "tags": [
+        "reward"
+      ]
+    },
+    {
+      "id": "tq-stats-chart",
+      "kind": "icon",
+      "biome": "_icons",
+      "file": "icons/tq-stats-chart.png",
+      "wpx": 100,
+      "hpx": 106,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": null,
+      "tags": [
+        "stats"
+      ]
+    },
+    {
+      "id": "tq-trophy",
+      "kind": "icon",
+      "biome": "_icons",
+      "file": "icons/tq-trophy.png",
+      "wpx": 110,
+      "hpx": 111,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": null,
+      "tags": [
+        "reward"
+      ]
+    },
+    {
+      "id": "tq-berry-bush",
+      "kind": "prop",
+      "biome": "tq-meadow",
+      "file": "props/tq-berry-bush.png",
+      "wpx": 64,
+      "hpx": 62,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "flora"
+      ]
+    },
+    {
+      "id": "tq-bubbly-tree",
+      "kind": "prop",
+      "biome": "tq-meadow",
+      "file": "props/tq-bubbly-tree.png",
+      "wpx": 66,
+      "hpx": 73,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "flora"
+      ]
+    },
+    {
+      "id": "tq-cauldron",
+      "kind": "prop",
+      "biome": "tq-forest",
+      "file": "props/tq-cauldron.png",
+      "wpx": 59,
+      "hpx": 68,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "decor"
+      ]
+    },
+    {
+      "id": "tq-cliff-rocks",
+      "kind": "prop",
+      "biome": "tq-caves",
+      "file": "props/tq-cliff-rocks.png",
+      "wpx": 61,
+      "hpx": 73,
+      "footprint": [
+        2,
+        1
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "rock"
+      ]
+    },
+    {
+      "id": "tq-clocktower",
+      "kind": "prop",
+      "biome": "tq-meadow",
+      "file": "props/tq-clocktower.png",
+      "wpx": 89,
+      "hpx": 137,
+      "footprint": [
+        1,
+        2
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "structure"
+      ]
+    },
+    {
+      "id": "tq-flower-patch",
+      "kind": "prop",
+      "biome": "_shared",
+      "file": "props/tq-flower-patch.png",
+      "wpx": 64,
+      "hpx": 65,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "decor"
+      ]
+    },
+    {
+      "id": "tq-grass-tuft",
+      "kind": "prop",
+      "biome": "_shared",
+      "file": "props/tq-grass-tuft.png",
+      "wpx": 56,
+      "hpx": 70,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "decor"
+      ]
+    },
+    {
+      "id": "tq-gym-arena",
+      "kind": "prop",
+      "biome": "tq-stadium",
+      "file": "props/tq-gym-arena.png",
+      "wpx": 121,
+      "hpx": 117,
+      "footprint": [
+        3,
+        2
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "structure"
+      ]
+    },
+    {
+      "id": "tq-hall-monument",
+      "kind": "prop",
+      "biome": "tq-hall",
+      "file": "props/tq-hall-monument.png",
+      "wpx": 117,
+      "hpx": 132,
+      "footprint": [
+        2,
+        2
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "structure"
+      ]
+    },
+    {
+      "id": "tq-lantern-post",
+      "kind": "prop",
+      "biome": "_shared",
+      "file": "props/tq-lantern-post.png",
+      "wpx": 53,
+      "hpx": 68,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "decor"
+      ]
+    },
+    {
+      "id": "tq-market-stall",
+      "kind": "prop",
+      "biome": "tq-meadow",
+      "file": "props/tq-market-stall.png",
+      "wpx": 64,
+      "hpx": 71,
+      "footprint": [
+        2,
+        1
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "structure"
+      ]
+    },
+    {
+      "id": "tq-mine-entrance",
+      "kind": "prop",
+      "biome": "tq-caves",
+      "file": "props/tq-mine-entrance.png",
+      "wpx": 121,
+      "hpx": 118,
+      "footprint": [
+        2,
+        2
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "structure"
+      ]
+    },
+    {
+      "id": "tq-mossy-boulder",
+      "kind": "prop",
+      "biome": "tq-forest",
+      "file": "props/tq-mossy-boulder.png",
+      "wpx": 69,
+      "hpx": 69,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "rock"
+      ]
+    },
+    {
+      "id": "tq-mushroom-cluster",
+      "kind": "prop",
+      "biome": "tq-forest",
+      "file": "props/tq-mushroom-cluster.png",
+      "wpx": 62,
+      "hpx": 65,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "flora"
+      ]
+    },
+    {
+      "id": "tq-pier-hut",
+      "kind": "prop",
+      "biome": "tq-shore",
+      "file": "props/tq-pier-hut.png",
+      "wpx": 120,
+      "hpx": 127,
+      "footprint": [
+        2,
+        2
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "structure"
+      ]
+    },
+    {
+      "id": "tq-puzzle-lab",
+      "kind": "prop",
+      "biome": "tq-meadow",
+      "file": "props/tq-puzzle-lab.png",
+      "wpx": 117,
+      "hpx": 128,
+      "footprint": [
+        2,
+        2
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "structure"
+      ]
+    },
+    {
+      "id": "tq-raid-den",
+      "kind": "prop",
+      "biome": "tq-den",
+      "file": "props/tq-raid-den.png",
+      "wpx": 125,
+      "hpx": 120,
+      "footprint": [
+        2,
+        2
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "structure"
+      ]
+    },
+    {
+      "id": "tq-rock-cluster",
+      "kind": "prop",
+      "biome": "tq-caves",
+      "file": "props/tq-rock-cluster.png",
+      "wpx": 60,
+      "hpx": 63,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "rock"
+      ]
+    },
+    {
+      "id": "tq-rope-bridge",
+      "kind": "prop",
+      "biome": "tq-shore",
+      "file": "props/tq-rope-bridge.png",
+      "wpx": 70,
+      "hpx": 64,
+      "footprint": [
+        2,
+        1
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "decor"
+      ]
+    },
+    {
+      "id": "tq-signpost",
+      "kind": "prop",
+      "biome": "_shared",
+      "file": "props/tq-signpost.png",
+      "wpx": 57,
+      "hpx": 73,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "decor"
+      ]
+    },
+    {
+      "id": "tq-sparkle-pond",
+      "kind": "prop",
+      "biome": "tq-shore",
+      "file": "props/tq-sparkle-pond.png",
+      "wpx": 68,
+      "hpx": 55,
+      "footprint": [
+        2,
+        1
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "decor"
+      ]
+    },
+    {
+      "id": "tq-stone-well",
+      "kind": "prop",
+      "biome": "tq-meadow",
+      "file": "props/tq-stone-well.png",
+      "wpx": 65,
+      "hpx": 73,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "structure"
+      ]
+    },
+    {
+      "id": "tq-tall-pine",
+      "kind": "prop",
+      "biome": "tq-forest",
+      "file": "props/tq-tall-pine.png",
+      "wpx": 108,
+      "hpx": 135,
+      "footprint": [
+        1,
+        2
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "flora"
+      ]
+    },
+    {
+      "id": "tq-town-house",
+      "kind": "prop",
+      "biome": "tq-meadow",
+      "file": "props/tq-town-house.png",
+      "wpx": 122,
+      "hpx": 118,
+      "footprint": [
+        2,
+        2
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "structure"
+      ]
+    },
+    {
+      "id": "tq-trainer-school",
+      "kind": "prop",
+      "biome": "tq-meadow",
+      "file": "props/tq-trainer-school.png",
+      "wpx": 131,
+      "hpx": 120,
+      "footprint": [
+        2,
+        2
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "structure"
+      ]
+    },
+    {
+      "id": "tq-volcano-lair",
+      "kind": "prop",
+      "biome": "tq-den",
+      "file": "props/tq-volcano-lair.png",
+      "wpx": 131,
+      "hpx": 127,
+      "footprint": [
+        3,
+        2
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "structure"
+      ]
+    }
+  ]
+}
