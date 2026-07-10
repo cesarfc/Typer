@@ -151,7 +151,7 @@ mystery Pokemon — then the clock starts.
 
 ## What keeps kids coming back
 
-- **120 Pokemon to collect** — from Magikarp to Arceus. Finish a level, then
+- **130 Pokemon to collect** — from Magikarp to Arceus. Finish a level, then
   type the wild Pokemon's name fast enough to catch it. Rarer Pokemon only
   appear after better runs (common 1★ · rare 2★ · epic 3★), and 3-star
   catches can be ✨ **shiny**.
@@ -217,16 +217,17 @@ mystery Pokemon — then the clock starts.
   nodes** (starred, numbered, padlocked) and landmarks marking each chapter.
   **No keyboard needed to play:** snap code blocks together to guide a Pokemon
   through grid puzzles, then catch a new friend the usual way — by typing its
-  name (the only typing here). Circuit Isle teaches walking, loops, ifs and
-  AND/OR/NOT logic across five chapters; **Counting Isle is fully independent**
-  — reachable from the very first flight, no coding required — with counting,
-  times-tables and number-line hops across four chapters. Tap **⏭ Step** to walk
-  your plan one block at a time, pick a 🐢/🐇/⚡ playback speed, and tap **💡 Hint**
-  for a gentle ladder of tips (with a "Watch a bit" demo on the very first
-  stages). Flying is a delight and never blocks you — it's instant under
-  reduced-motion and skippable with a tap. **24 new Pokemon live only here** —
-  solving stages is the one way to catch them. No clocks, no fail states: hints
-  teach, they never scold.
+  name (the only typing here). Circuit Isle teaches walking, loops, ifs,
+  AND/OR/NOT logic and a capstone **Inventions** chapter across six chapters (24
+  stages); **Counting Isle is fully independent** — reachable from the very first
+  flight, no coding required — with counting, times-tables, number-line hops and
+  a **Sharing** (division) chapter across five chapters (19 stages). Tap **⏭
+  Step** to walk your plan one block at a time, pick a 🐢/🐇/⚡ playback speed, and
+  tap **💡 Hint** for a gentle ladder of tips (with a "Watch a bit" demo on the
+  very first stages). Flying is a delight and never blocks you — it's instant
+  under reduced-motion and skippable with a tap. **34 new Pokemon live only
+  here** — solving stages is the one way to catch them. No clocks, no fail
+  states: hints teach, they never scold.
 - **🤝 Family Trading Post** — a market stall on the south shore where two
   family trainers swap Pokemon one-for-one on the shared device. Pick a
   sibling, each side offers one Pokemon from their Pokedex, then a big

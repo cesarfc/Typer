@@ -436,6 +436,12 @@ const CREATURES = [
     { n: "Hawlucha", e: "🦅", id: 701, r: 2, puzzle: true },    // 2-17 · c4-1
     { n: "Scorbunny", e: "🐰", id: 813, r: 2, puzzle: true },   // 2-18 · c3-3
     { n: "Annihilape", e: "🦍", id: 979, r: 3, puzzle: true },  // 2-19 · c3-4
+    // ---- Coding Chapter 6 "Inventions" rewards (tech-flavored; append-only) ----
+    { n: "Magnemite", e: "🧲", id: 81, r: 1, puzzle: true },    // 2-20 · c6-1
+    { n: "Klink", e: "⚙️", id: 599, r: 1, puzzle: true },       // 2-21 · c6-2
+    { n: "Porygon", e: "🕹️", id: 137, r: 2, puzzle: true },     // 2-22 · c6-3
+    { n: "Varoom", e: "🏍️", id: 965, r: 2, puzzle: true },      // 2-23 · c6-4
+    { n: "Rotom", e: "💡", id: 479, r: 3, puzzle: true },       // 2-24 · c6-5 capstone
   ],
   [
     { n: "Magikarp", e: "🐟", id: 129, r: 1 }, { n: "Piplup", e: "🐧", id: 393, r: 1 }, { n: "Mudkip", e: "🦎", id: 258, r: 1 },
@@ -464,6 +470,12 @@ const CREATURES = [
     { n: "Applin", e: "🍎", id: 840, r: 1, puzzle: true },      // 4-17 · m2-2
     { n: "Phantump", e: "🎃", id: 708, r: 2, puzzle: true },    // 4-18 · m2-3
     { n: "Decidueye", e: "🏹", id: 724, r: 3, puzzle: true },   // 4-19 · m2-4 capstone
+    // ---- Math Chapter 5 "Sharing" rewards (orchard/harvest-flavored; append-only) ----
+    { n: "Cherubi", e: "🍒", id: 420, r: 1, puzzle: true },     // 4-20 · m5-1
+    { n: "Combee", e: "🍯", id: 415, r: 1, puzzle: true },      // 4-21 · m5-2
+    { n: "Fidough", e: "🍞", id: 926, r: 2, puzzle: true },     // 4-22 · m5-3
+    { n: "Lechonk", e: "🐷", id: 915, r: 2, puzzle: true },     // 4-23 · m5-4
+    { n: "Smoliv", e: "🫒", id: 928, r: 3, puzzle: true },      // 4-24 · m5-5 capstone
   ],
   [
     { n: "Suicune", e: "💠", id: 245, r: 2 }, { n: "Zacian", e: "⚔️", id: 888, r: 2 }, { n: "Zekrom", e: "🌩️", id: 644, r: 2 },
@@ -1176,6 +1188,86 @@ const PUZZLE_STAGES = [
   },
 
   // ============================================================
+  // Chapter 6 · Inventions — the capstone. Everything at once: loops that steer
+  // themselves with ifs, logic (NOT / OR) to read walls AND water, and loops
+  // nested inside loops. Bigger grids, tighter budgets — elegance wins the stars.
+  // ============================================================
+  {
+    id: "c6-1", pack: "code", chapter: 6, name: "Gear Garden", concept: "self-steering loop + collect",
+    grid: ["S.*..", ".###.", ".###*", ".###.", "o.*.."],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "collect", need: 3,
+    blocks: ["walk", "turnLeft", "turnRight", "collect", "repeat", "if"],
+    optimal: 5, budget: 8,
+    reward: { catch: "2-20" }, // Magnemite
+    hints: [
+      "The gear garden loops all the way around! Don't count every turn — let your Pokemon feel for a 🌳 wall.",
+      "Inside a 🔁 repeat, turn ↱ right only when there's a wall ahead, then 🍒 collect and 👣 walk every time.",
+      "🔁 { ❓(wall ahead){ ↱ } 🍒 👣 } — give the loop plenty of turns and it sweeps up all three berries on the way to the flag!",
+    ],
+  },
+  {
+    id: "c6-2", pack: "code", chapter: 6, name: "Robot Patrol", concept: "a loop inside a loop",
+    grid: ["S...*", ".###.", ".###.", "o###.", "*...*"],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "collect", need: 3,
+    blocks: ["walk", "turnRight", "collect", "repeat"],
+    optimal: 5, budget: 8,
+    reward: { catch: "2-21" }, // Klink
+    hints: [
+      "The robot patrols a big square. Each side is the same: grab the corner 🍒, march to the next corner, then turn.",
+      "A 🔁 loop can go INSIDE another! The inner loop does the four 👣 walks down a side; the outer loop repeats it for every side.",
+      "🔁4 { 🍒 🔁4 { 👣 } ↱ } — collect the corner, walk the side, turn. Four sides brings it home to the flag!",
+    ],
+  },
+  {
+    id: "c6-3", pack: "code", chapter: 6, name: "Signal Chase", concept: "NOT lights the way",
+    grid: ["S.*.~", "~~~.~", "o.*.~", "~~~~~"],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "collect", need: 2,
+    blocks: ["walk", "turnLeft", "turnRight", "collect", "repeat", "if"],
+    logic: true,
+    optimal: 5, budget: 8,
+    reward: { catch: "2-22" }, // Porygon
+    hints: [
+      "💧 Water surrounds the whole trail! Water blocks you but isn't a 🌳 wall — so 'wall ahead' won't spot it.",
+      "Ask the opposite instead: turn ↱ right whenever the way ahead is NOT open path, then 🍒 collect and 👣 walk.",
+      "🔁 { ❓(NOT path ahead){ ↱ } 🍒 👣 } — the signal chases the dry path around the water and grabs both berries!",
+    ],
+  },
+  {
+    id: "c6-4", pack: "code", chapter: 6, name: "Power Grid", concept: "wall OR water + collect",
+    grid: ["S.*~", "##.#", "o*.#", "####"],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "collect", need: 2,
+    blocks: ["walk", "turnLeft", "turnRight", "collect", "repeat", "if", "ifElse"],
+    logic: true,
+    optimal: 5, budget: 8,
+    reward: { catch: "2-23" }, // Varoom
+    hints: [
+      "The power grid is blocked by BOTH 🌳 walls and 💧 water. Checking only one kind will bonk you at the other!",
+      "Join two sensors with OR so a turn happens for EITHER blocker: wall ahead OR water ahead.",
+      "🔁 { ❓(wall OR water){ ↱ } 🍒 👣 } — one loop turns at every blocker and scoops both berries to the flag.",
+    ],
+  },
+  {
+    id: "c6-5", pack: "code", chapter: 6, name: "The Great Machine", concept: "everything at once",
+    capstone: true,
+    grid: ["S**~", "o#.#", ".*.#", "####"],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "collect", need: 3,
+    blocks: ["walk", "turnLeft", "turnRight", "collect", "repeat", "if", "ifElse"],
+    logic: true,
+    optimal: 5, budget: 8,
+    reward: { catch: "2-24" }, // Rotom
+    hints: [
+      "The Great Machine! 🌳 walls, 💧 water, and THREE 🍒 berries — everything you've learned in one tidy loop.",
+      "Steer with an OR question (wall OR water), 🍒 collect on every step, then 👣 walk. Let the loop run long enough.",
+      "🔁 { ❓(wall OR water){ ↱ } 🍒 👣 } powers the whole machine — three berries and a perfect landing. Chase that 3rd ⭐!",
+    ],
+  },
+
+  // ============================================================
   // MATH WING — the number puzzles. Math is never typed: it EMERGES from the
   // blocks. Counting & adding are collect-counters; times tables are loops of
   // collects; add/subtract are signed hops on a number line; and comparisons
@@ -1390,6 +1482,80 @@ const PUZZLE_STAGES = [
       "The grand finale! Collect the whole row of 🍒, then a gate checks your grand total before the flag.",
       "A 🔁 loop grabs all six berries. Then a 🔀 if / else: if berries ≥ 6, turn down and walk to the flag.",
       "🔁6 { 👣 🍒 }, then 🔀( berries ≥ 6 ){ ↱ 👣 }. Six berries opens the last gate!",
+    ],
+  },
+
+  // ---- Chapter 5 · Sharing — DIVISION as equal groups. The same loops that
+  // built the times tables now SHARE a total out fairly: an outer loop makes n
+  // equal passes (n groups / n hops), and the win banner reads the fact off the
+  // program — "12 shared into 3 groups = 4 each!" — the mirror of multiplication.
+  {
+    id: "m5-1", pack: "math", chapter: 5, name: "Fair Share", concept: "12 ÷ 3 = 4",
+    grid: ["S****.****.****o"],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "collect", need: 12,
+    blocks: ["walk", "collect", "repeat"], divide: true,
+    optimal: 5, budget: 10,
+    reward: { catch: "4-20" }, // Cherubi
+    hints: [
+      "Share all 12 🍒 fairly into 3 equal groups. How many go in each group? Let the blocks find out!",
+      "Each group is the same little trip: a 🔁 loop of 👣 walk + 🍒 collect grabs one group, then one 👣 walk hops to the next.",
+      "🔁3 { 🔁4 { 👣 🍒 } 👣 } — three groups, and the loop shows each holds 4. That's 12 ÷ 3 = 4!",
+    ],
+  },
+  {
+    id: "m5-2", pack: "math", chapter: 5, name: "Berry Baskets", concept: "8 ÷ 4 = 2",
+    grid: ["o**.", "*##*", "*##*", ".**."],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "collect", need: 8,
+    blocks: ["walk", "turnRight", "collect", "repeat"], divide: true,
+    optimal: 5, budget: 9,
+    reward: { catch: "4-21" }, // Combee
+    hints: [
+      "Eight 🍒 berries, four baskets — one along each side of the field. Share them out evenly!",
+      "Per side: a small 🔁 loop of 👣 walk + 🍒 collect sweeps that side, then ↱ turn to the next basket.",
+      "🔁4 { 🔁3 { 👣 🍒 } ↱ } — four baskets, and each gets 2. That's 8 ÷ 4 = 2!",
+    ],
+  },
+  {
+    id: "m5-3", pack: "math", chapter: 5, name: "Equal Hops", concept: "12 ÷ 4 = 3",
+    line: 12, start: { x: 0, y: 0, dir: "right" },
+    goal: "target", need: 12,
+    hops: [2, 3], blocks: ["repeat"], divide: true,
+    optimal: 2, budget: 4,
+    reward: { catch: "4-22" }, // Fidough
+    hints: [
+      "Split the number line into equal hops to land on 12. If you take 4 hops, how big is each one?",
+      "A 🔁 loop repeats the same hop. Two +3 hops reach 6, and four reach all the way to 12.",
+      "🔁4 { 🦶+3 } lands 3, 6, 9, 12 — four equal hops of 3. That's 12 ÷ 4 = 3!",
+    ],
+  },
+  {
+    id: "m5-4", pack: "math", chapter: 5, name: "Fair Rows", concept: "15 ÷ 5 = 3",
+    line: 15, start: { x: 0, y: 0, dir: "right" },
+    goal: "target", need: 15,
+    hops: [3, 5], blocks: ["repeat"], divide: true,
+    optimal: 2, budget: 4,
+    reward: { catch: "4-23" }, // Lechonk
+    hints: [
+      "Land on 15 by splitting it into equal hops. Five equal hops — how long is each?",
+      "Pick one hop and let a 🔁 loop repeat it. Five +3 hops, or three +5 hops, both reach 15.",
+      "🔁5 { 🦶+3 } steps 3, 6, 9, 12, 15 — five equal hops of 3. That's 15 ÷ 5 = 3!",
+    ],
+  },
+  {
+    id: "m5-5", pack: "math", chapter: 5, name: "The Great Divide", concept: "12 ÷ 4 = 3",
+    capstone: true,
+    grid: ["o***.", "*###*", "*###*", "*###*", ".***."],
+    start: { x: 0, y: 0, dir: "right" },
+    goal: "collect", need: 12,
+    blocks: ["walk", "turnRight", "collect", "repeat"], divide: true,
+    optimal: 5, budget: 9,
+    reward: { catch: "4-24" }, // Smoliv
+    hints: [
+      "The grand finale! Share all 12 🍒 around the four sides of the great field — equal shares on every side.",
+      "One 🔁 loop inside another: the inner loop sweeps a side's berries, the outer repeats it for all four sides, turning ↱ each time.",
+      "🔁4 { 🔁4 { 👣 🍒 } ↱ } — four sides, 3 berries each. That's 12 ÷ 4 = 3, the Great Divide solved!",
     ],
   },
 ];

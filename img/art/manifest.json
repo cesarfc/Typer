@@ -196,6 +196,63 @@
       ]
     },
     {
+      "id": "tq-abacus-stand",
+      "kind": "prop",
+      "biome": "tq-counting-isle",
+      "file": "props/tq-abacus-stand.png",
+      "wpx": 63,
+      "hpx": 70,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "decor"
+      ]
+    },
+    {
+      "id": "tq-antenna-workshop",
+      "kind": "prop",
+      "biome": "tq-circuit-isle",
+      "file": "props/tq-antenna-workshop.png",
+      "wpx": 108,
+      "hpx": 130,
+      "footprint": [
+        2,
+        2
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "structure"
+      ]
+    },
+    {
+      "id": "tq-apple-basket",
+      "kind": "prop",
+      "biome": "tq-counting-isle",
+      "file": "props/tq-apple-basket.png",
+      "wpx": 64,
+      "hpx": 64,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "decor"
+      ]
+    },
+    {
       "id": "tq-berry-bush",
       "kind": "prop",
       "biome": "tq-meadow",
@@ -234,6 +291,25 @@
       ]
     },
     {
+      "id": "tq-cable-spool",
+      "kind": "prop",
+      "biome": "tq-circuit-isle",
+      "file": "props/tq-cable-spool.png",
+      "wpx": 55,
+      "hpx": 66,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "decor"
+      ]
+    },
+    {
       "id": "tq-cauldron",
       "kind": "prop",
       "biome": "tq-forest",
@@ -250,6 +326,25 @@
       ],
       "tags": [
         "decor"
+      ]
+    },
+    {
+      "id": "tq-circuit-flowerbed",
+      "kind": "prop",
+      "biome": "tq-circuit-isle",
+      "file": "props/tq-circuit-flowerbed.png",
+      "wpx": 66,
+      "hpx": 66,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "flora"
       ]
     },
     {
@@ -291,12 +386,69 @@
       ]
     },
     {
+      "id": "tq-copper-lantern",
+      "kind": "prop",
+      "biome": "tq-circuit-isle",
+      "file": "props/tq-copper-lantern.png",
+      "wpx": 46,
+      "hpx": 72,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "decor"
+      ]
+    },
+    {
       "id": "tq-flower-patch",
       "kind": "prop",
       "biome": "_shared",
       "file": "props/tq-flower-patch.png",
       "wpx": 64,
       "hpx": 65,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "decor"
+      ]
+    },
+    {
+      "id": "tq-gear-clocktower",
+      "kind": "prop",
+      "biome": "tq-circuit-isle",
+      "file": "props/tq-gear-clocktower.png",
+      "wpx": 96,
+      "hpx": 128,
+      "footprint": [
+        1,
+        2
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "structure"
+      ]
+    },
+    {
+      "id": "tq-generator-box",
+      "kind": "prop",
+      "biome": "tq-circuit-isle",
+      "file": "props/tq-generator-box.png",
+      "wpx": 59,
+      "hpx": 72,
       "footprint": [
         1,
         1
@@ -364,6 +516,25 @@
       ],
       "tags": [
         "structure"
+      ]
+    },
+    {
+      "id": "tq-haystack",
+      "kind": "prop",
+      "biome": "tq-counting-isle",
+      "file": "props/tq-haystack.png",
+      "wpx": 61,
+      "hpx": 62,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "decor"
       ]
     },
     {
@@ -462,6 +633,44 @@
       ]
     },
     {
+      "id": "tq-orchard-tree",
+      "kind": "prop",
+      "biome": "tq-counting-isle",
+      "file": "props/tq-orchard-tree.png",
+      "wpx": 64,
+      "hpx": 70,
+      "footprint": [
+        1,
+        1
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "flora"
+      ]
+    },
+    {
+      "id": "tq-pie-cart",
+      "kind": "prop",
+      "biome": "tq-counting-isle",
+      "file": "props/tq-pie-cart.png",
+      "wpx": 69,
+      "hpx": 74,
+      "footprint": [
+        2,
+        1
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "structure"
+      ]
+    },
+    {
       "id": "tq-pier-hut",
       "kind": "prop",
       "biome": "tq-shore",
@@ -508,6 +717,25 @@
       "hpx": 120,
       "footprint": [
         2,
+        2
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "structure"
+      ]
+    },
+    {
+      "id": "tq-robot-statue",
+      "kind": "prop",
+      "biome": "tq-circuit-isle",
+      "file": "props/tq-robot-statue.png",
+      "wpx": 96,
+      "hpx": 137,
+      "footprint": [
+        1,
         2
       ],
       "anchor": [
@@ -584,6 +812,25 @@
       "hpx": 55,
       "footprint": [
         2,
+        1
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "decor"
+      ]
+    },
+    {
+      "id": "tq-stepping-stone",
+      "kind": "prop",
+      "biome": "tq-counting-isle",
+      "file": "props/tq-stepping-stone.png",
+      "wpx": 68,
+      "hpx": 58,
+      "footprint": [
+        1,
         1
       ],
       "anchor": [
@@ -679,6 +926,25 @@
       "hpx": 127,
       "footprint": [
         3,
+        2
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "structure"
+      ]
+    },
+    {
+      "id": "tq-windmill",
+      "kind": "prop",
+      "biome": "tq-counting-isle",
+      "file": "props/tq-windmill.png",
+      "wpx": 104,
+      "hpx": 132,
+      "footprint": [
+        1,
         2
       ],
       "anchor": [
