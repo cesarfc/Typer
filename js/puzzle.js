@@ -144,41 +144,62 @@ const Puzzle = {
     return !!(rec && rec.stars > 0);
   },
 
-  // per-isle look: hero centrepiece, chapter-boundary landmarks (existing art),
-  // a few ambient props, and a soft region tint — all Lost Legends assets.
+  // per-isle look: each island wears its own biome. `terrain` shifts the grass,
+  // forest and trail palette (Circuit = teal tech-meadow with copper paths;
+  // Counting = a golden orchard with cream paths); the decor set is the isle's
+  // themed Lost Legends props — a hero centrepiece, chapter-boundary landmarks
+  // and a few ambient touches. The node/trail SHAPES stay identical everywhere.
   ISLE_DECOR: {
     code: {
-      e: "💻", name: "Circuit Isle", tint: "#b39df1",
-      center: { art: "tq-puzzle-lab", x: 450, y: 110, s: 106 },
-      boundary: ["tq-clocktower", "tq-lantern-post", "tq-signpost", "tq-rock-cluster"],
+      e: "💻", name: "Circuit Isle", tint: "#39c9b8",
+      terrain: { grass: "#5fb8a8", grassHi: "#74c9b6", forest: "#4a9e90",
+                 path: "#d9a066", pathEdge: "#c8894c" },
+      center: { art: "tq-gear-clocktower", x: 450, y: 106, s: 98 },
+      boundary: ["tq-antenna-workshop", "tq-robot-statue", "tq-generator-box",
+                 "tq-copper-lantern", "tq-cable-spool"],
       ambient: [
-        { art: "tq-grass-tuft", x: 120, y: 560, s: 40 },
-        { art: "tq-rock-cluster", x: 806, y: 205, s: 46 },
-        { art: "tq-lantern-post", x: 812, y: 512, s: 40 },
+        { art: "tq-circuit-flowerbed", x: 118, y: 560, s: 48 },
+        { art: "tq-cable-spool", x: 808, y: 205, s: 42 },
+        { art: "tq-copper-lantern", x: 812, y: 512, s: 40 },
+        { art: "tq-circuit-flowerbed", x: 150, y: 240, s: 40 },
+        { art: "tq-puzzle-lab", x: 792, y: 372, s: 62 },
       ],
     },
     math: {
-      e: "🔢", name: "Counting Isle", tint: "#5cc6d8",
-      center: { art: "tq-sparkle-pond", x: 450, y: 118, s: 104 },
-      boundary: ["tq-stone-well", "tq-berry-bush", "tq-market-stall"],
+      e: "🔢", name: "Counting Isle", tint: "#f2c94c",
+      terrain: { grass: "#d8c66a", grassHi: "#e4d484", forest: "#bfa94a",
+                 path: "#f2e6c0", pathEdge: "#e2ce98" },
+      center: { art: "tq-windmill", x: 450, y: 104, s: 100 },
+      boundary: ["tq-orchard-tree", "tq-stepping-stone", "tq-pie-cart", "tq-abacus-stand"],
       ambient: [
-        { art: "tq-flower-patch", x: 120, y: 560, s: 44 },
-        { art: "tq-berry-bush", x: 806, y: 210, s: 46 },
-        { art: "tq-flower-patch", x: 812, y: 520, s: 40 },
+        { art: "tq-orchard-tree", x: 118, y: 558, s: 54 },
+        { art: "tq-haystack", x: 808, y: 208, s: 46 },
+        { art: "tq-apple-basket", x: 812, y: 520, s: 40 },
+        { art: "tq-orchard-tree", x: 150, y: 236, s: 46 },
+        { art: "tq-pie-cart", x: 792, y: 372, s: 48 },
       ],
     },
   },
 
-  // isle canvas is a fixed 900×640 viewBox; nodes are placed in that space and
-  // rendered as %-positioned buttons so the whole scene scales to any width.
+  // isle canvas is a 900-wide viewBox whose HEIGHT grows with the trail: four
+  // rows fit the classic 900×640, and each extra row adds 170 so the longer
+  // packs (24 coding nodes = 5 rows) keep roomy, non-overlapping node spacing
+  // even on a narrow phone. Nodes are %-positioned so the scene scales to width.
   ISLE_W: 900,
   ISLE_H: 640,
+  curH: 640, // the current pack's canvas height (set per render)
+
+  isleHeight(count) {
+    const rows = Math.max(1, Math.ceil(count / 5));
+    return rows <= 4 ? 640 : 640 + (rows - 4) * 170;
+  },
 
   // a boustrophedon (snake) trail: fill left→right, drop a row, right→left…,
   // with a gentle wobble so it reads as a path, not a grid.
   isleNodePositions(count) {
-    const cols = 5, X0 = 170, X1 = 730, Y0 = 205, Y1 = 520;
+    const cols = 5, X0 = 170, X1 = 730, Y0 = 198;
     const rows = Math.max(1, Math.ceil(count / cols));
+    const Y1 = this.isleHeight(count) - 92;
     const pts = [];
     for (let i = 0; i < count; i++) {
       const r = Math.floor(i / cols);
@@ -204,9 +225,20 @@ const Puzzle = {
     return d;
   },
 
-  // the painted islet: teal sea, lime island, sandy trail hugging the nodes
+  // the painted islet: teal sea, biome-tinted island, a trail hugging the nodes.
+  // The grass/forest/trail palette comes from the pack's `terrain` (Circuit =
+  // teal tech-meadow + copper path; Counting = golden orchard + cream path);
+  // beaches stay sandy on both. Defaults keep the classic lime look.
   isleTerrainSvg(pack, pts) {
     const cfg = this.ISLE_DECOR[pack];
+    const t = cfg.terrain || {};
+    const grass = t.grass || "#8fd14f", grassHi = t.grassHi || "#9ad95a";
+    const forestC = t.forest || "#79c247";
+    const pathC = t.path || "#f2ddb0", pathEdge = t.pathEdge || "#e7cf9c";
+    // the island silhouette is designed in the classic 640-tall space; a single
+    // vertical scale stretches it to fill a taller canvas so the extra rows of
+    // trail still sit on grass. The trail itself is drawn in real H-space.
+    const H = this.curH, sy = H / 640;
     const coast = UI.smoothClosed([
       [120, 130], [320, 78], [560, 92], [772, 138], [850, 320],
       [812, 486], [648, 566], [430, 588], [214, 542], [82, 356],
@@ -214,23 +246,25 @@ const Puzzle = {
     const trail = this.isleTrailPath(pts);
     const forest = (cx, cy, s) => [[0, 0], [s, -s * .3], [-s * .9, s * .4], [s * .7, s * .55]]
       .map(([dx, dy], i) => `<circle cx="${cx + dx}" cy="${cy + dy}" r="${s * (0.9 - i * 0.14)}" />`).join("");
-    return `<svg class="isle-svg" viewBox="0 0 ${this.ISLE_W} ${this.ISLE_H}" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    return `<svg class="isle-svg" viewBox="0 0 ${this.ISLE_W} ${H}" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
       <rect width="100%" height="100%" fill="#6fcfe0"/>
-      <path d="${coast}" fill="none" stroke="#bfeef4" stroke-width="30" opacity=".5"/>
-      <path d="${coast}" fill="none" stroke="#f2ddb0" stroke-width="18" opacity=".9"/>
-      <path d="${coast}" fill="#8fd14f"/>
-      <path d="${coast}" fill="#9ad95a" opacity=".5" transform="translate(0,-12)"/>
-      <g fill="#79c247" opacity=".33">${forest(230, 250, 54)}${forest(700, 470, 50)}${forest(300, 470, 44)}</g>
-      <ellipse cx="450" cy="330" rx="470" ry="330" fill="${cfg.tint}" opacity=".08"/>
-      <path d="${trail}" fill="none" stroke="#f2ddb0" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>
-      <path d="${trail}" fill="none" stroke="#e7cf9c" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" opacity=".25" stroke-dasharray="4 26"/>
+      <g transform="scale(1 ${sy.toFixed(4)})">
+        <path d="${coast}" fill="none" stroke="#bfeef4" stroke-width="30" opacity=".5"/>
+        <path d="${coast}" fill="none" stroke="#f2ddb0" stroke-width="18" opacity=".9"/>
+        <path d="${coast}" fill="${grass}"/>
+        <path d="${coast}" fill="${grassHi}" opacity=".5" transform="translate(0,-12)"/>
+        <g fill="${forestC}" opacity=".33">${forest(230, 250, 54)}${forest(700, 470, 50)}${forest(300, 470, 44)}</g>
+        <ellipse cx="450" cy="330" rx="470" ry="330" fill="${cfg.tint}" opacity=".08"/>
+      </g>
+      <path d="${trail}" fill="none" stroke="${pathC}" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>
+      <path d="${trail}" fill="none" stroke="${pathEdge}" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" opacity=".25" stroke-dasharray="4 26"/>
     </svg>`;
   },
 
   // one grounded art prop positioned by its centre in isle space
   isleProp(art, x, y, s, extra = "") {
     const g = artSprite(art, s) || artIcon(art, s);
-    return `<span class="isle-landmark" style="left:${(x / this.ISLE_W) * 100}%;top:${(y / this.ISLE_H) * 100}%"${extra}>${g}</span>`;
+    return `<span class="isle-landmark" style="left:${(x / this.ISLE_W) * 100}%;top:${(y / this.curH) * 100}%"${extra}>${g}</span>`;
   },
 
   // build the whole isle scene into #lab-body for the given pack
@@ -239,6 +273,8 @@ const Puzzle = {
     this.currentPack = pack;
     const cfg = this.ISLE_DECOR[pack];
     const stages = PUZZLE_STAGES.filter(s => s.pack === pack);
+    const H = this.curH = this.isleHeight(stages.length);
+    const sy = H / 640; // decor coords are authored in 640-space; stretch to fit
     const pts = this.isleNodePositions(stages.length);
 
     // group into chapters to resolve within-chapter unlock + chapter labels,
@@ -270,8 +306,8 @@ const Puzzle = {
     });
 
     // ----- decor: hero centrepiece, chapter-boundary landmarks, ambient -----
-    let decor = this.isleProp(cfg.center.art, cfg.center.x, cfg.center.y, cfg.center.s, ' data-center="1"');
-    cfg.ambient.forEach(a => { decor += this.isleProp(a.art, a.x, a.y, a.s); });
+    let decor = this.isleProp(cfg.center.art, cfg.center.x, cfg.center.y * sy, cfg.center.s, ' data-center="1"');
+    cfg.ambient.forEach(a => { decor += this.isleProp(a.art, a.x, a.y * sy, a.s); });
     let bi = 0;
     for (let i = 0; i < meta.length - 1; i++) {
       if (meta[i].ch !== meta[i + 1].ch && cfg.boundary[bi]) {
@@ -324,7 +360,7 @@ const Puzzle = {
         <div class="isle-title"><b>${cfg.e} ${UI.esc(cfg.name)}</b>
           <span>⭐ ${starSum}/${maxStars}${catchStages.length ? ` · 🐾 ${caught}/${catchStages.length}` : ""}</span></div>
       </div>
-      <div class="isle-stage">
+      <div class="isle-stage" style="aspect-ratio:${this.ISLE_W} / ${H}">
         ${this.isleTerrainSvg(pack, pts)}
         ${decor}
         ${labels}

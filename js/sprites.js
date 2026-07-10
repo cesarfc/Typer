@@ -299,6 +299,21 @@ const ART_ASSETS = {
   "tq-town-house": { f: "props/tq-town-house.png", w: 122, h: 118 },
   "tq-trainer-school": { f: "props/tq-trainer-school.png", w: 131, h: 120 },
   "tq-volcano-lair": { f: "props/tq-volcano-lair.png", w: 131, h: 127 },
+  // ---- Isle-biome props (Circuit Isle tech-meadow + Counting Isle orchard) ----
+  "tq-gear-clocktower": { f: "props/tq-gear-clocktower.png", w: 96, h: 128 },
+  "tq-antenna-workshop": { f: "props/tq-antenna-workshop.png", w: 108, h: 130 },
+  "tq-robot-statue": { f: "props/tq-robot-statue.png", w: 96, h: 137 },
+  "tq-copper-lantern": { f: "props/tq-copper-lantern.png", w: 46, h: 72 },
+  "tq-circuit-flowerbed": { f: "props/tq-circuit-flowerbed.png", w: 66, h: 66 },
+  "tq-generator-box": { f: "props/tq-generator-box.png", w: 59, h: 72 },
+  "tq-cable-spool": { f: "props/tq-cable-spool.png", w: 55, h: 66 },
+  "tq-orchard-tree": { f: "props/tq-orchard-tree.png", w: 64, h: 70 },
+  "tq-abacus-stand": { f: "props/tq-abacus-stand.png", w: 63, h: 70 },
+  "tq-pie-cart": { f: "props/tq-pie-cart.png", w: 69, h: 74 },
+  "tq-haystack": { f: "props/tq-haystack.png", w: 61, h: 62 },
+  "tq-stepping-stone": { f: "props/tq-stepping-stone.png", w: 68, h: 58 },
+  "tq-windmill": { f: "props/tq-windmill.png", w: 104, h: 132 },
+  "tq-apple-basket": { f: "props/tq-apple-basket.png", w: 64, h: 64 },
 };
 
 const ART_BASE = "img/art/";
