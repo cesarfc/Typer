@@ -2324,45 +2324,99 @@ button, .screen, #topbar { touch-action: manipulation; }
    Puzzle Lab — picker, playfield, block editor
    ============================================================ */
 
-/* ---- picker (screen-lab) ---- */
-.lab-sub { text-align: center; color: var(--dim); margin: -8px 0 20px; font-size: 15px;
-  padding: 0 16px; max-width: 640px; margin-left: auto; margin-right: auto; }
-#lab-body { width: min(640px, 94%); margin: 0 auto 40px; }
-.pz-wing {
-  display: flex; align-items: center; gap: 16px; padding: 14px 18px; border-radius: 16px;
-  background: linear-gradient(135deg, #efe6ff, #f6efff); border: 3px solid #7a5bd0; margin-bottom: 14px;
+/* ---- the flying isles (screen-lab) ---- */
+#lab-body { width: min(920px, 96%); margin: 8px auto 28px; }
+.isle-scene { display: flex; flex-direction: column; gap: 12px; }
+.isle-topbar { display: flex; align-items: center; gap: 12px; }
+.fly-home { flex: none; padding: 9px 15px; font-size: 15px; font-weight: 800; border-radius: 12px; }
+.isle-title { flex: 1; text-align: right; display: flex; flex-direction: column; line-height: 1.15; }
+.isle-title b { font-size: 20px; font-weight: 900; }
+.isle-title span { font-size: 13px; color: var(--dim); font-weight: 800; }
+
+/* the framed island: a fixed 900×640 canvas that scales to any width */
+.isle-stage {
+  position: relative; width: 100%; aspect-ratio: 900 / 640;
+  border: 4px solid var(--ink); border-radius: 22px; overflow: hidden; background: #6fcfe0;
+  box-shadow: 0 8px 0 rgba(58,49,48,.28), 0 12px 26px rgba(0,0,0,.28);
 }
-.pz-wing.locked { opacity: .75; border-style: dashed; cursor: not-allowed; }
-.pz-wing-e { font-size: 38px; flex: none; }
-.pz-wing-info { display: flex; flex-direction: column; gap: 2px; }
-.pz-wing-info b { font-size: 19px; font-weight: 900; }
-.pz-wing-info i { font-style: normal; font-size: 13px; color: var(--dim); }
-.pz-chapter { text-align: center; font-size: 16px; font-weight: 900; margin: 18px 0 12px; color: var(--gold); }
-.pz-stage-grid { display: flex; flex-direction: column; gap: 12px; }
-.pz-stage {
-  display: flex; align-items: center; gap: 14px; text-align: left; padding: 13px 16px;
-  border-radius: 16px; background: var(--card); border: 2px solid var(--line); position: relative;
+.isle-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+.isle-landmark { position: absolute; transform: translate(-50%, -50%); pointer-events: none; z-index: 2; filter: drop-shadow(0 3px 4px rgba(0,0,0,.35)); }
+.isle-landmark img { display: block; }
+
+.isle-chlabel {
+  position: absolute; transform: translate(-50%, -50%); z-index: 3; pointer-events: none;
+  font-size: 11px; font-weight: 900; white-space: nowrap; color: var(--text);
+  background: var(--card); border: 2px solid var(--ink); padding: 2px 8px; border-radius: 999px;
+  box-shadow: 0 2px 0 rgba(58,49,48,.28);
 }
-.pz-stage:hover { border-color: #b39df1; }
-.pz-stage.done { border-color: var(--good); }
-.pz-stage.capstone { background: linear-gradient(135deg, #f1eaff, #efe6ff); }
-.pz-stage.locked { cursor: not-allowed; opacity: .78; }
-.pz-stage.locked .pz-badge { background: #e6dfc4; color: var(--dim); border-color: var(--line); }
-.pz-stage.denied { animation: deniedFlash .45s ease-out; }
-.pz-badge {
-  flex: none; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
-  font-size: 19px; font-weight: 900; background: #e9defc; color: #6a44b8; border: 2px solid #7a5bd0;
+
+/* trail nodes — round tap targets in the map-node idiom (paint-only hover) */
+.isle-node {
+  position: absolute; transform: translate(-50%, -50%); transform-origin: 50% 50%;
+  width: clamp(48px, 6vw, 54px); height: clamp(48px, 6vw, 54px); margin: 0; padding: 0; border-radius: 50%;
+  background: var(--card); border: 3px solid var(--ink);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  color: var(--text); z-index: 5;
+  box-shadow: 0 5px 0 rgba(58,49,48,.35), 0 6px 14px rgba(0,0,0,.28);
+  transition: background .15s, border-color .15s;
 }
-.pz-stage.done .pz-badge { background: rgba(67,233,123,.18); color: var(--good); border-color: var(--good); }
-.pz-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-.pz-info b { font-size: 17px; font-weight: 900; }
-.pz-info i { font-style: normal; font-size: 12.5px; color: var(--dim); }
-.pz-stars { font-size: 15px; color: var(--gold); letter-spacing: 1px; }
-.pz-stars .off { color: #cdbfa0; }
-.pz-locknote { font-size: 12px; color: var(--dim); }
-.pz-reward { flex: none; font-size: 12px; font-weight: 800; padding: 5px 10px; border-radius: 999px; }
-.pz-reward.new { color: #1a1404; background: linear-gradient(180deg, #ffe28a, var(--gold)); animation: pulseGlow 1.6s ease-in-out infinite; }
-.pz-reward.got { color: var(--good); background: rgba(67,233,123,.14); border: 1px solid var(--good); }
+.isle-node:hover, .isle-node:active { transform: translate(-50%, -50%); filter: none; }
+.isle-node:hover { border-color: var(--gold); }
+.isle-num { font-size: 19px; font-weight: 900; line-height: 1; }
+.isle-num.lock { display: flex; }
+.isle-num.lock img { display: block; }
+.isle-stars { font-size: 9px; color: var(--gold); line-height: 1; letter-spacing: .5px; margin-top: 1px; }
+.isle-stars .off { color: #cdbfa0; }
+.isle-node.done { border-color: var(--good); }
+.isle-node.done .isle-num { color: var(--good); }
+.isle-node.next { border-color: var(--gold); box-shadow: 0 5px 0 rgba(58,49,48,.35), 0 0 0 4px rgba(255,201,60,.5); animation: pulseGlow 1.4s ease-in-out infinite; z-index: 6; }
+.isle-node.capstone { background: #fff3cf; }
+.isle-node.locked { opacity: .55; cursor: not-allowed; filter: grayscale(.6); box-shadow: 0 4px 0 rgba(58,49,48,.3); }
+.isle-node.denied { animation: deniedFlash .45s ease-out; }
+.isle-catch { position: absolute; top: -12px; right: -8px; font-size: 15px; filter: drop-shadow(0 1px 1px rgba(0,0,0,.4)); animation: bob 1.8s ease-in-out infinite; }
+
+/* ---- flight perch: the "where to?" destination card ---- */
+#perch-panel { position: fixed; inset: 0; background: rgba(45,36,32,.8); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.perch-card { position: relative; background: var(--card); border: 3px solid var(--ink); border-radius: 22px; padding: 22px 24px 20px; width: min(460px, 92vw); box-shadow: 0 10px 0 rgba(58,49,48,.25); animation: zoomIn .3s cubic-bezier(.2, 1.4, .4, 1); }
+.perch-card h3 { font-size: 23px; font-weight: 900; text-align: center; }
+.perch-sub { text-align: center; font-size: 14px; color: var(--dim); font-weight: 700; margin: 4px 0 16px; }
+#perch-close { position: absolute; top: 12px; right: 12px; width: 34px; height: 34px; border-radius: 50%; background: var(--card2); border: 2px solid var(--ink); font-weight: 900; padding: 0; }
+.perch-dests { display: flex; flex-direction: column; gap: 12px; }
+.perch-dest { display: flex; align-items: center; gap: 14px; text-align: left; padding: 14px 16px; border-radius: 16px; border: 3px solid var(--ink); background: var(--card); }
+.perch-dest:hover { border-color: var(--gold); }
+.perch-dest.code { background: linear-gradient(135deg, #efe6ff, #f6efff); }
+.perch-dest.math { background: linear-gradient(135deg, #e0f2fb, #eaf6fc); }
+.pd-e { font-size: 34px; flex: none; }
+.pd-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.pd-info b { font-size: 18px; font-weight: 900; }
+.pd-info i { font-style: normal; font-size: 12.5px; color: var(--dim); }
+.pd-prog { font-size: 13px; font-weight: 800; color: var(--text); margin-top: 3px; }
+.pd-go { flex: none; font-size: 13px; font-weight: 900; color: #1a1404; background: linear-gradient(180deg, #ffe28a, var(--gold)); padding: 7px 12px; border-radius: 999px; border: 2px solid var(--ink); }
+
+/* ---- the bird-flight animation ---- */
+#fly-overlay { position: fixed; inset: 0; z-index: 120; display: flex; align-items: center; justify-content: center; overflow: hidden;
+  background: radial-gradient(circle at 50% 40%, rgba(125,200,255,.35), rgba(45,36,32,.55)); backdrop-filter: blur(2px); }
+.fly-rider { position: relative; display: inline-flex; will-change: transform; }
+.fly-bird { display: block; filter: drop-shadow(0 6px 8px rgba(0,0,0,.35)); }
+.fly-trainer { position: absolute; left: 50%; top: -8px; transform: translateX(-50%); }
+.fly-trainer .trainer-svg { width: 56px; height: auto; display: block; }
+.fly-trainer .avatar-emoji { font-size: 40px; }
+.fly-say { position: absolute; bottom: 16%; left: 50%; transform: translateX(-50%); font-size: 20px; font-weight: 900; color: #fff; background: rgba(58,49,48,.72); padding: 8px 18px; border-radius: 999px; }
+.fly-out .fly-rider { animation: flyOut 1.05s ease-in forwards; }
+.fly-home .fly-rider { animation: flyHomeAnim 1.05s ease-in forwards; }
+.fly-wing-front { transform-box: fill-box; transform-origin: 62% 88%; animation: wingFlap .28s ease-in-out infinite; }
+@keyframes flyOut {
+  0% { transform: translate(-46vw, 30vh) scale(.7) rotate(-4deg); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translate(46vw, -34vh) scale(1.15) rotate(6deg); opacity: 0; }
+}
+@keyframes flyHomeAnim {
+  0% { transform: translate(40vw, -30vh) scale(1.1) rotate(6deg); opacity: 0; }
+  18% { opacity: 1; }
+  100% { transform: translate(-46vw, 34vh) scale(.7) rotate(-6deg); opacity: 0; }
+}
+@keyframes wingFlap { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-24deg); } }
 
 /* ---- playfield (screen-puzzle) ---- */
 #screen-puzzle { padding: 10px 12px 20px; gap: 10px; }
@@ -2534,7 +2588,6 @@ button, .screen, #topbar { touch-action: manipulation; }
 }
 .pz-cp-join button.on { border-color: #c77bff; background: rgba(199,123,255,.18); color: #d3a6ff; }
 .pz-cp-preview { text-align: center; font-size: 15px; padding: 9px; background: rgba(0,0,0,.25); border-radius: 10px; }
-.pz-chapter-lock { text-align: center; font-size: 12.5px; color: var(--dim); margin: -6px 0 10px; }
 .pz-del {
   width: 22px; height: 22px; border-radius: 8px; padding: 0; font-size: 12px; font-weight: 900;
   background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.18); color: #fff; line-height: 1;
@@ -2586,10 +2639,6 @@ button, .screen, #topbar { touch-action: manipulation; }
 .pz-win-xp { font-size: 20px; font-weight: 900; color: var(--gold); margin: 8px 0 4px; }
 .pz-win-btns { display: flex; flex-direction: column; gap: 8px; align-items: stretch; max-width: 320px; margin: 10px auto 0; }
 .pz-win-btns .big-btn { width: 100%; }
-
-/* ============ Puzzle Lab — Math Wing (Phase 3) ============ */
-.pz-wing.math { background: linear-gradient(135deg, #e0f2fb, #eaf6fc); border-color: #2f8fc0; }
-.pz-wing.math.locked { border-color: #7fb6d4; }
 
 /* ---- live HUD: berry counter (A) or number-line total (B) ---- */
 #puzzle-hud.hidden { display: none; }

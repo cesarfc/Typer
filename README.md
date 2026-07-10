@@ -210,17 +210,23 @@ mystery Pokemon — then the clock starts.
   The on-screen keyboard grows the number row just for these drills, and typing
   a tier at 90%+ accuracy earns its stamp; collect all four for the 🪪 Licensed
   Typist trophy.
-- **🧩 Puzzle Lab (block coding + math)** — a second side-building beside the
-  Trainer School, opening once you reach Mt. Moon. **No keyboard needed to
-  play:** snap code blocks together to guide a Pokemon through grid puzzles,
-  then catch a new friend the usual way — by typing its name (the only typing
-  in the Lab). A **Coding Wing** teaches walking, loops, ifs and AND/OR/NOT
-  logic across five chapters; a **Math Wing** (opens after the Loops chapter)
-  turns counting, times-tables and number-line hops into moves. Tap **⏭ Step**
-  to walk your plan one block at a time, pick a 🐢/🐇/⚡ playback speed, and tap
-  **💡 Hint** for a gentle ladder of tips (with a "Watch a bit" demo on the very
-  first stages). **24 new Pokemon live only here** — solving stages is the one
-  way to catch them. No clocks, no fail states: hints teach, they never scold.
+- **🧩 Puzzle Isles (block coding + math)** — a flight perch beside the Trainer
+  School, opening once you reach Mt. Moon. Tap it and a bird sweeps you off to
+  one of two islands you **fly to**: **💻 Circuit Isle** or **🔢 Counting Isle**.
+  Each isle is a painted islet with its puzzles laid out as a winding **trail of
+  nodes** (starred, numbered, padlocked) and landmarks marking each chapter.
+  **No keyboard needed to play:** snap code blocks together to guide a Pokemon
+  through grid puzzles, then catch a new friend the usual way — by typing its
+  name (the only typing here). Circuit Isle teaches walking, loops, ifs and
+  AND/OR/NOT logic across five chapters; **Counting Isle is fully independent**
+  — reachable from the very first flight, no coding required — with counting,
+  times-tables and number-line hops across four chapters. Tap **⏭ Step** to walk
+  your plan one block at a time, pick a 🐢/🐇/⚡ playback speed, and tap **💡 Hint**
+  for a gentle ladder of tips (with a "Watch a bit" demo on the very first
+  stages). Flying is a delight and never blocks you — it's instant under
+  reduced-motion and skippable with a tap. **24 new Pokemon live only here** —
+  solving stages is the one way to catch them. No clocks, no fail states: hints
+  teach, they never scold.
 - **🤝 Family Trading Post** — a market stall on the south shore where two
   family trainers swap Pokemon one-for-one on the shared device. Pick a
   sibling, each side offers one Pokemon from their Pokedex, then a big

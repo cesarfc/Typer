@@ -194,6 +194,32 @@ function mapSprite(name, size, opt) {
   return f ? f(size, opt) : "";
 }
 
+// A chunky Lost Legends flight bird — charcoal outline, cream belly, a warm
+// wing and a little beak. Hand-drawn inline SVG (no billed art). Used under
+// the trainer avatar for the "fly to the isles" animation. `size` is the
+// on-screen width; height follows the 96×70 art aspect.
+function birdSvg(size = 120, cls = "fly-bird") {
+  const O = 'stroke="#3a3130" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"';
+  return `<svg class="${cls}" width="${Math.round(size)}" height="${Math.round(size * 70 / 96)}"
+    viewBox="0 0 96 70" aria-hidden="true">
+    <!-- far wing sweeping up behind -->
+    <path class="fly-wing-back" d="M52 34 Q34 6 8 14 Q30 22 40 40 Z" fill="#e08a3a" ${O}/>
+    <!-- plump body -->
+    <ellipse cx="52" cy="42" rx="30" ry="20" fill="#5aa9d6" ${O}/>
+    <!-- cream belly -->
+    <path d="M30 46 Q52 66 76 46 Q70 58 52 60 Q34 58 30 46 Z" fill="#fff3d6" ${O}/>
+    <!-- tail -->
+    <path d="M80 40 Q96 34 94 48 Q86 48 80 46 Z" fill="#3f7fa8" ${O}/>
+    <!-- head + beak + eye -->
+    <circle cx="30" cy="30" r="14" fill="#5aa9d6" ${O}/>
+    <polygon points="16,30 2,34 16,38" fill="#ffb24d" ${O}/>
+    <circle cx="27" cy="27" r="3.2" fill="#3a3130" stroke="none"/>
+    <circle cx="28.2" cy="26" r="1" fill="#fff" stroke="none"/>
+    <!-- near wing flapping over the body -->
+    <path class="fly-wing-front" d="M50 40 Q40 10 66 6 Q60 26 72 40 Z" fill="#ffc93c" ${O}/>
+  </svg>`;
+}
+
 // ============================================================
 // Pixel tiles cut from openly licensed tilesheets (see CREDITS.md):
 // buildings.png and setpieces.png by Kelvin Shadewing, via the

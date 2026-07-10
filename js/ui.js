@@ -163,7 +163,7 @@ const UI = {
     if (name === "journal") this.renderJournal();
     if (name === "stats") this.renderStats();
     if (name === "practice") this.renderPractice();
-    if (name === "lab") Puzzle.renderPicker();
+    if (name === "lab") Puzzle.renderIsle(Puzzle.currentPack);
     if (name !== "title" && name !== "game") this.renderTopbar();
     this.touchKeyboard(name);
     if (name === "map") this.maybeDayCard();
@@ -699,11 +699,12 @@ const UI = {
     html += `<button class="map-school" style="left:430px;top:1330px" title="Trainer School — no countdown, race your records!">
       <span>${worldSprite("school", 90)}</span><b>Trainer School</b></button>`;
 
-    // Puzzle Lab: a side building beside the school — opens once Mt. Moon is
-    // reached, so a brand-new trainer never sees it
+    // Puzzle Lab: now a flight perch — tap it to fly off to the Circuit &
+    // Counting isles. Opens once Mt. Moon is reached (worldUnlocked(1)), so a
+    // brand-new trainer never sees it.
     if (SAVE.worldUnlocked(1)) {
-      html += `<button class="map-lab" style="left:238px;top:1392px" title="Puzzle Lab — code your way to new Pokemon!">
-        <span>${worldSprite("lab", 84)}</span><b>🧩 Puzzle Lab</b></button>`;
+      html += `<button class="map-lab" style="left:238px;top:1392px" title="Flight perch — fly to the puzzle isles!">
+        <span>${worldSprite("lab", 84)}</span><b>🧩 Puzzle Isles</b></button>`;
     }
 
     // Professor's Daily Drill podium beside the school
@@ -899,6 +900,100 @@ const UI = {
 
   closeAreaPanel() {
     this.$("area-panel").classList.add("hidden");
+  },
+
+  // ---------- the flying isles: perch card + bird flight ----------
+  // Tapping the Puzzle Lab building (the flight perch) opens a destination card;
+  // picking an isle plays a short bird sweep, then lands on the isle scene.
+  // Reduced-motion players skip the sweep entirely. The overlay is always
+  // skippable by tap, with a safety timeout so input can never be trapped.
+
+  // per-isle progress: total stars earned and Pokemon caught there
+  perchProgress(pack) {
+    const stages = PUZZLE_STAGES.filter(s => s.pack === pack);
+    const puz = (SAVE.state && SAVE.state.puzzle) || {};
+    const dex = (SAVE.state && SAVE.state.dex) || {};
+    const stars = stages.reduce((n, s) => n + (((puz[s.id] || {}).stars) || 0), 0);
+    const catchStages = stages.filter(s => s.reward && s.reward.catch);
+    const caught = catchStages.filter(s => dex[s.reward.catch]).length;
+    return { stars, maxStars: stages.length * 3, caught, catchTotal: catchStages.length };
+  },
+
+  openPerchCard() {
+    const panel = this.$("perch-panel");
+    const dest = (pack, e, name, blurb) => {
+      const p = this.perchProgress(pack);
+      return `<button class="perch-dest ${pack}" data-fly="${pack}">
+        <span class="pd-e">${e}</span>
+        <span class="pd-info"><b>${name}</b><i>${blurb}</i>
+          <span class="pd-prog">⭐ ${p.stars}/${p.maxStars}${p.catchTotal ? ` · 🐾 ${p.caught}/${p.catchTotal}` : ""}</span></span>
+        <span class="pd-go">Fly ✈️</span></button>`;
+    };
+    panel.innerHTML = `<div class="perch-card">
+      <button id="perch-close" aria-label="Close">✕</button>
+      <h3>🕊️ Where to, trainer?</h3>
+      <p class="perch-sub">Hop on and pick an isle to fly to!</p>
+      <div class="perch-dests">
+        ${dest("code", "💻", "Circuit Isle", "Walk, loop &amp; decide with code blocks")}
+        ${dest("math", "🔢", "Counting Isle", "Counting, times-tables &amp; number hops")}
+      </div>
+    </div>`;
+    panel.classList.remove("hidden");
+  },
+
+  closePerchCard() {
+    this.$("perch-panel").classList.add("hidden");
+  },
+
+  // the rider: the trainer avatar sitting on the chunky bird
+  flyRiderHtml() {
+    const t = SAVE.state && SAVE.state.profile;
+    return `<div class="fly-rider">
+      ${birdSvg(150)}
+      <span class="fly-trainer">${this.avatarHtml(t)}</span>
+    </div>`;
+  },
+
+  // fly OUT to an isle: sweep up-and-across, then show the isle scene
+  flyToIsle(pack) {
+    Puzzle.currentPack = pack;
+    this.closePerchCard();
+    if (this._reducedMotion) { this.show("lab"); return; }
+    this._runFlight("out", () => this.show("lab"));
+  },
+
+  // fly HOME: sweep back down, then the map centred on the perch
+  flyHome() {
+    const done = () => {
+      this.show("map");
+      this.centerMapOn(238, 1392);
+    };
+    if (this._reducedMotion) { done(); return; }
+    this._runFlight("home", done);
+  },
+
+  // shared flight animation. `dir` is "out" or "home". Always resolves once:
+  // on animationend, on a skip tap, or on a safety timeout — whichever is first.
+  _runFlight(dir, then) {
+    const ov = this.$("fly-overlay");
+    if (this._flyTimer) { clearTimeout(this._flyTimer); this._flyTimer = null; }
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      if (this._flyTimer) { clearTimeout(this._flyTimer); this._flyTimer = null; }
+      ov.classList.add("hidden");
+      ov.innerHTML = "";
+      ov.onclick = null;
+      then();
+    };
+    ov.className = `fly-${dir}`; // removes "hidden", sets the sweep direction
+    ov.innerHTML = `${this.flyRiderHtml()}<div class="fly-say">🕊️ Hold on tight!</div>`;
+    ov.onclick = finish; // tap to skip
+    const rider = ov.querySelector(".fly-rider");
+    if (rider) rider.addEventListener("animationend", finish, { once: true });
+    SFX.combo();
+    this._flyTimer = setTimeout(finish, 1400); // safety: never trap input
   },
 
   // ---------- Family Trading Post ----------
@@ -1239,6 +1334,11 @@ const UI = {
       if (e.key === "Escape") { e.preventDefault(); this.closeTradePanel(); }
       return;
     }
+    // the flight-perch destination card owns keys while it's open
+    if (!this.$("perch-panel").classList.contains("hidden")) {
+      if (e.key === "Escape") { e.preventDefault(); this.closePerchCard(); }
+      return;
+    }
     if (!this.$("day-card").classList.contains("hidden")) {
       if (e.key === "Escape" || e.key === "Enter") {
         e.preventDefault();
@@ -1393,7 +1493,7 @@ const UI = {
       const lab = e.target.closest(".map-lab");
       if (lab) {
         SFX.init();
-        this.show("lab");
+        this.openPerchCard();
         return;
       }
       const pd = e.target.closest(".map-podium");
@@ -4094,6 +4194,14 @@ const UI = {
         SFX.click();
         this.closeAreaPanel();
       }
+    });
+
+    this.$("perch-panel").addEventListener("click", e => {
+      if (e.target.closest("#perch-close") || e.target.id === "perch-panel") {
+        SFX.click(); this.closePerchCard(); return;
+      }
+      const dest = e.target.closest(".perch-dest");
+      if (dest) { SFX.init(); this.flyToIsle(dest.dataset.fly); }
     });
 
     this.$("trade-panel").addEventListener("click", e => {
