@@ -228,6 +228,22 @@ mystery Pokemon — then the clock starts.
   under reduced-motion and skippable with a tap. **34 new Pokemon live only
   here** — solving stages is the one way to catch them. No clocks, no fail
   states: hints teach, they never scold.
+- **🔨 The Maker Hut** — a little workshop on each isle (it opens once you've
+  earned a ⭐ on every Chapter 1 puzzle there, so you know the blocks). Inside,
+  kids **design their own walk-grid stages** entirely by tapping: pick a grid
+  size (4×4, 5×4 or 5×5), paint paths, trees, water, berries, a start (tap it
+  again to turn the arrow) and a flag, then choose which blocks the solver gets
+  (walk and turn are always on; collect switches on when you place berries;
+  repeat, if, if/else and AND/OR logic are yours to toggle). The heart of it is
+  the **proof rule**: before you can publish, you must **solve your own stage**
+  in the normal playfield — your winning block count becomes the record to beat,
+  which guarantees every published stage is solvable and teaches that designers
+  test their work. Name it (the only typing), and it lands on your **My stages**
+  shelf; every other family trainer sees it under **Family stages** and can play
+  it. Beat the creator's own record and you get a delighted callout. Maker plays
+  pay a little XP but **never catch Pokemon** (the dex stays honest) and never
+  touch anyone else's save. Trophies: 🔨 Stage Designer (publish your first) and
+  🏗️ Master Builder (publish 5). Up to 8 stages per kid.
 - **🤝 Family Trading Post** — a market stall on the south shore where two
   family trainers swap Pokemon one-for-one on the shared device. Pick a
   sibling, each side offers one Pokemon from their Pokedex, then a big
@@ -269,7 +285,7 @@ mystery Pokemon — then the clock starts.
   Pokedex Master). Each earned one prints a landscape certificate with the
   trainer's name, avatar, party lineup and the date earned — ready to hang on
   a real wall. Unearned ones show a kind "how to earn it" note.
-- **50 trophies**, daily play streaks, and a personal-best speed chart.
+- **52 trophies**, daily play streaks, and a personal-best speed chart.
 - **🥷 Ninja Mode** — hide the on-screen keyboard for 1.5× XP (this is the
   real goal: typing without looking!).
 

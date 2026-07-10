@@ -786,6 +786,11 @@ const WORDPACK_WORD_MAXLEN = 24;  // characters per word
 const WORDPACK_NAME_MAXLEN = 24;  // characters in a pack name
 const WORDPACK_ALLOWED = /[A-Za-z .,'!?]/;  // one allowed character
 
+// ---- Maker Hut: kids design their own walk-grid puzzle stages ----
+const MAKER_STAGES_MAX = 8;       // published stages per kid
+const MAKER_NAME_MAXLEN = 24;     // characters in a stage name (same charset as word packs)
+const MAKER_GRID_MAX = 25;        // most cells a stage grid may hold (5×5)
+
 // friendly name for a rejected character, so the message can say what to fix
 function charName(ch) {
   const names = { " ": "a space", "\t": "a tab", "\n": "a line break",
@@ -1660,6 +1665,8 @@ const TROPHIES = [
   { id: "diploma-1", e: "🎓", name: "Framed and Famous", desc: "Print your first diploma from the Museum" },
   { id: "tower-5", e: "🗼", name: "Tower Challenger", desc: "Reach floor 5 of the Battle Tower" },
   { id: "tower-15", e: "🏯", name: "Tower Master", desc: "Reach floor 15 of the Battle Tower" },
+  { id: "maker-1", e: "🔨", name: "Stage Designer", desc: "Publish your first Maker Hut stage" },
+  { id: "maker-5", e: "🏗️", name: "Master Builder", desc: "Publish 5 Maker Hut stages" },
 ];
 
 const ENCOURAGE = [

@@ -2849,3 +2849,94 @@ button, .screen, #topbar { touch-action: manipulation; }
   .pz-caret, .pz-caret.on, .pz-bodyslot.on, .pz-msg.win, .pz-reward.new, .pz-reveal { animation: none !important; }
   .pz-sprite { transition: none; }
 }
+
+/* ============ The Maker Hut ============ */
+/* the building on the isle scene (positioned like an isle-node) */
+.isle-hut {
+  position: absolute; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: none; border: none; padding: 0; z-index: 5; cursor: pointer;
+  filter: drop-shadow(0 3px 4px rgba(0,0,0,.35));
+}
+.isle-hut:hover { filter: drop-shadow(0 0 6px rgba(255,201,60,.8)); }
+.isle-hut-lbl {
+  font-size: 11px; font-weight: 900; color: #1a1404; white-space: nowrap;
+  background: linear-gradient(180deg, #ffe28a, var(--gold)); border: 2px solid var(--ink);
+  padding: 2px 8px; border-radius: 999px;
+}
+.isle-hut.locked { filter: grayscale(.65); opacity: .7; }
+.isle-hut.locked .isle-hut-lbl { background: var(--card2); color: var(--dim); }
+.isle-hut.denied { animation: deniedFlash .45s ease-out; }
+
+/* ---- Maker screen shell ---- */
+#screen-maker { padding: 12px 12px 28px; }
+#maker-body { width: min(760px, 100%); margin: 0 auto; }
+.mk-topbar { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+.mk-back { padding: 8px 14px; font-size: 14px; font-weight: 800; border-radius: 12px; flex: none; }
+.mk-etitle { font-size: 20px; font-weight: 900; }
+.mk-blurb, .mk-hint2 { font-size: 13px; color: var(--dim); font-weight: 700; }
+.mk-blurb { margin: 2px 0 14px; }
+
+/* ---- shelf ---- */
+.mk-shelf { background: var(--card); border: 3px solid var(--ink); border-radius: 18px; padding: 14px 16px; margin-bottom: 16px; box-shadow: 0 6px 0 rgba(58,49,48,.18); }
+.mk-shelf-h { font-size: 16px; font-weight: 900; display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.mk-shelf-h span { font-size: 12.5px; font-weight: 800; color: var(--dim); background: var(--card2); padding: 2px 9px; border-radius: 999px; }
+.mk-shelf-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 2px solid var(--ink); border-radius: 14px; background: var(--card2); margin-bottom: 8px; }
+.mk-shelf-item.fam { background: linear-gradient(135deg, #e0f2fb, #eef8fd); }
+.mk-shelf-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.mk-shelf-info b { font-size: 15.5px; font-weight: 900; }
+.mk-shelf-info i { font-style: normal; font-size: 12px; color: var(--dim); }
+.mk-shelf-btns { display: flex; align-items: center; gap: 6px; flex: none; }
+.mk-shelf-btns .mid-btn { padding: 8px 14px; font-size: 14px; }
+.mk-mini { width: 38px; height: 38px; padding: 0; border-radius: 10px; font-size: 16px; background: var(--card); border: 2px solid var(--ink); }
+.mk-mini:hover { border-color: var(--gold); }
+.mk-empty { font-size: 13px; color: var(--dim); font-weight: 700; padding: 4px 2px; }
+.mk-newstage { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 12px 14px; border: 3px dashed var(--ink); border-radius: 14px; background: var(--card); }
+.mk-newstage:hover { border-color: var(--gold); border-style: solid; }
+.mk-new-e { font-size: 28px; flex: none; }
+.mk-new-l { display: flex; flex-direction: column; }
+.mk-new-l b { font-size: 15px; font-weight: 900; }
+.mk-new-l i { font-style: normal; font-size: 12px; color: var(--dim); }
+
+/* ---- editor ---- */
+.mk-error { background: rgba(247,109,142,.16); border: 2px solid #f76d8e; color: #b53d5c; font-weight: 800; font-size: 13.5px; padding: 8px 12px; border-radius: 12px; margin-bottom: 10px; }
+.mk-cols { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.mk-gridwrap { flex: 1 1 240px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.mk-grid {
+  --cell: clamp(44px, 15vw, 62px);
+  display: grid; position: relative;
+  grid-template-columns: repeat(var(--cols), var(--cell));
+  grid-template-rows: repeat(var(--rows), var(--cell));
+  gap: 3px; padding: 8px; box-sizing: content-box;
+  background: linear-gradient(160deg, #4f9e39, #3c8a2c);
+  border: 3px solid var(--ink); border-radius: 16px;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.12), 0 8px 22px rgba(58,49,48,.28);
+}
+.mk-cell { cursor: pointer; border: 2px solid transparent; }
+.mk-cell:hover { border-color: rgba(255,255,255,.6); }
+.mk-cell.start { box-shadow: inset 0 0 0 3px var(--gold); }
+.mk-start { font-size: calc(var(--cell) * .5); line-height: 1; }
+.mk-objective { font-size: 14px; font-weight: 900; color: var(--gold); text-align: center; }
+
+.mk-panel { flex: 1 1 300px; display: flex; flex-direction: column; gap: 12px; }
+.mk-section { display: flex; flex-direction: column; gap: 6px; }
+.mk-label { font-size: 12.5px; font-weight: 800; color: var(--dim); }
+.mk-sizes, .mk-tools, .mk-blocks { display: flex; flex-wrap: wrap; gap: 8px; }
+.mk-size { min-width: 56px; padding: 8px 12px; font-weight: 900; font-size: 14px; border-radius: 12px; background: var(--card2); border: 2px solid var(--ink); }
+.mk-size.on { background: var(--gold); border-color: var(--gold); color: #1a1404; }
+.mk-tool { display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 60px; padding: 7px 8px; border-radius: 12px; background: var(--card2); border: 2px solid var(--ink); font-weight: 800; }
+.mk-tool.on { background: var(--gold); border-color: var(--gold); color: #1a1404; box-shadow: 0 0 0 3px rgba(255,201,60,.4); }
+.mk-tool-e { font-size: 20px; line-height: 1; }
+.mk-tool-l { font-size: 11px; }
+.mk-block { font-size: 12.5px; font-weight: 800; padding: 7px 11px; border-radius: 999px; background: var(--card2); border: 2px solid var(--ink); color: var(--text); }
+.mk-block.on { background: rgba(67,233,123,.2); border-color: #2fb463; color: #1f7a44; }
+.mk-block.locked { opacity: .9; cursor: default; }
+.mk-namefield { display: flex; flex-direction: column; gap: 4px; }
+.mk-namefield span { font-size: 12.5px; font-weight: 800; color: var(--dim); }
+.mk-namefield input { padding: 10px 12px; font-size: 15px; border-radius: 12px; border: 2px solid var(--ink); background: var(--card); font-weight: 700; }
+.mk-namefield input:focus { border-color: var(--gold); outline: none; }
+.mk-actions { display: flex; gap: 10px; margin-top: 2px; }
+.mk-actions .big-btn { flex: 1; }
+.mk-publish.disabled { opacity: .45; filter: grayscale(.4); }
+.mk-provenote { font-size: 12.5px; font-weight: 700; color: var(--dim); text-align: center; }
+.mk-provenote b { color: var(--gold); }
