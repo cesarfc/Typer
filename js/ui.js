@@ -605,6 +605,83 @@ const UI = {
     return out;
   },
 
+  // ---------- Seasonal map dressing (pure decoration — never a reward) ----------
+  // Driven by the real calendar; a debug override (window.TQ.debugSeason) lets
+  // us preview any season. Winter/spring/autumn/summer each add a gentle tint,
+  // a handful of drifting particles, and season-flavored decor. Two single-day
+  // touches: fireworks on Jan 1 / Jul 4, pumpkins in the last week of October.
+  seasonNow() {
+    if (this._debugSeason && this._debugSeason !== "fireworks") return this._debugSeason;
+    const m = new Date().getMonth();          // 0 = January
+    return (m === 11 || m <= 1) ? "winter"
+      : m <= 4 ? "spring"
+      : m <= 7 ? "summer" : "autumn";
+  },
+
+  seasonSpecials() {
+    const s = { fireworks: false, pumpkins: false };
+    if (this._debugSeason === "fireworks") { s.fireworks = true; return s; }
+    const now = new Date();
+    const m = now.getMonth(), day = now.getDate();
+    if ((m === 0 && day === 1) || (m === 6 && day === 4)) s.fireworks = true;  // Jan 1 / Jul 4
+    if (m === 9 && day >= 25) s.pumpkins = true;                               // last week of Oct
+    return s;
+  },
+
+  // preview any season live from the console: TQ.debugSeason("winter"|"spring"|
+  // "summer"|"autumn"|"fireworks"|null-to-clear)
+  debugSeason(name) {
+    this._debugSeason = name || null;
+    if (this.current === "map") this.renderMap();
+    return this._debugSeason || "(live calendar)";
+  },
+
+  // the seasonal overlay HTML: a tint plane, a few light CSS particles, and
+  // season-flavored decor appended over the existing map (all decoration).
+  seasonLayer(decor) {
+    const season = this.seasonNow();
+    const sp = this.seasonSpecials();
+    let html = `<div class="season-tint season-${season}"></div>`;
+    // deterministic scatter so the dressing never jitters between renders
+    let h = 20240101;
+    const rng = () => { h = (h * 1664525 + 1013904223) >>> 0; return h / 4294967296; };
+    const rx = () => Math.round(rng() * this.MAP_W);
+    const ry = () => Math.round(rng() * this.MAP_H);
+    const trees = decor.filter(o => o.sp === "tree" || o.t === "pine" || o.t === "pineBig");
+
+    if (season === "winter") {
+      // snowy caps atop about half the trees
+      trees.forEach((o, i) => {
+        if (i % 2) return;
+        const lift = (o.s || o.sc * 20) * 0.7;
+        html += `<span class="snow-cap" style="left:${o.x}px;top:${o.y - lift}px">❄️</span>`;
+      });
+      for (let i = 0; i < 12; i++)
+        html += `<span class="snowflake" style="left:${rx()}px;top:${ry()}px;font-size:${10 + Math.round(rng() * 10)}px;animation-delay:-${(rng() * 8).toFixed(1)}s;animation-duration:${(7 + rng() * 6).toFixed(1)}s">❄️</span>`;
+    } else if (season === "spring") {
+      trees.forEach((o, i) => { if (i % 3 === 0) html += `<span class="season-decor" style="left:${o.x + 10}px;top:${o.y - 8}px">🌸</span>`; });
+      for (let i = 0; i < 12; i++)
+        html += `<span class="petal" style="left:${rx()}px;top:${ry()}px;animation-delay:-${(rng() * 8).toFixed(1)}s;animation-duration:${(8 + rng() * 6).toFixed(1)}s">🌸</span>`;
+    } else if (season === "autumn") {
+      trees.forEach((o, i) => { if (i % 2) html += `<span class="season-decor" style="left:${o.x}px;top:${o.y - 6}px">🍂</span>`; });
+      for (let i = 0; i < 12; i++)
+        html += `<span class="leaf-fall" style="left:${rx()}px;top:${ry()}px;animation-delay:-${(rng() * 8).toFixed(1)}s;animation-duration:${(7 + rng() * 6).toFixed(1)}s">🍁</span>`;
+    } else { // summer — extra butterflies + fireflies around the ponds
+      [[905, 1285], [960, 1330], [1005, 1300], [2245, 1170]].forEach(([x, y], i) =>
+        html += `<span class="map-butterfly" style="left:${x}px;top:${y}px;animation-delay:-${(i * 0.6).toFixed(1)}s">🦋</span>`);
+      for (let i = 0; i < 6; i++)
+        html += `<i class="firefly" style="left:${920 + Math.round(rng() * 140)}px;top:${1270 + Math.round(rng() * 70)}px;animation-delay:-${(rng() * 2).toFixed(1)}s"></i>`;
+    }
+
+    if (sp.pumpkins)
+      html += `<span class="season-decor pumpkin" style="left:230px;top:1300px">🎃</span>
+        <span class="season-decor pumpkin" style="left:305px;top:1355px">🎃</span>`;
+    if (sp.fireworks)
+      [[520, 360], [1200, 300], [2000, 340]].forEach(([x, y], i) =>
+        html += `<span class="firework" style="left:${x}px;top:${y}px;animation-delay:-${(i * 0.8).toFixed(1)}s">🎆</span>`);
+    return html;
+  },
+
   mapNodes() {
     if (this._mapNodes) return this._mapNodes;
     const A = this.mapAnchors;
@@ -690,8 +767,11 @@ const UI = {
       this._hintedThisRender = true;
       this.toast("🌿 See the rustling grass? A wild Pokemon hides there — click it!", "gold");
     }
-    html += this.MAP_DECOR.concat(this.scatterDecor()).map(o =>
+    const allDecor = this.MAP_DECOR.concat(this.scatterDecor());
+    html += allDecor.map(o =>
       `<span class="map-decor" style="left:${o.x}px;top:${o.y}px;${o.e ? `font-size:${o.s}px` : ""}">${o.art ? artSprite(o.art, o.s) : o.t ? worldTile(o.t, o.sc) : o.sp ? worldSprite(o.sp, o.s, o.c) : o.e}</span>`).join("");
+    // seasonal dressing rides on top of the base decor (pure decoration)
+    html += this.seasonLayer(allDecor);
     html += this.MAP_CITIES.map(c =>
       `<div class="map-city" style="left:${c.x}px;top:${c.y}px"><span class="city-art">${c.t ? worldTile(c.t, c.sc) : worldSprite(c.sp, c.s)}</span><b>${c.n}</b></div>`).join("");
 
@@ -823,6 +903,7 @@ const UI = {
         <b>${label}</b></button>`;
     }
 
+    map.dataset.season = this.seasonNow();
     map.innerHTML = html;
     this.renderPartyBar();
     this._mapSel = null; // keyboard nav selection resets with the map

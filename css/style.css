@@ -285,6 +285,33 @@ button:active { transform: translateY(1px) scale(.98); }
   to { opacity: 1; transform: scale(1.15); }
 }
 
+/* ---------- Seasonal map dressing (pure decoration) ---------- */
+/* a gentle full-map tint; particles freeze away under reduced-motion (they
+   fade in from opacity 0, so the static "dusting" that remains is the tint) */
+.season-tint { position: absolute; inset: 0; pointer-events: none; z-index: 1; mix-blend-mode: soft-light; }
+.season-winter { background: radial-gradient(circle at 50% 40%, rgba(255,255,255,.30), rgba(214,232,255,.16)); }
+.season-autumn { background: linear-gradient(160deg, rgba(214,138,58,.18), rgba(176,88,40,.10)); }
+.season-spring { background: radial-gradient(circle at 40% 60%, rgba(255,188,224,.14), transparent 70%); }
+.season-summer { background: radial-gradient(circle at 33% 84%, rgba(255,240,150,.14), transparent 62%); }
+.snow-cap { position: absolute; transform: translate(-50%,-50%); font-size: 15px; pointer-events: none; z-index: 4; opacity: .92; filter: drop-shadow(0 1px 1px rgba(0,0,0,.3)); }
+.season-decor { position: absolute; transform: translate(-50%,-50%); pointer-events: none; z-index: 4; font-size: 22px; filter: drop-shadow(0 3px 4px rgba(0,0,0,.35)); }
+.season-decor.pumpkin { font-size: 34px; }
+.snowflake, .petal, .leaf-fall { position: absolute; pointer-events: none; z-index: 6; font-size: 14px; opacity: .85; animation: seasonFall linear infinite; }
+.petal { font-size: 15px; }
+.leaf-fall { font-size: 18px; }
+@keyframes seasonFall {
+  0% { transform: translateY(-24px) rotate(0deg); opacity: 0; }
+  12% { opacity: .9; }
+  100% { transform: translateY(260px) rotate(320deg); opacity: 0; }
+}
+.firework { position: absolute; transform-origin: center; font-size: 46px; pointer-events: none; z-index: 6; animation: fireworkPop 1.9s ease-out infinite; }
+@keyframes fireworkPop {
+  0% { transform: scale(.3); opacity: 0; }
+  25% { transform: scale(1); opacity: 1; }
+  60% { opacity: .85; }
+  100% { transform: scale(1.45); opacity: 0; }
+}
+
 /* wild encounter spots */
 .map-grass {
   position: absolute;

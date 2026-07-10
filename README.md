@@ -246,6 +246,12 @@ mystery Pokemon — then the clock starts.
   facing the enemy on a far one, with a message-box prompt panel. Towns and
   forests mix original vector art with openly licensed pixel tiles by
   Kelvin Shadewing (via the Tuxemon project — see CREDITS.md).
+- **Seasons on the island** — the map quietly dresses for the real time of
+  year: a snowy dusting and snow-capped trees in winter, blossoms and drifting
+  petals in spring, amber leaves falling in autumn, extra butterflies and pond
+  fireflies in summer — plus fireworks on New Year's Day and the Fourth of July
+  and a couple of pumpkins near town at Halloween. It's decoration only (no
+  timed rewards, nothing to miss) and the particles rest under reduced-motion.
 - **Combos** — 25 correct keys in a row triggers SUPER MODE.
 - **XP, levels and titles** — from Rookie all the way to Typing Legend.
 - **47 trophies**, daily play streaks, and a personal-best speed chart.

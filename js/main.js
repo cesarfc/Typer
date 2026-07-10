@@ -70,5 +70,8 @@ window.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("pointerdown", () => SFX.init(), { once: true });
 
   // Debug / tinkering handle
-  window.TQ = { SAVE, Engine, UI, SFX, Tutorial, Puzzle, WORLDS, CREATURES, routeKey };
+  window.TQ = {
+    SAVE, Engine, UI, SFX, Tutorial, Puzzle, WORLDS, CREATURES, routeKey,
+    debugSeason: name => UI.debugSeason(name),
+  };
 });
