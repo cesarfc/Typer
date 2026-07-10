@@ -593,6 +593,57 @@ const SAVE = {
     return list;
   },
 
+  // ---- Battle Tower: an endless climb. Rewards bank every 5 floors and are
+  // NEVER lost — quitting or losing keeps everything already earned. ----
+  towerState() {
+    if (!this.state.tower) this.state.tower = { best: 0, climbs: 0 };
+    return this.state.tower;
+  },
+
+  // milestone rewards for clearing a 5th floor; applied + saved immediately
+  applyTowerFloor(floor) {
+    const st = this.state;
+    const out = { floor, xp: 0, voucher: false, shiny: null, trophies: [] };
+    out.xp = 20 + 5 * Math.floor(floor / 5);   // 25 at 5, 30 at 10, 35 at 15...
+    st.xp += out.xp;
+    if (floor === 10) { st.vouchers++; out.voucher = true; }   // a candy voucher at floor 10
+    // floor 15+ : a small chance to shiny-upgrade a random owned Pokemon (delight)
+    if (floor >= 15) {
+      const dull = Object.keys(st.dex).filter(k => !st.dex[k].shiny);
+      if (dull.length && Math.random() < 0.2) {
+        const key = dull[Math.floor(Math.random() * dull.length)];
+        st.dex[key].shiny = true;
+        out.shiny = this.creatureByKey(key);
+        this.award("shiny", out.trophies);
+        const n = this.shinyCount();
+        if (n >= 10) this.award("shiny-10", out.trophies);
+        if (n >= 25) this.award("shiny-25", out.trophies);
+        if (n >= 50) this.award("shiny-50", out.trophies);
+      }
+    }
+    this.save();
+    return out;
+  },
+
+  // record reaching a floor: milestone trophies + best floor (caller saves)
+  towerReach(floor) {
+    const t = this.towerState();
+    const trophies = [];
+    if (floor >= 5) this.award("tower-5", trophies);
+    if (floor >= 15) this.award("tower-15", trophies);
+    t.best = Math.max(t.best || 0, floor);
+    return trophies;
+  },
+
+  // the climb is over (hearts out or quit): lock in the best floor + tally
+  towerFinish(floorReached) {
+    const t = this.towerState();
+    t.best = Math.max(t.best || 0, floorReached);
+    t.climbs = (t.climbs || 0) + 1;
+    this.save();
+    return t;
+  },
+
   recordKey(expected, ok) {
     const s = this.state.stats;
     s.keys++;

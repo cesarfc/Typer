@@ -254,12 +254,21 @@ mystery Pokemon — then the clock starts.
   timed rewards, nothing to miss) and the particles rest under reduced-motion.
 - **Combos** — 25 correct keys in a row triggers SUPER MODE.
 - **XP, levels and titles** — from Rookie all the way to Typing Legend.
+- **🗼 The Battle Tower** — a tower near the Battle Stadium (opens once you
+  reach it) offers an endless typing climb: each floor is four battle words
+  drawn from every world you've unlocked, and the clock tightens a little each
+  floor. Three hearts last the whole climb and a missed word costs one. Rewards
+  bank every 5 floors — XP, a candy voucher at floor 10, and from floor 15 a
+  small chance to shiny-upgrade one of your Pokemon — and they are **never
+  lost**: quitting or running out of hearts keeps everything already earned.
+  Your best floor is saved. Trophies: 🗼 Tower Challenger (floor 5) and
+  🏯 Tower Master (floor 15).
 - **🎓 Printable diplomas** — the Museum's Diplomas tab lists the biggest
   milestones (Champion, Puzzle Master Coder, Number Wizard, Licensed Typist,
   Pokedex Master). Each earned one prints a landscape certificate with the
   trainer's name, avatar, party lineup and the date earned — ready to hang on
   a real wall. Unearned ones show a kind "how to earn it" note.
-- **48 trophies**, daily play streaks, and a personal-best speed chart.
+- **50 trophies**, daily play streaks, and a personal-best speed chart.
 - **🥷 Ninja Mode** — hide the on-screen keyboard for 1.5× XP (this is the
   real goal: typing without looking!).
 

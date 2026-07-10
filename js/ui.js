@@ -798,6 +798,15 @@ const UI = {
     html += `<button class="map-trade" style="left:770px;top:1418px" title="Trading Post — swap Pokemon with your family!">
       <span>${worldSprite("trade", 84)}</span><b>🤝 Trading Post</b></button>`;
 
+    // the Battle Tower rises near the Battle Stadium — an endless typing climb.
+    // Opens once the trainer reaches the Stadium (worldUnlocked(2)).
+    if (SAVE.worldUnlocked(2)) {
+      const tb = SAVE.state.tower && SAVE.state.tower.best;
+      html += `<button class="map-tower" style="left:1120px;top:905px"
+        title="Battle Tower — an endless typing climb${tb ? ` · best floor ${tb}` : ""}!">
+        <span class="tower-art">${artSprite("tq-clocktower", 92)}</span><b>🗼 Battle Tower</b></button>`;
+    }
+
     WORLDS.forEach((w, wi) => {
       const ns = nodes[wi];
       const unlocked = SAVE.worldUnlocked(wi);
@@ -1590,6 +1599,12 @@ const UI = {
         this.openTradePost();
         return;
       }
+      const tw = e.target.closest(".map-tower");
+      if (tw) {
+        SFX.init();
+        Engine.startTower();
+        return;
+      }
       // wild Pokemon living on the map: say hi (caught) or open the
       // area guide so the mystery shows how it can be caught
       const pk = e.target.closest(".map-poke");
@@ -2256,6 +2271,7 @@ const UI = {
     this._paragraphNext = null;
     this._rematchNext = res.rematch ? { w: res.w, tierId: res.rematch.id } : null;
     this._raidNext = null;
+    this._towerReplay = false;
     this._practiceMode = false;
     this._resultsAt = performance.now();
     this.$("btn-replay").textContent = res.rematch ? "↻ Try Again" : "↻ Replay";
@@ -2469,6 +2485,7 @@ const UI = {
     // a lost rematch retries the rematch, not a plain boss fight
     this._rematchNext = S.rematch ? { w: S.w, tierId: S.rematch.id } : null;
     this._raidNext = null;
+    this._towerReplay = false;
     this._practiceMode = false;
     this._resultsAt = performance.now();
     this.$("results-egg").className = "hidden";          // no stale egg note
@@ -2947,6 +2964,7 @@ const UI = {
     this._paragraphNext = null;
     this._rematchNext = null;
     this._raidNext = null;
+    this._towerReplay = false;
     this._practiceMode = true;
     this._nextTarget = null;
     this._lastStage = null;
@@ -3026,6 +3044,7 @@ const UI = {
     this._practiceNext = null;
     this._rematchNext = null;
     this._raidNext = null;
+    this._towerReplay = false;
     this._practiceMode = true; // btn-replay returns to the Trainer School
     this._nextTarget = null;
     this._lastStage = null;
@@ -3086,6 +3105,7 @@ const UI = {
     this._practiceMode = false;
     this._nextTarget = null;
     this._lastStage = null;
+    this._towerReplay = false;
     this._resultsAt = performance.now();
     const down = !!info.defeated;
     const canClaim = !!info.canClaim; // this player contributed and hasn't claimed
@@ -3784,7 +3804,8 @@ const UI = {
       <div class="stat-card"><div class="stat-v">${s.keys.toLocaleString()}</div><div class="stat-l">keys pressed</div></div>
       <div class="stat-card"><div class="stat-v">${SAVE.caughtCount()}</div><div class="stat-l">Pokemon</div></div>
       <div class="stat-card"><div class="stat-v">${s.evolutions || 0}</div><div class="stat-l">evolutions</div></div>
-      <div class="stat-card"><div class="stat-v">${SAVE.state.streak.count || 0}</div><div class="stat-l">day streak</div></div>`;
+      <div class="stat-card"><div class="stat-v">${SAVE.state.streak.count || 0}</div><div class="stat-l">day streak</div></div>
+      ${SAVE.state.tower && SAVE.state.tower.best ? `<div class="stat-card"><div class="stat-v">🗼 ${SAVE.state.tower.best}</div><div class="stat-l">best tower floor</div></div>` : ""}`;
 
     const hist = s.history.slice(-12);
     const max = Math.max(10, ...hist.map(h => h.wpm));
@@ -3860,6 +3881,122 @@ const UI = {
     }
     this.announce(label, 2200);
     this.updateHud(S);
+  },
+
+  // ---------- Battle Tower ----------
+  towerScene(S, floor) {
+    this.show("game");
+    this.setGameKeyboard(false);
+    this.$("screen-game").classList.remove("paragraph-mode");
+    const w = S.world;
+    document.body.classList.remove("super-mode");
+    this.$("capslock-warn").classList.add("hidden");
+    this.applyKbVisibility();
+    this.practiceTimerUI(false);
+    this.$("hud-stage").textContent = `🗼 Battle Tower · Floor ${floor}`;
+    this.$("hud-progress").classList.remove("hidden");
+    this.$("hud-progress-fill").style.width = "0%";
+    this.$("hud-hearts").classList.remove("hidden");   // the 3 hearts last the whole climb
+    this.renderHearts(S);
+    this.$("boss-bar").classList.add("hidden");
+    this.$("target-label").classList.add("hidden");
+    this.$("player-avatar").innerHTML = this.avatarHtml(SAVE.state.profile);
+    this.showPartner(S);
+    this.partnerMeter(S);
+    const arena = this.$("arena");
+    arena.style.background = `linear-gradient(160deg, ${w.gradient[0]}, ${w.gradient[1]})`;
+    arena.style.setProperty("--wa", w.accent);
+    const scene = this.$("scene-emojis");
+    scene.innerHTML = "";
+    for (let i = 0; i < 7; i++) {
+      const e = document.createElement("span");
+      e.textContent = w.sceneEmojis[i % w.sceneEmojis.length];
+      e.style.left = `${5 + Math.random() * 90}%`;
+      e.style.top = `${5 + Math.random() * 80}%`;
+      e.style.fontSize = `${14 + Math.random() * 22}px`;
+      e.style.animationDelay = `${Math.random() * 3}s`;
+      scene.appendChild(e);
+    }
+    this.announce(`🗼 Floor ${floor} — climb!`, 1500);
+    this.updateHud(S);
+  },
+
+  // a 2-second breather between floors
+  towerBreather(floor, reward, cb) {
+    const el = this.$("tower-breather");
+    let rewardHtml = "";
+    if (reward) {
+      const bits = [`+${reward.xp} XP`];
+      if (reward.voucher) bits.push("🎟 candy voucher");
+      if (reward.shiny) bits.push(`✨ ${this.esc(reward.shiny.n)} turned shiny!`);
+      rewardHtml = `<div class="tb-reward">🎁 Banked: ${bits.join(" · ")}</div>`;
+    }
+    el.innerHTML = `<div class="tb-card">
+      <div class="tb-floor">Floor ${floor} cleared! 🗼</div>
+      ${rewardHtml}
+      <div class="tb-next">Next floor coming up…</div>
+    </div>`;
+    el.classList.remove("hidden");
+    SFX.fanfare();
+    clearTimeout(this._tbT);
+    this._tbT = setTimeout(() => { el.classList.add("hidden"); cb(); }, 2000);
+  },
+
+  showTowerResults(res) {
+    this.show("results");
+    this.renderTopbar();
+    this._practiceNext = null;
+    this._paragraphNext = null;
+    this._rematchNext = null;
+    this._raidNext = null;
+    this._towerReplay = false;
+    this._practiceMode = false;
+    this._nextTarget = null;
+    this._lastStage = null;
+    this._resultsAt = performance.now();
+
+    const card = this.$("results-card");
+    card.classList.remove("defeat");
+    card.style.setProperty("--wa", "#c8a24a");
+    this.$("results-title").textContent = res.floor > 0
+      ? `🗼 Reached Floor ${res.floor}!`
+      : "🗼 The Battle Tower";
+    this.$("results-stars").classList.add("hidden");
+
+    const best = (SAVE.state.tower && SAVE.state.tower.best) || 0;
+    this.$("results-grid").innerHTML = `
+      <div class="rstat"><div class="rstat-v">${res.floor}</div><div class="rstat-l">floors climbed</div></div>
+      <div class="rstat"><div class="rstat-v">x${res.bestCombo}</div><div class="rstat-l">best combo</div></div>
+      <div class="rstat"><div class="rstat-v">${best}</div><div class="rstat-l">best floor ever</div></div>`;
+
+    // banked rewards recap — always kept, win or quit
+    const b = res.banked || { xp: 0, vouchers: 0, shinies: [] };
+    const lines = [];
+    if (b.xp) lines.push(`+${b.xp} XP banked`);
+    if (b.vouchers) lines.push(`🎟 ${b.vouchers} candy voucher${b.vouchers > 1 ? "s" : ""}`);
+    (b.shinies || []).forEach(c => lines.push(`✨ ${this.esc(c.n)} turned shiny`));
+    const catchBox = this.$("results-catch");
+    catchBox.className = "catch-result";
+    catchBox.innerHTML = `<div class="record-note ${lines.length ? "gold" : ""}">
+      ${res.quit ? "🗼 The tower will be waiting — great climb!" : "💛 Out of hearts — what a climb!"}
+      ${lines.length ? `<br>🎁 Rewards kept: <b>${lines.join(" · ")}</b>` : "<br>Reach floor 5 to start banking rewards!"}
+    </div>`;
+    this.$("results-egg").className = "hidden";
+    this.$("results-medal").className = "hidden";
+    this.$("results-offer").className = "hidden";
+
+    const lv = levelFromXp(SAVE.state.xp);
+    this.$("xp-gained").textContent = b.xp ? `+${b.xp} XP` : "";
+    this.$("xp-level").textContent = `Lv ${lv.level} · ${titleForLevel(lv.level)}`;
+    this.$("results-xpfill").style.transition = "none";
+    this.$("results-xpfill").style.width = `${100 * lv.into / lv.need}%`;
+
+    this.$("btn-next").classList.add("hidden");
+    this.$("btn-replay").classList.remove("hidden");
+    this.$("btn-replay").textContent = "🗼 Climb Again";
+    this._towerReplay = true;
+    if (res.floor >= 5) { this.confetti(); SFX.fanfare(); }
+    else SFX.word();
   },
 
   // ---------- Journal: daily drill, research board, Elite Four ----------
@@ -4305,7 +4442,8 @@ const UI = {
       } else this.show("map");
     });
     this.$("btn-replay").addEventListener("click", () => {
-      if (this._rematchNext) Engine.startRematch(this._rematchNext.w, this._rematchNext.tierId);
+      if (this._towerReplay) Engine.startTower();
+      else if (this._rematchNext) Engine.startRematch(this._rematchNext.w, this._rematchNext.tierId);
       else if (this._practiceMode) this.show("practice");
       else if (this._lastStage) {
         const [w, s] = this._lastStage;

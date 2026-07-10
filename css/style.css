@@ -602,6 +602,45 @@ button:active { transform: translateY(1px) scale(.98); }
 .map-trade b { font-size: 12px; background: rgba(58,49,48,.78); padding: 3px 9px; border-radius: 999px; border: 1px solid var(--gold); white-space: nowrap; color: var(--gold); animation: pulseGlow 1.8s ease-in-out infinite; }
 .map-trade:hover { background: radial-gradient(circle at 50% 55%, rgba(255, 211, 77, .3), transparent 72%); border-radius: 50%; }
 
+/* Battle Tower building on the map */
+.map-tower {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: none;
+  border: none;
+  text-align: center;
+  z-index: 5;
+  padding: 8px;
+}
+.map-tower .tower-art { display: block; filter: drop-shadow(0 6px 10px rgba(0,0,0,.5)); }
+.map-tower b { font-size: 12px; background: rgba(58,49,48,.78); padding: 3px 9px; border-radius: 999px; border: 1px solid var(--gold); white-space: nowrap; color: var(--gold); animation: pulseGlow 1.8s ease-in-out infinite; }
+.map-tower:hover { background: radial-gradient(circle at 50% 55%, rgba(255, 211, 77, .3), transparent 72%); border-radius: 50%; }
+
+/* Battle Tower between-floors breather card */
+#tower-breather {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(30, 22, 44, .55);
+  pointer-events: none;
+}
+.tb-card {
+  background: var(--card);
+  border: 3px solid var(--ink);
+  border-radius: 20px;
+  padding: 22px 30px;
+  text-align: center;
+  box-shadow: 0 12px 34px rgba(0,0,0,.4);
+  animation: tbPop .35s ease;
+}
+.tb-floor { font-size: 26px; font-weight: 900; color: var(--ink); }
+.tb-reward { margin-top: 8px; font-size: 15px; font-weight: 800; color: #a07b1c; }
+.tb-next { margin-top: 6px; font-size: 13px; color: var(--dim); }
+@keyframes tbPop { from { transform: scale(.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
 /* hover feedback on map pins must never change geometry (scale, size,
    font) — moving pixels under the cursor makes them hard to click.
    Glow instead. */
@@ -1406,7 +1445,7 @@ button:active { transform: translateY(1px) scale(.98); }
    ============================================================ */
 .mnode, .map-grass, .map-fish, .map-roamer, .map-school, .map-lab, .map-city,
 .region-label, .map-marker, .map-poke, .map-decor, .map-smoke, .map-parcel,
-.map-podium, .map-trade {
+.map-podium, .map-trade, .map-tower {
   transform: translate(-50%, -100%) rotateX(calc(-1 * var(--tilt)));
   transform-origin: 50% 100%;
   margin: 0;
@@ -1422,6 +1461,7 @@ button:active { transform: translateY(1px) scale(.98); }
 .map-parcel:hover, .map-parcel:active,
 .map-podium:hover, .map-podium:active,
 .map-trade:hover, .map-trade:active,
+.map-tower:hover, .map-tower:active,
 .map-poke:hover, .map-poke:active {
   transform: translate(-50%, -100%) rotateX(calc(-1 * var(--tilt)));
   filter: none; /* never toggle filters on 3D-positioned pins */
@@ -1429,7 +1469,7 @@ button:active { transform: translateY(1px) scale(.98); }
 /* hover glow = pure background paint: no transform, no filter, no
    stacking-context change — cannot move or reproject in any browser */
 .map-school:hover, .map-lab:hover, .map-fish:hover, .map-grass:hover,
-.map-roamer:hover, .map-poke:hover, .map-trade:hover {
+.map-roamer:hover, .map-poke:hover, .map-trade:hover, .map-tower:hover {
   background: radial-gradient(circle at 50% 55%, rgba(125, 200, 255, .32), transparent 72%);
   border-radius: 50%;
 }
