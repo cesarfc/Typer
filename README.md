@@ -151,7 +151,7 @@ mystery Pokemon — then the clock starts.
 
 ## What keeps kids coming back
 
-- **120 Pokemon to collect** — from Magikarp to Arceus. Finish a level, then
+- **130 Pokemon to collect** — from Magikarp to Arceus. Finish a level, then
   type the wild Pokemon's name fast enough to catch it. Rarer Pokemon only
   appear after better runs (common 1★ · rare 2★ · epic 3★), and 3-star
   catches can be ✨ **shiny**.
@@ -210,17 +210,40 @@ mystery Pokemon — then the clock starts.
   The on-screen keyboard grows the number row just for these drills, and typing
   a tier at 90%+ accuracy earns its stamp; collect all four for the 🪪 Licensed
   Typist trophy.
-- **🧩 Puzzle Lab (block coding + math)** — a second side-building beside the
-  Trainer School, opening once you reach Mt. Moon. **No keyboard needed to
-  play:** snap code blocks together to guide a Pokemon through grid puzzles,
-  then catch a new friend the usual way — by typing its name (the only typing
-  in the Lab). A **Coding Wing** teaches walking, loops, ifs and AND/OR/NOT
-  logic across five chapters; a **Math Wing** (opens after the Loops chapter)
-  turns counting, times-tables and number-line hops into moves. Tap **⏭ Step**
-  to walk your plan one block at a time, pick a 🐢/🐇/⚡ playback speed, and tap
-  **💡 Hint** for a gentle ladder of tips (with a "Watch a bit" demo on the very
-  first stages). **24 new Pokemon live only here** — solving stages is the one
-  way to catch them. No clocks, no fail states: hints teach, they never scold.
+- **🧩 Puzzle Isles (block coding + math)** — a flight perch beside the Trainer
+  School, opening once you reach Mt. Moon. Tap it and a bird sweeps you off to
+  one of two islands you **fly to**: **💻 Circuit Isle** or **🔢 Counting Isle**.
+  Each isle is a painted islet with its puzzles laid out as a winding **trail of
+  nodes** (starred, numbered, padlocked) and landmarks marking each chapter.
+  **No keyboard needed to play:** snap code blocks together to guide a Pokemon
+  through grid puzzles, then catch a new friend the usual way — by typing its
+  name (the only typing here). Circuit Isle teaches walking, loops, ifs,
+  AND/OR/NOT logic and a capstone **Inventions** chapter across six chapters (24
+  stages); **Counting Isle is fully independent** — reachable from the very first
+  flight, no coding required — with counting, times-tables, number-line hops and
+  a **Sharing** (division) chapter across five chapters (19 stages). Tap **⏭
+  Step** to walk your plan one block at a time, pick a 🐢/🐇/⚡ playback speed, and
+  tap **💡 Hint** for a gentle ladder of tips (with a "Watch a bit" demo on the
+  very first stages). Flying is a delight and never blocks you — it's instant
+  under reduced-motion and skippable with a tap. **34 new Pokemon live only
+  here** — solving stages is the one way to catch them. No clocks, no fail
+  states: hints teach, they never scold.
+- **🔨 The Maker Hut** — a little workshop on each isle (it opens once you've
+  earned a ⭐ on every Chapter 1 puzzle there, so you know the blocks). Inside,
+  kids **design their own walk-grid stages** entirely by tapping: pick a grid
+  size (4×4, 5×4 or 5×5), paint paths, trees, water, berries, a start (tap it
+  again to turn the arrow) and a flag, then choose which blocks the solver gets
+  (walk and turn are always on; collect switches on when you place berries;
+  repeat, if, if/else and AND/OR logic are yours to toggle). The heart of it is
+  the **proof rule**: before you can publish, you must **solve your own stage**
+  in the normal playfield — your winning block count becomes the record to beat,
+  which guarantees every published stage is solvable and teaches that designers
+  test their work. Name it (the only typing), and it lands on your **My stages**
+  shelf; every other family trainer sees it under **Family stages** and can play
+  it. Beat the creator's own record and you get a delighted callout. Maker plays
+  pay a little XP but **never catch Pokemon** (the dex stays honest) and never
+  touch anyone else's save. Trophies: 🔨 Stage Designer (publish your first) and
+  🏗️ Master Builder (publish 5). Up to 8 stages per kid.
 - **🤝 Family Trading Post** — a market stall on the south shore where two
   family trainers swap Pokemon one-for-one on the shared device. Pick a
   sibling, each side offers one Pokemon from their Pokedex, then a big
@@ -240,9 +263,29 @@ mystery Pokemon — then the clock starts.
   facing the enemy on a far one, with a message-box prompt panel. Towns and
   forests mix original vector art with openly licensed pixel tiles by
   Kelvin Shadewing (via the Tuxemon project — see CREDITS.md).
+- **Seasons on the island** — the map quietly dresses for the real time of
+  year: a snowy dusting and snow-capped trees in winter, blossoms and drifting
+  petals in spring, amber leaves falling in autumn, extra butterflies and pond
+  fireflies in summer — plus fireworks on New Year's Day and the Fourth of July
+  and a couple of pumpkins near town at Halloween. It's decoration only (no
+  timed rewards, nothing to miss) and the particles rest under reduced-motion.
 - **Combos** — 25 correct keys in a row triggers SUPER MODE.
 - **XP, levels and titles** — from Rookie all the way to Typing Legend.
-- **47 trophies**, daily play streaks, and a personal-best speed chart.
+- **🗼 The Battle Tower** — a tower near the Battle Stadium (opens once you
+  reach it) offers an endless typing climb: each floor is four battle words
+  drawn from every world you've unlocked, and the clock tightens a little each
+  floor. Three hearts last the whole climb and a missed word costs one. Rewards
+  bank every 5 floors — XP, a candy voucher at floor 10, and from floor 15 a
+  small chance to shiny-upgrade one of your Pokemon — and they are **never
+  lost**: quitting or running out of hearts keeps everything already earned.
+  Your best floor is saved. Trophies: 🗼 Tower Challenger (floor 5) and
+  🏯 Tower Master (floor 15).
+- **🎓 Printable diplomas** — the Museum's Diplomas tab lists the biggest
+  milestones (Champion, Puzzle Master Coder, Number Wizard, Licensed Typist,
+  Pokedex Master). Each earned one prints a landscape certificate with the
+  trainer's name, avatar, party lineup and the date earned — ready to hang on
+  a real wall. Unearned ones show a kind "how to earn it" note.
+- **52 trophies**, daily play streaks, and a personal-best speed chart.
 - **🥷 Ninja Mode** — hide the on-screen keyboard for 1.5× XP (this is the
   real goal: typing without looking!).
 

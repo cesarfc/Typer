@@ -194,6 +194,32 @@ function mapSprite(name, size, opt) {
   return f ? f(size, opt) : "";
 }
 
+// A chunky Lost Legends flight bird — charcoal outline, cream belly, a warm
+// wing and a little beak. Hand-drawn inline SVG (no billed art). Used under
+// the trainer avatar for the "fly to the isles" animation. `size` is the
+// on-screen width; height follows the 96×70 art aspect.
+function birdSvg(size = 120, cls = "fly-bird") {
+  const O = 'stroke="#3a3130" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"';
+  return `<svg class="${cls}" width="${Math.round(size)}" height="${Math.round(size * 70 / 96)}"
+    viewBox="0 0 96 70" aria-hidden="true">
+    <!-- far wing sweeping up behind -->
+    <path class="fly-wing-back" d="M52 34 Q34 6 8 14 Q30 22 40 40 Z" fill="#e08a3a" ${O}/>
+    <!-- plump body -->
+    <ellipse cx="52" cy="42" rx="30" ry="20" fill="#5aa9d6" ${O}/>
+    <!-- cream belly -->
+    <path d="M30 46 Q52 66 76 46 Q70 58 52 60 Q34 58 30 46 Z" fill="#fff3d6" ${O}/>
+    <!-- tail -->
+    <path d="M80 40 Q96 34 94 48 Q86 48 80 46 Z" fill="#3f7fa8" ${O}/>
+    <!-- head + beak + eye -->
+    <circle cx="30" cy="30" r="14" fill="#5aa9d6" ${O}/>
+    <polygon points="16,30 2,34 16,38" fill="#ffb24d" ${O}/>
+    <circle cx="27" cy="27" r="3.2" fill="#3a3130" stroke="none"/>
+    <circle cx="28.2" cy="26" r="1" fill="#fff" stroke="none"/>
+    <!-- near wing flapping over the body -->
+    <path class="fly-wing-front" d="M50 40 Q40 10 66 6 Q60 26 72 40 Z" fill="#ffc93c" ${O}/>
+  </svg>`;
+}
+
 // ============================================================
 // Pixel tiles cut from openly licensed tilesheets (see CREDITS.md):
 // buildings.png and setpieces.png by Kelvin Shadewing, via the
@@ -222,4 +248,163 @@ function tileSprite(name, scale = 2.5) {
     `background-image:url('img/tiles/${sheet}.png');` +
     `background-position:${-x * scale}px ${-y * scale}px;` +
     `background-size:${(sheet === "buildings" ? 320 : 720) * scale}px auto"></span>`;
+}
+
+// ============================================================
+// ART layer — "Lost Legends" flat-cartoon PNGs, our own generated
+// pipeline (see CREDITS.md). Manifest-driven: each id maps to a
+// transparent PNG with its natural pixel size. artSprite(id, size)
+// returns an <img> sized to a target on-map WIDTH (height follows the
+// art's aspect), rendered feet-down like the old SVG mapSprites so the
+// existing map coordinates keep working. Falls back to "" if the id is
+// unknown, letting callers drop back to the legacy SVG/tile.
+// ============================================================
+
+const ART_ASSETS = {
+  "tq-crossed-swords": { f: "icons/tq-crossed-swords.png", w: 102, h: 99 },
+  "tq-egg": { f: "icons/tq-egg.png", w: 94, h: 108 },
+  "tq-encyclopedia": { f: "icons/tq-encyclopedia.png", w: 101, h: 106 },
+  "tq-fishing-rod": { f: "icons/tq-fishing-rod.png", w: 101, h: 108 },
+  "tq-grad-cap": { f: "icons/tq-grad-cap.png", w: 114, h: 95 },
+  "tq-journal": { f: "icons/tq-journal.png", w: 96, h: 111 },
+  "tq-map": { f: "icons/tq-map.png", w: 108, h: 97 },
+  "tq-museum-column": { f: "icons/tq-museum-column.png", w: 90, h: 99 },
+  "tq-padlock": { f: "icons/tq-padlock.png", w: 88, h: 107 },
+  "tq-star": { f: "icons/tq-star.png", w: 109, h: 103 },
+  "tq-stats-chart": { f: "icons/tq-stats-chart.png", w: 100, h: 106 },
+  "tq-trophy": { f: "icons/tq-trophy.png", w: 110, h: 111 },
+  "tq-berry-bush": { f: "props/tq-berry-bush.png", w: 64, h: 62 },
+  "tq-bubbly-tree": { f: "props/tq-bubbly-tree.png", w: 66, h: 73 },
+  "tq-cauldron": { f: "props/tq-cauldron.png", w: 59, h: 68 },
+  "tq-cliff-rocks": { f: "props/tq-cliff-rocks.png", w: 61, h: 73 },
+  "tq-clocktower": { f: "props/tq-clocktower.png", w: 89, h: 137 },
+  "tq-flower-patch": { f: "props/tq-flower-patch.png", w: 64, h: 65 },
+  "tq-grass-tuft": { f: "props/tq-grass-tuft.png", w: 56, h: 70 },
+  "tq-gym-arena": { f: "props/tq-gym-arena.png", w: 121, h: 117 },
+  "tq-hall-monument": { f: "props/tq-hall-monument.png", w: 117, h: 132 },
+  "tq-lantern-post": { f: "props/tq-lantern-post.png", w: 53, h: 68 },
+  "tq-market-stall": { f: "props/tq-market-stall.png", w: 64, h: 71 },
+  "tq-mine-entrance": { f: "props/tq-mine-entrance.png", w: 121, h: 118 },
+  "tq-mossy-boulder": { f: "props/tq-mossy-boulder.png", w: 69, h: 69 },
+  "tq-mushroom-cluster": { f: "props/tq-mushroom-cluster.png", w: 62, h: 65 },
+  "tq-pier-hut": { f: "props/tq-pier-hut.png", w: 120, h: 127 },
+  "tq-puzzle-lab": { f: "props/tq-puzzle-lab.png", w: 117, h: 128 },
+  "tq-raid-den": { f: "props/tq-raid-den.png", w: 125, h: 120 },
+  "tq-rock-cluster": { f: "props/tq-rock-cluster.png", w: 60, h: 63 },
+  "tq-rope-bridge": { f: "props/tq-rope-bridge.png", w: 70, h: 64 },
+  "tq-signpost": { f: "props/tq-signpost.png", w: 57, h: 73 },
+  "tq-sparkle-pond": { f: "props/tq-sparkle-pond.png", w: 68, h: 55 },
+  "tq-stone-well": { f: "props/tq-stone-well.png", w: 65, h: 73 },
+  "tq-tall-pine": { f: "props/tq-tall-pine.png", w: 108, h: 135 },
+  "tq-town-house": { f: "props/tq-town-house.png", w: 122, h: 118 },
+  "tq-trainer-school": { f: "props/tq-trainer-school.png", w: 131, h: 120 },
+  "tq-volcano-lair": { f: "props/tq-volcano-lair.png", w: 131, h: 127 },
+  // ---- Isle-biome props (Circuit Isle tech-meadow + Counting Isle orchard) ----
+  "tq-gear-clocktower": { f: "props/tq-gear-clocktower.png", w: 96, h: 128 },
+  "tq-antenna-workshop": { f: "props/tq-antenna-workshop.png", w: 108, h: 130 },
+  "tq-robot-statue": { f: "props/tq-robot-statue.png", w: 96, h: 137 },
+  "tq-copper-lantern": { f: "props/tq-copper-lantern.png", w: 46, h: 72 },
+  "tq-circuit-flowerbed": { f: "props/tq-circuit-flowerbed.png", w: 66, h: 66 },
+  "tq-generator-box": { f: "props/tq-generator-box.png", w: 59, h: 72 },
+  "tq-cable-spool": { f: "props/tq-cable-spool.png", w: 55, h: 66 },
+  "tq-orchard-tree": { f: "props/tq-orchard-tree.png", w: 64, h: 70 },
+  "tq-abacus-stand": { f: "props/tq-abacus-stand.png", w: 63, h: 70 },
+  "tq-pie-cart": { f: "props/tq-pie-cart.png", w: 69, h: 74 },
+  "tq-haystack": { f: "props/tq-haystack.png", w: 61, h: 62 },
+  "tq-stepping-stone": { f: "props/tq-stepping-stone.png", w: 68, h: 58 },
+  "tq-windmill": { f: "props/tq-windmill.png", w: 104, h: 132 },
+  "tq-apple-basket": { f: "props/tq-apple-basket.png", w: 64, h: 64 },
+};
+
+const ART_BASE = "img/art/";
+
+// on a missing/broken art file, swap in the legacy SVG kept in data-fb
+// (or just remove the image) so a kid never sees a broken-image icon
+function artFail(img) {
+  const fb = img.getAttribute("data-fb");
+  if (fb) { try { img.outerHTML = decodeURIComponent(fb); return; } catch (e) {} }
+  img.remove();
+}
+
+// an <img> sized to a target WIDTH in px; height follows the art aspect.
+// `extra` carries an optional data-fb="<uri-encoded svg>" for graceful
+// fallback when the PNG itself fails to load.
+function artSprite(id, size, extra = "") {
+  const a = ART_ASSETS[id];
+  if (!a) return "";
+  const h = Math.round(size * a.h / a.w);
+  return `<img class="asprite" src="${ART_BASE}${a.f}" width="${Math.round(size)}" height="${h}" alt="" aria-hidden="true" onerror="artFail(this)"${extra}>`;
+}
+
+// a bare UI/HUD icon <img> (square-ish, drawn centered — not grounded)
+function artIcon(id, size = 20) {
+  const a = ART_ASSETS[id];
+  if (!a) return "";
+  const h = Math.round(size * a.h / a.w);
+  return `<img class="aicon" src="${ART_BASE}${a.f}" width="${Math.round(size)}" height="${h}" alt="" aria-hidden="true">`;
+}
+
+// ---- legacy sprite/tile name -> Lost Legends art id ----
+// map structures & props (mapSprite names). Anything absent falls back
+// to the original hand-drawn SVG so nothing ever renders blank.
+const SPRITE_ART = {
+  tree: "tq-bubbly-tree",
+  pine: "tq-tall-pine",
+  flower: "tq-flower-patch",
+  mushroom: "tq-mushroom-cluster",
+  grasstuft: "tq-grass-tuft",
+  rock: "tq-rock-cluster",
+  house: "tq-town-house",
+  school: "tq-trainer-school",
+  lab: "tq-puzzle-lab",
+  gym: "tq-gym-arena",
+  mine: "tq-mine-entrance",
+  volcano: "tq-volcano-lair",
+  lanternpost: "tq-lantern-post",
+  hall: "tq-hall-monument",
+  pier: "tq-pier-hut",
+  berrybush: "tq-berry-bush",
+  sign: "tq-signpost",
+  trade: "tq-market-stall",
+  // crystal, mountain, wheat, flag, wave: no art equivalent — keep SVG
+};
+
+// pixel tiles (tileSprite names) -> art. Every tile is remapped so the
+// clashing Tuxemon pixel art is no longer displayed (see CREDITS.md).
+// value = [artId, widthScale] where the on-map width = srcW * scale * k.
+const TILE_ART = {
+  centerRed: "tq-town-house",
+  martBlue: "tq-town-house",
+  rowBrown: "tq-town-house",
+  fountain: "tq-stone-well",
+  bushPair: "tq-berry-bush",
+  pine: "tq-tall-pine",
+  pineBig: "tq-tall-pine",
+  mushroomT: "tq-mushroom-cluster",
+  rocksT: "tq-rock-cluster",
+  bench: "tq-flower-patch",
+};
+
+// unified helpers the map renderer calls: prefer art, else legacy.
+// the legacy SVG/tile is also carried in data-fb so a broken PNG still
+// degrades to the hand-drawn art rather than a broken-image icon.
+function worldSprite(name, size, opt) {
+  const id = SPRITE_ART[name];
+  if (id && ART_ASSETS[id]) {
+    const svg = mapSprite(name, size, opt);
+    const fb = svg ? ` data-fb="${encodeURIComponent(svg)}"` : "";
+    return artSprite(id, size, fb);
+  }
+  return mapSprite(name, size, opt);
+}
+function worldTile(name, scale = 2.5) {
+  const id = TILE_ART[name];
+  const d = TILE_DEFS[name];
+  if (id && d && ART_ASSETS[id]) {
+    // reproduce the tile's on-map footprint: srcWidth * scale
+    const tile = tileSprite(name, scale);
+    const fb = tile ? ` data-fb="${encodeURIComponent(tile)}"` : "";
+    return artSprite(id, d[3] * scale, fb);
+  }
+  return tileSprite(name, scale);
 }

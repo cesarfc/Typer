@@ -54,6 +54,7 @@ const SAVE = {
       roamer: null,                // { week, done } — weekly legendary attempt
       practice: {},                // tier id -> { time: bestMs, wpm: best, ghost: [ms...] }
       wordPacks: [],               // My Words: [{ id, name, words: [] }] custom spelling drills
+      makerStages: [],             // Maker Hut: [{ id, name, grid, start, goal, need, blocks, logic, optimal, budget, created }]
       rematch: {},                 // world index -> best rematch tier (1 silver, 2 gold)
       paragraphs: {},              // story id -> { wpm, acc } personal bests
       puzzle: {},                  // Puzzle Lab: stageId -> { stars, caught, bestBlocks }
@@ -73,6 +74,8 @@ const SAVE = {
       day: null,                   // today's adventure stamps { date, levels, wild, school, shown }
       elite: null,                 // { bestRound, clears }
       hof: [],                     // Hall of Fame entries { date, party, wpm }
+      diplomas: {},                // diploma id -> YYYY-MM-DD first earned (stored lazily)
+      tower: null,                 // Battle Tower { best, climbs }
     };
   },
 
@@ -569,6 +572,77 @@ const SAVE = {
       return true;
     }
     return false;
+  },
+
+  // ---- Diplomas: the date a certificate was earned, stored lazily. Existing
+  // saves that already earned one simply stamp "today" the first time it's
+  // shown — good enough for a printed keepsake, and never blocks anything. ----
+  diplomaDate(id) {
+    if (!this.state.diplomas) this.state.diplomas = {};
+    if (!this.state.diplomas[id]) {
+      this.state.diplomas[id] = new Date().toISOString().slice(0, 10);
+      this.save();
+    }
+    return this.state.diplomas[id];
+  },
+
+  // award the "print your first diploma" trophy (fires once, on print)
+  awardDiplomaPrint() {
+    const list = [];
+    this.award("diploma-1", list);
+    if (list.length) this.save();
+    return list;
+  },
+
+  // ---- Battle Tower: an endless climb. Rewards bank every 5 floors and are
+  // NEVER lost — quitting or losing keeps everything already earned. ----
+  towerState() {
+    if (!this.state.tower) this.state.tower = { best: 0, climbs: 0 };
+    return this.state.tower;
+  },
+
+  // milestone rewards for clearing a 5th floor; applied + saved immediately
+  applyTowerFloor(floor) {
+    const st = this.state;
+    const out = { floor, xp: 0, voucher: false, shiny: null, trophies: [] };
+    out.xp = 20 + 5 * Math.floor(floor / 5);   // 25 at 5, 30 at 10, 35 at 15...
+    st.xp += out.xp;
+    if (floor === 10) { st.vouchers++; out.voucher = true; }   // a candy voucher at floor 10
+    // floor 15+ : a small chance to shiny-upgrade a random owned Pokemon (delight)
+    if (floor >= 15) {
+      const dull = Object.keys(st.dex).filter(k => !st.dex[k].shiny);
+      if (dull.length && Math.random() < 0.2) {
+        const key = dull[Math.floor(Math.random() * dull.length)];
+        st.dex[key].shiny = true;
+        out.shiny = this.creatureByKey(key);
+        this.award("shiny", out.trophies);
+        const n = this.shinyCount();
+        if (n >= 10) this.award("shiny-10", out.trophies);
+        if (n >= 25) this.award("shiny-25", out.trophies);
+        if (n >= 50) this.award("shiny-50", out.trophies);
+      }
+    }
+    this.save();
+    return out;
+  },
+
+  // record reaching a floor: milestone trophies + best floor (caller saves)
+  towerReach(floor) {
+    const t = this.towerState();
+    const trophies = [];
+    if (floor >= 5) this.award("tower-5", trophies);
+    if (floor >= 15) this.award("tower-15", trophies);
+    t.best = Math.max(t.best || 0, floor);
+    return trophies;
+  },
+
+  // the climb is over (hearts out or quit): lock in the best floor + tally
+  towerFinish(floorReached) {
+    const t = this.towerState();
+    t.best = Math.max(t.best || 0, floorReached);
+    t.climbs = (t.climbs || 0) + 1;
+    this.save();
+    return t;
   },
 
   recordKey(expected, ok) {
@@ -1085,8 +1159,8 @@ const SAVE = {
     this.dayInfo().school = true; // a lab solve counts for the day's third stamp
     const newTrophies = [];
     this.award("puzzle-1", newTrophies);                                  // 🧩 first solve ever
-    if (this.allCodingStagesSolved()) this.award("puzzle-code", newTrophies); // 💻 all 18 coding stages
-    if (this.allMathStagesSolved()) this.award("puzzle-math", newTrophies);   // 🔢 all 14 math stages
+    if (this.allCodingStagesSolved()) this.award("puzzle-code", newTrophies); // 💻 all 24 coding stages
+    if (this.allMathStagesSolved()) this.award("puzzle-math", newTrophies);   // 🔢 all 19 math stages
     if (this.allStagesThreeStars()) this.award("puzzle-stars", newTrophies);  // 🌟 3★ on every stage
     this.collectTrophies(newTrophies); // harmless now; catches add the real dex growth
     this.save();
@@ -1102,14 +1176,14 @@ const SAVE = {
       return !!(r && r.stars > 0);
     });
   },
-  // Master Coder: a star on all 18 coding stages
+  // Master Coder: a star on all 24 coding stages
   allCodingStagesSolved() {
     return PUZZLE_STAGES.filter(s => s.pack === "code").every(s => {
       const r = this.state.puzzle[s.id];
       return !!(r && r.stars > 0);
     });
   },
-  // Number Wizard: a star on all 14 math stages
+  // Number Wizard: a star on all 19 math stages
   allMathStagesSolved() {
     return PUZZLE_STAGES.filter(s => s.pack === "math").every(s => {
       const r = this.state.puzzle[s.id];
@@ -1154,6 +1228,109 @@ const SAVE = {
     const c = CREATURES[w] && CREATURES[w][i];
     if (!c) return null;
     return { ...c, w, i, key, duplicate: !!this.state.dex[key] };
+  },
+
+  // ---- Maker Hut: kids design their own walk-grid puzzle stages ----
+  // Custom stages live per-player under state.makerStages (NEVER in the shared
+  // PUZZLE_STAGES list), and playing one is banked by applyMakerPlay — which
+  // only adds XP. Nothing here ever touches state.puzzle, the dex, or the pack
+  // trophy/counter checks (they all iterate PUZZLE_STAGES by pack), so a maker
+  // stage can never pollute Master Coder / Number Wizard / Puzzle Perfect.
+  makerStages() {
+    return this.state.makerStages || (this.state.makerStages = []);
+  },
+
+  makerStageById(id) {
+    return this.makerStages().find(s => s.id === id) || null;
+  },
+
+  // Validate a stage name — same charset + fold as word packs, its own 24-char
+  // cap, and the 8-stage-per-kid cap (a stage being edited doesn't count).
+  validateMakerName(rawName, existingId) {
+    const name = (rawName || "").trim();
+    if (!name) return { ok: false, error: "Give your stage a name first! 🔨" };
+    const folded = Array.from(name).map(normalizeKey).join("");
+    if (folded.length > MAKER_NAME_MAXLEN) {
+      return { ok: false, error: `That name is a bit long — keep it under ${MAKER_NAME_MAXLEN} letters.` };
+    }
+    for (const ch of folded) {
+      if (!WORDPACK_ALLOWED.test(ch)) {
+        return { ok: false, error: `Oops — the name has ${charName(ch)}, which we can’t use. Try letters, spaces, or . , ' ! ?` };
+      }
+    }
+    if (!existingId && this.makerStages().length >= MAKER_STAGES_MAX) {
+      return { ok: false, error: `You already have ${MAKER_STAGES_MAX} stages — delete one to build another.` };
+    }
+    return { ok: true, name: folded };
+  },
+
+  // Create (existingId null) or update a published stage. The editor has already
+  // proved it solvable and set optimal/budget; we defensively re-check the name,
+  // the cell cap and that a flag exists. Awards 🔨/🏗️ on a NEW publish only.
+  saveMakerStage(existingId, data) {
+    const v = this.validateMakerName(data.name, existingId);
+    if (!v.ok) return v;
+    const cells = data.grid.reduce((n, row) => n + row.length, 0);
+    if (cells > MAKER_GRID_MAX) return { ok: false, error: "That grid is too big — keep it 25 squares or fewer." };
+    if (!data.grid.some(row => row.includes("o"))) {
+      return { ok: false, error: "Add a flag 🏁 for your Pokemon to reach!" };
+    }
+    const stages = this.makerStages();
+    const newTrophies = [];
+    let stage;
+    if (existingId && (stage = this.makerStageById(existingId))) {
+      Object.assign(stage, {
+        name: v.name, grid: data.grid, start: data.start, goal: data.goal,
+        need: data.need, blocks: data.blocks, logic: !!data.logic,
+        optimal: data.optimal, budget: data.budget,
+      });
+    } else {
+      if (stages.length >= MAKER_STAGES_MAX) return { ok: false, error: `You already have ${MAKER_STAGES_MAX} stages — delete one to build another.` };
+      stage = {
+        id: "mk" + Date.now().toString(36) + Math.floor(Math.random() * 100),
+        name: v.name, grid: data.grid, start: data.start, goal: data.goal,
+        need: data.need, blocks: data.blocks, logic: !!data.logic,
+        optimal: data.optimal, budget: data.budget, created: Date.now(),
+      };
+      stages.push(stage);
+      this.award("maker-1", newTrophies);                 // 🔨 first published stage
+      if (stages.length >= 5) this.award("maker-5", newTrophies); // 🏗️ five published
+    }
+    this.save();
+    return { ok: true, stage, newTrophies };
+  },
+
+  deleteMakerStage(id) {
+    const stages = this.makerStages();
+    const i = stages.findIndex(s => s.id === id);
+    if (i < 0) return false;
+    stages.splice(i, 1);
+    this.save();
+    return true;
+  },
+
+  // Every OTHER profile's published stages, tagged with the creator's name, so
+  // the "Family stages" shelf can list them read-only (like sibling ghosts).
+  familyMakerStages() {
+    const activePid = this.root.active;
+    const out = [];
+    for (const pid of Object.keys(this.root.players)) {
+      if (pid === activePid) continue;
+      const p = this.root.players[pid];
+      if (!p.profile || !p.profile.name) continue;
+      for (const s of (p.makerStages || [])) out.push({ pid, name: p.profile.name, stage: s });
+    }
+    return out;
+  },
+
+  // Bank a solved maker stage: a small XP treat and NOTHING else — no dex catch,
+  // no puzzle record, no trophies, no counters. Keeps dex integrity and leaves
+  // the creator's save completely untouched when a sibling plays their stage.
+  applyMakerPlay(stars) {
+    const xp = 10 + 5 * (stars || 0);
+    this.state.xp += xp;
+    this.save();
+    return { xp };
   },
 
   // ---- Mystery Egg: what hatches depends on streak (better odds when

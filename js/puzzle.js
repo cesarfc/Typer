@@ -24,6 +24,7 @@ const Puzzle = {
   condPicker: null,  // the tap-only condition overlay element
   _condPath: null,   // which if/else card the picker is editing
   _cond: null,       // working condition model {a,join,b}
+  _makerCtx: null,   // when set, this run is a Maker Hut proof/play (see openMakerStage)
 
   $(id) { return document.getElementById(id); },
 
@@ -77,7 +78,16 @@ const Puzzle = {
     this.$("puzzle-reset").addEventListener("click", () => { if (!this.playing) { SFX.click(); this.resetRun(); } });
     this.$("puzzle-speed").addEventListener("click", () => { SFX.click(); this.cycleSpeed(); });
     this.$("puzzle-hint").addEventListener("click", () => { SFX.click(); this.showHint(); });
-    this.$("puzzle-back").addEventListener("click", () => { SFX.click(); this.stopPlayback(); this.closeCondPicker(); UI.show("lab"); });
+    this.$("puzzle-back").addEventListener("click", () => {
+      SFX.click(); this.stopPlayback(); this.closeCondPicker();
+      // maker proof/play runs return to the Maker Hut, not the isle
+      if (this._makerCtx) {
+        const ctx = this._makerCtx;
+        (ctx.mode === "prove") ? Maker.showEditor() : Maker.openHut();
+      } else {
+        UI.show("lab");
+      }
+    });
 
     // the tap-only condition picker (built once, shown over the playfield)
     const cp = this.condPicker = document.createElement("div");
@@ -101,39 +111,53 @@ const Puzzle = {
     });
     this.$("screen-puzzle").appendChild(cp);
 
-    // the picker (wings + chapters + stage cards)
+    // the isle scene (trail nodes + the fly-home button)
     this.$("lab-body").addEventListener("click", e => {
-      const card = e.target.closest(".pz-stage");
-      if (card) {
+      const home = e.target.closest(".fly-home");
+      if (home) { SFX.click(); UI.flyHome(); return; }
+      const hut = e.target.closest(".isle-hut");
+      if (hut) {
         SFX.init();
-        if (card.classList.contains("locked")) {
-          card.classList.remove("denied"); void card.offsetWidth; card.classList.add("denied");
+        if (hut.classList.contains("locked")) {
+          hut.classList.remove("denied"); void hut.offsetWidth; hut.classList.add("denied");
           SFX.error();
-          UI.toast(card.dataset.lock || "🔒 Finish the puzzle before it to open this one!");
+          UI.toast("🔨 The Maker Hut opens once you’ve earned a ⭐ on every Chapter 1 puzzle here — learn the blocks, then build your own!");
         } else {
-          this.openStage(card.dataset.stage);
+          Maker.openHut();
         }
         return;
       }
-      const wing = e.target.closest(".pz-wing.locked");
-      if (wing) {
-        SFX.error();
-        UI.toast("🔢 The Math Wing opens after you finish the Loops chapter — keep coding!");
+      const node = e.target.closest(".isle-node");
+      if (node) {
+        SFX.init();
+        if (node.classList.contains("locked")) {
+          node.classList.remove("denied"); void node.offsetWidth; node.classList.add("denied");
+          SFX.error();
+          UI.toast(node.dataset.lock || "🔒 Finish the puzzle before it to open this one!");
+        } else {
+          this.openStage(node.dataset.stage);
+        }
       }
     });
   },
 
-  // ---------- picker ----------
+  // ---------- the flying isles ----------
+  // Each pack is its own island the trainer flies to (see UI.flyToIsle). The
+  // stages lay out as a winding trail of tap-nodes across a painted islet, with
+  // existing Lost Legends art as chapter landmarks. currentPack tracks which
+  // isle we are on so every return (back / win / catch) lands home again.
+  currentPack: "code",
+
   CH_NAMES: {
-    code: { 1: "Chapter 1 · Moves", 2: "Chapter 2 · Loops", 3: "Chapter 3 · Ifs", 4: "Chapter 4 · Else", 5: "Chapter 5 · Logic" },
-    math: { 1: "Chapter 1 · Counting", 2: "Chapter 2 · Times", 3: "Chapter 3 · Plus & Minus", 4: "Chapter 4 · Compare" },
+    code: { 1: "Chapter 1 · Moves", 2: "Chapter 2 · Loops", 3: "Chapter 3 · Ifs", 4: "Chapter 4 · Else", 5: "Chapter 5 · Logic", 6: "Chapter 6 · Inventions" },
+    math: { 1: "Chapter 1 · Counting", 2: "Chapter 2 · Times", 3: "Chapter 3 · Plus & Minus", 4: "Chapter 4 · Compare", 5: "Chapter 5 · Sharing" },
   },
   chapterName(pack, ch) { return (this.CH_NAMES[pack] || {})[ch] || `Chapter ${ch}`; },
+  chapterSuffix(pack, ch) { return this.chapterName(pack, ch).split("· ")[1] || `Chapter ${ch}`; },
 
-  // a chapter opens once every stage of the chapter before it has >=1 star
+  // a chapter opens once every stage of the chapter before it has >=1 star.
+  // (No cross-pack gate any more — both isles are reachable from the perch.)
   chapterUnlocked(pack, ch) { return ch === 1 || SAVE.puzzleChapterComplete(pack, ch - 1); },
-  // the whole Math Wing opens once the coding Loops chapter (ch.2) is finished
-  mathWingOpen() { return SAVE.puzzleChapterComplete("code", 2); },
 
   stageUnlocked(idx, list) {
     if (idx === 0) return true;
@@ -142,84 +166,265 @@ const Puzzle = {
     return !!(rec && rec.stars > 0);
   },
 
-  renderPicker() {
-    const host = this.$("lab-body");
-    let html = `<div class="pz-wing coding"><span class="pz-wing-e">💻</span>
-      <div class="pz-wing-info"><b>Coding Wing</b><i>Guide Pokemon with blocks — walk, loop, and decide!</i></div></div>`;
-    html += this.renderChapters("code");
-
-    // Math wing — its gate is coding chapter 2 (Loops). Once Loops is finished
-    // the whole wing opens and renders its own chapters right below.
-    const mathOpen = this.mathWingOpen();
-    html += `<div class="pz-wing math ${mathOpen ? "" : "locked"}"><span class="pz-wing-e">🔢</span>
-      <div class="pz-wing-info"><b>Math Wing</b><i>${mathOpen
-        ? "Numbers come alive — count, times-tables, number-line hops and comparing!"
-        : "🔒 Finish the Loops chapter to open"}</i></div></div>`;
-    if (mathOpen) html += this.renderChapters("math");
-
-    host.innerHTML = html;
+  // per-isle look: each island wears its own biome. `terrain` shifts the grass,
+  // forest and trail palette (Circuit = teal tech-meadow with copper paths;
+  // Counting = a golden orchard with cream paths); the decor set is the isle's
+  // themed Lost Legends props — a hero centrepiece, chapter-boundary landmarks
+  // and a few ambient touches. The node/trail SHAPES stay identical everywhere.
+  ISLE_DECOR: {
+    code: {
+      e: "💻", name: "Circuit Isle", tint: "#39c9b8",
+      terrain: { grass: "#5fb8a8", grassHi: "#74c9b6", forest: "#4a9e90",
+                 path: "#d9a066", pathEdge: "#c8894c" },
+      center: { art: "tq-gear-clocktower", x: 450, y: 106, s: 98 },
+      boundary: ["tq-antenna-workshop", "tq-robot-statue", "tq-generator-box",
+                 "tq-copper-lantern", "tq-cable-spool"],
+      ambient: [
+        { art: "tq-circuit-flowerbed", x: 118, y: 560, s: 48 },
+        { art: "tq-cable-spool", x: 808, y: 205, s: 42 },
+        { art: "tq-copper-lantern", x: 812, y: 512, s: 40 },
+        { art: "tq-circuit-flowerbed", x: 150, y: 240, s: 40 },
+        { art: "tq-puzzle-lab", x: 792, y: 372, s: 62 },
+      ],
+    },
+    math: {
+      e: "🔢", name: "Counting Isle", tint: "#f2c94c",
+      terrain: { grass: "#d8c66a", grassHi: "#e4d484", forest: "#bfa94a",
+                 path: "#f2e6c0", pathEdge: "#e2ce98" },
+      center: { art: "tq-windmill", x: 450, y: 104, s: 100 },
+      boundary: ["tq-orchard-tree", "tq-stepping-stone", "tq-pie-cart", "tq-abacus-stand"],
+      ambient: [
+        { art: "tq-orchard-tree", x: 118, y: 558, s: 54 },
+        { art: "tq-haystack", x: 808, y: 208, s: 46 },
+        { art: "tq-apple-basket", x: 812, y: 520, s: 40 },
+        { art: "tq-orchard-tree", x: 150, y: 236, s: 46 },
+        { art: "tq-pie-cart", x: 792, y: 372, s: 48 },
+      ],
+    },
   },
 
-  // render every chapter (and its stage cards) for one pack
-  renderChapters(pack) {
+  // isle canvas is a 900-wide viewBox whose HEIGHT grows with the trail: four
+  // rows fit the classic 900×640, and each extra row adds 170 so the longer
+  // packs (24 coding nodes = 5 rows) keep roomy, non-overlapping node spacing
+  // even on a narrow phone. Nodes are %-positioned so the scene scales to width.
+  ISLE_W: 900,
+  ISLE_H: 640,
+  curH: 640, // the current pack's canvas height (set per render)
+
+  isleHeight(count) {
+    const rows = Math.max(1, Math.ceil(count / 5));
+    return rows <= 4 ? 640 : 640 + (rows - 4) * 170;
+  },
+
+  // a boustrophedon (snake) trail: fill left→right, drop a row, right→left…,
+  // with a gentle wobble so it reads as a path, not a grid.
+  isleNodePositions(count) {
+    const cols = 5, X0 = 170, X1 = 730, Y0 = 198;
+    const rows = Math.max(1, Math.ceil(count / cols));
+    const Y1 = this.isleHeight(count) - 92;
+    const pts = [];
+    for (let i = 0; i < count; i++) {
+      const r = Math.floor(i / cols);
+      let c = i % cols;
+      if (r % 2 === 1) c = cols - 1 - c;
+      const xf = cols === 1 ? 0.5 : c / (cols - 1);
+      const yf = rows === 1 ? 0.5 : r / (rows - 1);
+      const wob = Math.sin(i * 1.7) * 13;
+      pts.push({ x: Math.round(X0 + (X1 - X0) * xf), y: Math.round(Y0 + (Y1 - Y0) * yf + wob) });
+    }
+    return pts;
+  },
+
+  // a smooth sandy path threaded through the node points (quadratic midpoints)
+  isleTrailPath(pts) {
+    if (!pts.length) return "";
+    let d = `M ${pts[0].x} ${pts[0].y}`;
+    for (let i = 1; i < pts.length - 1; i++) {
+      const mx = (pts[i].x + pts[i + 1].x) / 2, my = (pts[i].y + pts[i + 1].y) / 2;
+      d += ` Q ${pts[i].x} ${pts[i].y} ${mx} ${my}`;
+    }
+    d += ` L ${pts[pts.length - 1].x} ${pts[pts.length - 1].y}`;
+    return d;
+  },
+
+  // the painted islet: teal sea, biome-tinted island, a trail hugging the nodes.
+  // The grass/forest/trail palette comes from the pack's `terrain` (Circuit =
+  // teal tech-meadow + copper path; Counting = golden orchard + cream path);
+  // beaches stay sandy on both. Defaults keep the classic lime look.
+  isleTerrainSvg(pack, pts) {
+    const cfg = this.ISLE_DECOR[pack];
+    const t = cfg.terrain || {};
+    const grass = t.grass || "#8fd14f", grassHi = t.grassHi || "#9ad95a";
+    const forestC = t.forest || "#79c247";
+    const pathC = t.path || "#f2ddb0", pathEdge = t.pathEdge || "#e7cf9c";
+    // the island silhouette is designed in the classic 640-tall space; a single
+    // vertical scale stretches it to fill a taller canvas so the extra rows of
+    // trail still sit on grass. The trail itself is drawn in real H-space.
+    const H = this.curH, sy = H / 640;
+    const coast = UI.smoothClosed([
+      [120, 130], [320, 78], [560, 92], [772, 138], [850, 320],
+      [812, 486], [648, 566], [430, 588], [214, 542], [82, 356],
+    ]);
+    const trail = this.isleTrailPath(pts);
+    const forest = (cx, cy, s) => [[0, 0], [s, -s * .3], [-s * .9, s * .4], [s * .7, s * .55]]
+      .map(([dx, dy], i) => `<circle cx="${cx + dx}" cy="${cy + dy}" r="${s * (0.9 - i * 0.14)}" />`).join("");
+    return `<svg class="isle-svg" viewBox="0 0 ${this.ISLE_W} ${H}" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <rect width="100%" height="100%" fill="#6fcfe0"/>
+      <g transform="scale(1 ${sy.toFixed(4)})">
+        <path d="${coast}" fill="none" stroke="#bfeef4" stroke-width="30" opacity=".5"/>
+        <path d="${coast}" fill="none" stroke="#f2ddb0" stroke-width="18" opacity=".9"/>
+        <path d="${coast}" fill="${grass}"/>
+        <path d="${coast}" fill="${grassHi}" opacity=".5" transform="translate(0,-12)"/>
+        <g fill="${forestC}" opacity=".33">${forest(230, 250, 54)}${forest(700, 470, 50)}${forest(300, 470, 44)}</g>
+        <ellipse cx="450" cy="330" rx="470" ry="330" fill="${cfg.tint}" opacity=".08"/>
+      </g>
+      <path d="${trail}" fill="none" stroke="${pathC}" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>
+      <path d="${trail}" fill="none" stroke="${pathEdge}" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" opacity=".25" stroke-dasharray="4 26"/>
+    </svg>`;
+  },
+
+  // one grounded art prop positioned by its centre in isle space
+  isleProp(art, x, y, s, extra = "") {
+    const g = artSprite(art, s) || artIcon(art, s);
+    return `<span class="isle-landmark" style="left:${(x / this.ISLE_W) * 100}%;top:${(y / this.curH) * 100}%"${extra}>${g}</span>`;
+  },
+
+  // build the whole isle scene into #lab-body for the given pack
+  renderIsle(pack) {
+    if (!this.ISLE_DECOR[pack]) pack = "code";
+    this.currentPack = pack;
+    const cfg = this.ISLE_DECOR[pack];
+    const stages = PUZZLE_STAGES.filter(s => s.pack === pack);
+    const H = this.curH = this.isleHeight(stages.length);
+    const sy = H / 640; // decor coords are authored in 640-space; stretch to fit
+    const pts = this.isleNodePositions(stages.length);
+
+    // group into chapters to resolve within-chapter unlock + chapter labels,
+    // keeping the flat play order (PUZZLE_STAGES is already ordered)
     const chapters = [];
-    PUZZLE_STAGES.filter(s => s.pack === pack).forEach(s => {
+    stages.forEach(s => {
       let g = chapters.find(c => c.ch === s.chapter);
       if (!g) chapters.push(g = { ch: s.chapter, stages: [] });
       g.stages.push(s);
     });
-
-    let html = "";
+    const meta = []; // per flat stage: { s, ch, li, chList, chOpen }
     chapters.forEach(g => {
       const chOpen = this.chapterUnlocked(pack, g.ch);
-      html += `<h3 class="pz-chapter">${this.chapterName(pack, g.ch)}${chOpen ? "" : " 🔒"}</h3>`;
-      if (!chOpen) {
-        const prev = this.chapterName(pack, g.ch - 1).split("· ")[1] || "the chapter before";
-        html += `<div class="pz-chapter-lock">Finish ${prev} to open these puzzles</div>`;
-      }
-      html += `<div class="pz-stage-grid">`;
-      g.stages.forEach((s, i) => {
-        const rec = SAVE.state.puzzle[s.id];
-        const stars = rec ? rec.stars || 0 : 0;
-        const open = chOpen && this.stageUnlocked(i, g.stages);
-        const catchKey = s.reward && s.reward.catch;
-        const uncaught = catchKey && !SAVE.state.dex[catchKey];
-        let reward = "";
-        if (catchKey) {
-          const [w, ci] = catchKey.split("-").map(Number);
-          const c = CREATURES[w][ci];
-          reward = uncaught
-            ? `<span class="pz-reward new" title="Solve to catch ${c.n}!">🐾 catch!</span>`
-            : `<span class="pz-reward got" title="You caught ${c.n} here">✓ ${c.n}</span>`;
-        }
-        const badge = !open ? "🔒" : stars > 0 ? "✓" : (i + 1);
-        const starRow = open
-          ? `<span class="pz-stars">${"★".repeat(stars)}<span class="off">${"★".repeat(3 - stars)}</span></span>`
-          : `<span class="pz-locknote">${chOpen ? "Finish the one before to open" : "Chapter locked"}</span>`;
-        const lockMsg = !chOpen
-          ? "🔒 Finish the chapter before it to open this one!"
-          : "🔒 Finish the puzzle before it to open this one!";
-        html += `<button class="pz-stage ${open ? "" : "locked"} ${stars > 0 ? "done" : ""} ${s.capstone ? "capstone" : ""}"
-            data-stage="${s.id}" data-lock="${lockMsg}">
-          <span class="pz-badge">${badge}</span>
-          <span class="pz-info">
-            <b>${UI.esc(s.name)}</b>
-            <i>${UI.esc(s.concept)}</i>
-            ${starRow}
-          </span>
-          ${reward}
-        </button>`;
-      });
-      html += `</div>`;
+      g.stages.forEach((s, li) => meta.push({ s, ch: g.ch, li, chList: g.stages, chOpen }));
     });
-    return html;
+
+    // progress summary
+    const starSum = stages.reduce((n, s) => n + (((SAVE.state.puzzle[s.id] || {}).stars) || 0), 0);
+    const maxStars = stages.length * 3;
+    const catchStages = stages.filter(s => s.reward && s.reward.catch);
+    const caught = catchStages.filter(s => SAVE.state.dex[s.reward.catch]).length;
+
+    // frontier: first open, unsolved stage gets the gold "next" pulse
+    let frontier = -1;
+    meta.forEach((m, i) => {
+      if (frontier !== -1) return;
+      const rec = SAVE.state.puzzle[m.s.id];
+      if (m.chOpen && this.stageUnlocked(m.li, m.chList) && !(rec && rec.stars > 0)) frontier = i;
+    });
+
+    // ----- decor: hero centrepiece, chapter-boundary landmarks, ambient -----
+    let decor = this.isleProp(cfg.center.art, cfg.center.x, cfg.center.y * sy, cfg.center.s, ' data-center="1"');
+    cfg.ambient.forEach(a => { decor += this.isleProp(a.art, a.x, a.y * sy, a.s); });
+    let bi = 0;
+    for (let i = 0; i < meta.length - 1; i++) {
+      if (meta[i].ch !== meta[i + 1].ch && cfg.boundary[bi]) {
+        const mx = (pts[i].x + pts[i + 1].x) / 2, my = (pts[i].y + pts[i + 1].y) / 2 - 8;
+        decor += this.isleProp(cfg.boundary[bi], mx, my, 48);
+        bi++;
+      }
+    }
+
+    // ----- chapter labels: a pill above each chapter's first node -----
+    let labels = "";
+    chapters.forEach(g => {
+      const idx = meta.findIndex(m => m.ch === g.ch);
+      const p = pts[idx];
+      const lock = this.chapterUnlocked(pack, g.ch) ? "" : " 🔒";
+      labels += `<span class="isle-chlabel" style="left:${(p.x / this.ISLE_W) * 100}%;top:${((p.y - 52) / this.ISLE_H) * 100}%">Ch ${g.ch} · ${UI.esc(this.chapterSuffix(pack, g.ch))}${lock}</span>`;
+    });
+
+    // ----- nodes -----
+    let nodes = "";
+    meta.forEach((m, i) => {
+      const s = m.s, p = pts[i];
+      const rec = SAVE.state.puzzle[s.id];
+      const stars = rec ? rec.stars || 0 : 0;
+      const open = m.chOpen && this.stageUnlocked(m.li, m.chList);
+      const isNext = i === frontier;
+      const catchKey = s.reward && s.reward.catch;
+      const uncaught = catchKey && !SAVE.state.dex[catchKey];
+      const lockMsg = !m.chOpen
+        ? "🔒 Finish the chapter before it to open this one!"
+        : "🔒 Finish the puzzle before it to open this one!";
+      const badge = open
+        ? `<span class="isle-num">${i + 1}</span>`
+        : `<span class="isle-num lock">${artIcon("tq-padlock", 26) || "🔒"}</span>`;
+      const starRow = open
+        ? `<span class="isle-stars">${"★".repeat(stars)}<span class="off">${"★".repeat(3 - stars)}</span></span>`
+        : "";
+      const catchMark = open && uncaught ? `<span class="isle-catch" title="Solve to catch a new friend!">🐾</span>` : "";
+      const title = open ? `${UI.esc(s.name)} — ${UI.esc(s.concept)}` : "Locked — finish the one before it";
+      nodes += `<button class="isle-node ${open ? "" : "locked"} ${stars > 0 ? "done" : ""} ${isNext ? "next" : ""} ${s.capstone ? "capstone" : ""}"
+          style="left:${(p.x / this.ISLE_W) * 100}%;top:${(p.y / this.ISLE_H) * 100}%"
+          data-stage="${s.id}" data-lock="${lockMsg}" title="${title}">
+        ${badge}${starRow}${catchMark}
+      </button>`;
+    });
+
+    // ----- the Maker Hut: a small workshop off-trail (top-left). Unlocks once
+    // every Chapter 1 puzzle here has a star, so builders know their blocks. -----
+    const makerOpen = SAVE.puzzleChapterComplete(pack, 1);
+    const hutArt = artSprite("tq-town-house", 62) || "🔨";
+    const hut = `<button class="isle-hut ${makerOpen ? "" : "locked"}"
+        style="left:${(112 / this.ISLE_W) * 100}%;top:${(150 / this.ISLE_H) * 100}%"
+        title="${makerOpen ? "Build your own puzzle stages for the family!" : "Finish Chapter 1 to open the Maker Hut"}">
+      <span class="isle-hut-art">${hutArt}</span>
+      <span class="isle-hut-lbl">🔨 Maker Hut${makerOpen ? "" : " 🔒"}</span>
+    </button>`;
+
+    this.$("lab-body").innerHTML = `<div class="isle-scene" data-pack="${pack}">
+      <div class="isle-topbar">
+        <button class="fly-home">🏠 Fly home</button>
+        <div class="isle-title"><b>${cfg.e} ${UI.esc(cfg.name)}</b>
+          <span>⭐ ${starSum}/${maxStars}${catchStages.length ? ` · 🐾 ${caught}/${catchStages.length}` : ""}</span></div>
+      </div>
+      <div class="isle-stage" style="aspect-ratio:${this.ISLE_W} / ${H}">
+        ${this.isleTerrainSvg(pack, pts)}
+        ${decor}
+        ${labels}
+        ${hut}
+        ${nodes}
+      </div>
+    </div>`;
   },
 
   // ---------- mount a stage ----------
   openStage(stageId) {
     const stage = PUZZLE_STAGES.find(s => s.id === stageId);
     if (!stage) return;
+    this._makerCtx = null; // a normal pack stage — leave the Maker plumbing off
+    this.currentPack = stage.pack || this.currentPack; // return to this stage's isle
     this.stage = stage;
+    this.mountStage();
+  },
+
+  // Maker Hut entry point: mount a kid-authored stage def directly (it is NOT in
+  // PUZZLE_STAGES). `ctx` = { mode:"prove"|"play", mine, creatorName, creatorOptimal }.
+  // The win handler branches on this._makerCtx so nothing is banked to state.puzzle.
+  openMakerStage(stage, ctx) {
+    this._makerCtx = ctx || { mode: "play" };
+    this.stage = stage;
+    this.mountStage();
+  },
+
+  // shared mount: reset run state and paint the playfield for this.stage
+  mountStage() {
+    const stage = this.stage;
     this.program = [];
     this.caret = { cont: "", idx: 0 };
     this.hintIdx = 0;
@@ -229,6 +434,16 @@ const Puzzle = {
     this.closeCondPicker();
     UI.show("puzzle");
     this.renderSpeed();
+    // the Maker playfield borrows the same screen but hides the hint ladder
+    // (maker stages carry no authored hints) and points "back" at the Hut
+    const back = this.$("puzzle-back"), hintBtn = this.$("puzzle-hint");
+    if (this._makerCtx) {
+      back.textContent = "← Hut";
+      hintBtn.classList.add("hidden");
+    } else {
+      back.textContent = "← Isle";
+      hintBtn.classList.remove("hidden");
+    }
     const goalText = this.goalText(stage);
     this.$("puzzle-title").innerHTML = `<b>${UI.esc(stage.name)}</b><i>${goalText}</i>`;
     this.$("puzzle-goal").textContent = goalText;
@@ -533,7 +748,14 @@ const Puzzle = {
 
   updateCount() {
     const n = this.countBlocks(this.program);
-    this.$("puzzle-count").innerHTML = `🧱 ${n} block${n === 1 ? "" : "s"} · ⭐ ${this.stage.optimal} = perfect`;
+    const label = `🧱 ${n} block${n === 1 ? "" : "s"}`;
+    // while proving a maker stage there is no `optimal` yet — the winning count
+    // BECOMES it — so we coach toward solving rather than toward a target.
+    if (this._makerCtx && this._makerCtx.mode === "prove") {
+      this.$("puzzle-count").innerHTML = `${label} · reach the flag to set the record!`;
+    } else {
+      this.$("puzzle-count").innerHTML = `${label} · ⭐ ${this.stage.optimal} = perfect`;
+    }
   },
 
   countBlocks(nodes) {
@@ -671,6 +893,18 @@ const Puzzle = {
     return { n: g.n, m: g.deltas[0], total: g.n * g.deltas[0] };
   },
 
+  // read a DIVISION fact off a winning number-line program: an outer repeat
+  // whose body is a single equal hop → "total split into n equal hops of m".
+  // Mirrors deriveMulFact for the Sharing chapter's Equal-Hops stages.
+  deriveDivHopFact(nodes, landed) {
+    if (nodes.length !== 1 || nodes[0].t !== "repeat") return null;
+    const body = nodes[0].body;
+    if (body.length !== 1 || body[0].t !== "hop" || body[0].v < 2) return null;
+    const n = nodes[0].n, m = body[0].v;
+    if (n < 2 || n * m !== landed) return null;
+    return { n, m, total: landed };
+  },
+
   simulate() {
     if (this.isLine()) return this.simulateLine();
     const st = this.stage;
@@ -806,7 +1040,8 @@ const Puzzle = {
     const blocks = this.countBlocks(this.program);
     let stars = 0;
     if (outcome === "win") stars = blocks <= st.optimal ? 3 : blocks <= st.budget ? 2 : 1;
-    return { frames, outcome, blocks, stars, mulFact: null, total: p, landed: p };
+    const divHop = outcome === "win" ? this.deriveDivHopFact(this.program, p) : null;
+    return { frames, outcome, blocks, stars, mulFact: null, divHop, total: p, landed: p };
   },
 
   run() {
@@ -1001,6 +1236,9 @@ const Puzzle = {
   },
 
   onWin(sim) {
+    // Maker Hut proof/play never routes through applyPuzzle — it must not bank a
+    // record, catch a Pokemon, or award a pack trophy. Branch away first.
+    if (this._makerCtx) return this.onMakerWin(sim);
     const stage = this.stage;
     const res = SAVE.applyPuzzle(stage.id, sim.stars, sim.blocks);
     const catchKey = stage.reward && stage.reward.catch;
@@ -1019,7 +1257,12 @@ const Puzzle = {
     let mathBanner = "";
     if (sim.mulFact) {
       const { n, m, total } = sim.mulFact;
-      mathBanner = `<div class="pz-win-math">${n} groups of ${m} = ${total}! ✨</div>`;
+      mathBanner = this.stage.divide
+        ? `<div class="pz-win-math">${total} shared into ${n} groups = ${m} each! ✨</div>`
+        : `<div class="pz-win-math">${n} groups of ${m} = ${total}! ✨</div>`;
+    } else if (sim.divHop) {
+      const { n, m, total } = sim.divHop;
+      mathBanner = `<div class="pz-win-math">${total} split into ${n} equal hops of ${m}! ✨</div>`;
     } else if (this.isLine()) {
       mathBanner = `<div class="pz-win-math">You landed right on ${this.stage.need}! 🎯</div>`;
     } else if (this.stage.goal === "collect") {
@@ -1037,7 +1280,7 @@ const Puzzle = {
       buttons = `<button class="big-btn" data-act="catch" data-catch="${catchKey}">🎁 Meet ${UI.esc(c.n)}! ▶</button>
         <button class="mid-btn" data-act="replay">↺ Play again</button>`;
     } else {
-      buttons = `<button class="big-btn" data-act="lab">🧩 Back to Lab</button>
+      buttons = `<button class="big-btn" data-act="lab">🏝️ Back to the isle</button>
         <button class="mid-btn" data-act="replay">↺ Play again</button>`;
     }
 
@@ -1062,6 +1305,71 @@ const Puzzle = {
         if (c) Engine.startPuzzleCatch(c, this.stage.id);
         else UI.show("lab");
       }
+    };
+  },
+
+  // ---------- Maker Hut win handling ----------
+  // A maker proof/play win. Proof mode captures the winning block count so it can
+  // become the stage's `optimal`; play mode banks a small XP treat (no catch, no
+  // records) and delights when a sibling beats the creator's record.
+  onMakerWin(sim) {
+    const ctx = this._makerCtx;
+    UI.confetti();
+    SFX.fanfare();
+    const nstar = ctx.mode === "prove" ? 3 : sim.stars;
+    for (let i = 0; i < nstar; i++) setTimeout(() => SFX.star(i), 250 + i * 320);
+    if (ctx.mode === "prove") { this.showMakerProofCard(sim); return; }
+    const res = SAVE.applyMakerPlay(sim.stars);
+    const beat = !ctx.mine && ctx.creatorOptimal != null && sim.blocks <= ctx.creatorOptimal;
+    this.showMakerPlayCard(sim, res, beat, ctx);
+  },
+
+  // the proof card: the creator just solved their own stage. Their block count is
+  // the record to beat; from here they publish (or keep building).
+  showMakerProofCard(sim) {
+    const box = this.$("puzzle-msg");
+    box.className = "pz-msg win";
+    box.innerHTML = `<div class="pz-win-title">🎉 It works!</div>
+      <div class="pz-win-math">You solved your own stage in <b>${sim.blocks}</b> block${sim.blocks === 1 ? "" : "s"}!</div>
+      <span class="pz-win-stars">★★★</span>
+      <div class="pz-win-note">That becomes the record for the family to beat. Ready to share it?</div>
+      <div class="pz-win-btns">
+        <button class="big-btn" data-act="mk-publish">📢 Publish it!</button>
+        <button class="mid-btn" data-act="mk-editproof">✏️ Keep building</button>
+      </div>`;
+    box.onclick = e => {
+      const btn = e.target.closest("[data-act]");
+      if (!btn) return;
+      SFX.init();
+      Maker.afterProof(sim.blocks, btn.dataset.act === "mk-publish");
+    };
+  },
+
+  // the play card: someone solved a published stage. Small XP, no catch — and a
+  // delighted callout when they beat the creator's own best.
+  showMakerPlayCard(sim, res, beat, ctx) {
+    const starHtml = `<span class="pz-win-stars">${"★".repeat(sim.stars)}<span class="off">${"★".repeat(3 - sim.stars)}</span></span>`;
+    const beatHtml = beat ? `<div class="pz-win-math">🏅 You beat ${UI.esc(ctx.creatorName)}’s record!</div>` : "";
+    const note = ctx.mine
+      ? "You solved your very own stage! 🔨"
+      : `A stage by ${UI.esc(ctx.creatorName || "a family trainer")}.`;
+    const box = this.$("puzzle-msg");
+    box.className = "pz-msg win";
+    box.innerHTML = `<div class="pz-win-title">🎉 Puzzle solved!</div>
+      ${beatHtml}
+      ${starHtml}
+      <div class="pz-win-note">${note}</div>
+      <div class="pz-win-xp">+${res.xp} XP</div>
+      <div class="pz-win-btns">
+        <button class="big-btn" data-act="mk-hut">🔨 Back to the Hut</button>
+        <button class="mid-btn" data-act="replay">↺ Play again</button>
+      </div>`;
+    box.onclick = e => {
+      const btn = e.target.closest("[data-act]");
+      if (!btn) return;
+      SFX.init();
+      if (btn.dataset.act === "mk-hut") Maker.openHut();
+      else { this.hideMsg(); this.resetRun(); }
     };
   },
 

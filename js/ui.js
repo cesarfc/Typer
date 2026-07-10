@@ -163,7 +163,7 @@ const UI = {
     if (name === "journal") this.renderJournal();
     if (name === "stats") this.renderStats();
     if (name === "practice") this.renderPractice();
-    if (name === "lab") Puzzle.renderPicker();
+    if (name === "lab") Puzzle.renderIsle(Puzzle.currentPack);
     if (name !== "title" && name !== "game") this.renderTopbar();
     this.touchKeyboard(name);
     if (name === "map") this.maybeDayCard();
@@ -250,7 +250,11 @@ const UI = {
         <circle cx="50" cy="55.5" r="3.1" fill="#ffd34d" stroke="#b8901f" stroke-width="1"/>`;
     }
 
+    // thick charcoal-brown linework so trainers sit in the Lost Legends
+    // world; a group stroke wraps every part (elements with their own
+    // stroke — the cape trim, mouth — keep it and override).
     return `<svg class="${cls}" viewBox="0 0 100 118" aria-hidden="true">
+      <g stroke="#3a3130" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">
       ${hairBack}
       ${capeSvg}
       <rect x="38" y="88" width="9" height="21" rx="4" fill="#27314f"/>
@@ -265,9 +269,10 @@ const UI = {
       <circle cx="50" cy="36" r="22" fill="${skin}"/>
       ${hairFront}
       ${hatSvg}
-      <circle cx="42" cy="39" r="2.6" fill="#1d2030"/>
-      <circle cx="58" cy="39" r="2.6" fill="#1d2030"/>
+      <circle cx="42" cy="39" r="2.6" fill="#1d2030" stroke="none"/>
+      <circle cx="58" cy="39" r="2.6" fill="#1d2030" stroke="none"/>
       <path d="M44 48 Q50 53 56 48" stroke="#1d2030" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+      </g>
     </svg>`;
   },
 
@@ -423,13 +428,13 @@ const UI = {
 
   MAP_CITIES: [
     { x: 180, y: 1330, t: "centerRed", sc: 1.9, n: "Pallet Town" },
-    { x: 545, y: 455, sp: "mine", s: 64, n: "Moonstone City" },
+    { x: 545, y: 455, sp: "mine", s: 100, n: "Moonstone City" },
     { x: 1340, y: 1165, t: "martBlue", sc: 1.9, n: "Victory City" },
-    { x: 1905, y: 290, sp: "volcano", s: 72, n: "Ember Town" },
-    { x: 2010, y: 1190, sp: "lanternpost", s: 48, n: "Lantern Village" },
-    { x: 2625, y: 425, sp: "hall", s: 80, n: "Hall of Fame" },
-    { x: 905, y: 1300, sp: "pier", s: 66, n: "Fishing Pier" },
-    { x: 1565, y: 690, sp: "berrybush", s: 48, n: "Berry Farm" },
+    { x: 1905, y: 290, sp: "volcano", s: 108, n: "Ember Town" },
+    { x: 2010, y: 1190, sp: "lanternpost", s: 46, n: "Lantern Village" },
+    { x: 2625, y: 425, sp: "hall", s: 104, n: "Hall of Fame" },
+    { x: 905, y: 1300, sp: "pier", s: 98, n: "Fishing Pier" },
+    { x: 1565, y: 690, sp: "berrybush", s: 56, n: "Berry Farm" },
   ],
   MAP_DECOR: [
     // Pallet Meadow
@@ -451,13 +456,23 @@ const UI = {
     { x: 1690, y: 220, sp: "mountain", s: 70 }, { x: 1840, y: 140, e: "☁️", s: 30 },
     // Eterna Forest
     { x: 2015, y: 895, t: "pineBig", sc: 2 }, { x: 2245, y: 1185, t: "pineBig", sc: 1.8 }, { x: 2085, y: 1125, sp: "lanternpost", s: 34 },
-    { x: 2305, y: 905, e: "🌫️", s: 30 }, { x: 2200, y: 1320, t: "pine", sc: 2 }, { x: 2450, y: 980, t: "pineBig", sc: 1.7 },
+    { x: 2305, y: 905, e: "☁️", s: 26 }, { x: 2200, y: 1320, t: "pine", sc: 2 }, { x: 2450, y: 980, t: "pineBig", sc: 1.7 },
     { x: 2120, y: 1010, t: "pine", sc: 2.1 }, { x: 2330, y: 1100, t: "pine", sc: 1.8 }, { x: 2270, y: 990, t: "mushroomT", sc: 1.8 },
     // Hall of Fame
     { x: 2385, y: 680, e: "✨", s: 18 }, { x: 2565, y: 645, sp: "flag", s: 30, c: "#f5c84c" }, { x: 2705, y: 485, e: "👑", s: 22 },
     { x: 2530, y: 540, t: "bench", sc: 1.7 },
     // water
     { x: 705, y: 1185, sp: "wave", s: 42 }, { x: 825, y: 1245, sp: "wave", s: 34 }, { x: 1005, y: 1335, sp: "wave", s: 42 },
+    // Lost Legends landmark props (new art, placed directly by id)
+    { x: 405, y: 1210, art: "tq-clocktower", s: 74 },   // Pallet meadow clocktower
+    { x: 340, y: 1275, art: "tq-stone-well", s: 46 },
+    { x: 1610, y: 640, art: "tq-sparkle-pond", s: 74 }, // Berry Farm pond
+    { x: 660, y: 875, art: "tq-cliff-rocks", s: 62 },   // Mt. Moon cliffs
+    { x: 800, y: 690, art: "tq-mossy-boulder", s: 52 },
+    { x: 2160, y: 1180, art: "tq-mushroom-cluster", s: 40 },
+    { x: 2245, y: 1050, art: "tq-cauldron", s: 44 },    // Eterna Forest cauldron
+    { x: 1015, y: 1290, art: "tq-rope-bridge", s: 78 }, // over the pier lake
+    { x: 1520, y: 1010, art: "tq-raid-den", s: 96 },    // the Weekly Raid den (glowing portal)
   ],
 
   // tall grass candidates (3 per region) and fishing spots
@@ -512,20 +527,36 @@ const UI = {
     const forest = (cx, cy, s) => [[0, 0], [s, -s * .3], [-s * .9, s * .4], [s * .7, s * .6], [-s * .2, -s * .8]]
       .map(([dx, dy], i) => `<circle cx="${cx + dx}" cy="${cy + dy}" r="${s * (0.9 - i * 0.1)}" />`).join("");
     const mt = (x, y, s) =>
-      `<polygon points="${x},${y} ${x - s},${y + s * 1.25} ${x + s},${y + s * 1.25}" fill="#566077"/>` +
-      `<polygon points="${x},${y} ${x - s * .38},${y + s * .5} ${x + s * .38},${y + s * .5}" fill="#e8edf7"/>`;
+      `<polygon points="${x},${y} ${x - s},${y + s * 1.25} ${x + s},${y + s * 1.25}" fill="#8fa06a"/>` +
+      `<polygon points="${x},${y} ${x - s * .38},${y + s * .5} ${x + s * .38},${y + s * .5}" fill="#f4f7e6"/>`;
+    // sandy path/clearing blobs scattered along the route (organic patches)
+    const sand = (cx, cy, rx, ry) => `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="#f2ddb0"/>`;
     return `<svg id="terrain-svg" width="${this.MAP_W}" height="${this.MAP_H}" viewBox="0 0 ${this.MAP_W} ${this.MAP_H}">
-      <rect width="100%" height="100%" fill="#0d2a40"/>
-      <path d="${coast}" fill="none" stroke="#7fb2d9" stroke-width="34" opacity=".14"/>
-      <path d="${coast}" fill="none" stroke="#d9c081" stroke-width="16" opacity=".55"/>
-      <path d="${coast}" fill="#17301f"/>
+      <!-- bright teal sea beyond the island -->
+      <rect width="100%" height="100%" fill="#6fcfe0"/>
+      <path d="${coast}" fill="none" stroke="#bfeef4" stroke-width="34" opacity=".5"/>
+      <path d="${coast}" fill="none" stroke="#f2ddb0" stroke-width="20" opacity=".9"/>
+      <!-- the island: lively lime-green grass -->
+      <path d="${coast}" fill="#8fd14f"/>
+      <path d="${coast}" fill="#9ad95a" opacity=".55" transform="translate(0,-14)"/>
+      <!-- warm sandy clearings along the trail -->
+      <g opacity=".85">
+        ${sand(230, 1190, 150, 90)}${sand(660, 640, 130, 80)}${sand(1210, 1010, 150, 90)}
+        ${sand(1730, 430, 130, 80)}${sand(2140, 1030, 150, 90)}${sand(2480, 560, 130, 80)}
+        ${sand(2680, 300, 110, 70)}${sand(430, 1330, 120, 66)}
+      </g>
+      <!-- a sandy trail hugging the winding route -->
+      <path d="M230,1190 Q450,900 660,640 Q940,820 1210,1010 Q1470,720 1730,430 Q1940,730 2140,1030 Q2310,800 2480,560 L2680,300" fill="none"
+        stroke="#f2ddb0" stroke-width="46" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/>
+      <!-- fishing lakes & pond: bright teal water -->
       <path d="M700,620 C 770,810 850,930 890,1080 C 910,1170 930,1240 945,1295" fill="none"
-        stroke="#2e6e9d" stroke-width="22" stroke-linecap="round" opacity=".85"/>
-      <ellipse cx="945" cy="1310" rx="175" ry="78" fill="#2e6e9d"/>
-      <ellipse cx="915" cy="1295" rx="80" ry="26" fill="#5d9ec9" opacity=".5"/>
-      <ellipse cx="2245" cy="1195" rx="95" ry="46" fill="#2e6e9d"/>
-      <ellipse cx="2228" cy="1186" rx="42" ry="14" fill="#5d9ec9" opacity=".5"/>
-      <g fill="#0f3d24" opacity=".85">
+        stroke="#3fb5cf" stroke-width="24" stroke-linecap="round" opacity=".9"/>
+      <ellipse cx="945" cy="1310" rx="175" ry="78" fill="#3fb5cf"/>
+      <ellipse cx="915" cy="1295" rx="80" ry="26" fill="#a7e6f0" opacity=".6"/>
+      <ellipse cx="2245" cy="1195" rx="95" ry="46" fill="#3fb5cf"/>
+      <ellipse cx="2228" cy="1186" rx="42" ry="14" fill="#a7e6f0" opacity=".6"/>
+      <!-- soft darker-green woodland shading (kept subtle & bright) -->
+      <g fill="#79c247" opacity=".38">
         ${forest(265, 1075, 62)}${forest(470, 1180, 48)}${forest(1115, 800, 52)}
         ${forest(2120, 930, 66)}${forest(2330, 1110, 52)}${forest(2520, 470, 46)}
       </g>
@@ -574,6 +605,83 @@ const UI = {
     return out;
   },
 
+  // ---------- Seasonal map dressing (pure decoration — never a reward) ----------
+  // Driven by the real calendar; a debug override (window.TQ.debugSeason) lets
+  // us preview any season. Winter/spring/autumn/summer each add a gentle tint,
+  // a handful of drifting particles, and season-flavored decor. Two single-day
+  // touches: fireworks on Jan 1 / Jul 4, pumpkins in the last week of October.
+  seasonNow() {
+    if (this._debugSeason && this._debugSeason !== "fireworks") return this._debugSeason;
+    const m = new Date().getMonth();          // 0 = January
+    return (m === 11 || m <= 1) ? "winter"
+      : m <= 4 ? "spring"
+      : m <= 7 ? "summer" : "autumn";
+  },
+
+  seasonSpecials() {
+    const s = { fireworks: false, pumpkins: false };
+    if (this._debugSeason === "fireworks") { s.fireworks = true; return s; }
+    const now = new Date();
+    const m = now.getMonth(), day = now.getDate();
+    if ((m === 0 && day === 1) || (m === 6 && day === 4)) s.fireworks = true;  // Jan 1 / Jul 4
+    if (m === 9 && day >= 25) s.pumpkins = true;                               // last week of Oct
+    return s;
+  },
+
+  // preview any season live from the console: TQ.debugSeason("winter"|"spring"|
+  // "summer"|"autumn"|"fireworks"|null-to-clear)
+  debugSeason(name) {
+    this._debugSeason = name || null;
+    if (this.current === "map") this.renderMap();
+    return this._debugSeason || "(live calendar)";
+  },
+
+  // the seasonal overlay HTML: a tint plane, a few light CSS particles, and
+  // season-flavored decor appended over the existing map (all decoration).
+  seasonLayer(decor) {
+    const season = this.seasonNow();
+    const sp = this.seasonSpecials();
+    let html = `<div class="season-tint season-${season}"></div>`;
+    // deterministic scatter so the dressing never jitters between renders
+    let h = 20240101;
+    const rng = () => { h = (h * 1664525 + 1013904223) >>> 0; return h / 4294967296; };
+    const rx = () => Math.round(rng() * this.MAP_W);
+    const ry = () => Math.round(rng() * this.MAP_H);
+    const trees = decor.filter(o => o.sp === "tree" || o.t === "pine" || o.t === "pineBig");
+
+    if (season === "winter") {
+      // snowy caps atop about half the trees
+      trees.forEach((o, i) => {
+        if (i % 2) return;
+        const lift = (o.s || o.sc * 20) * 0.7;
+        html += `<span class="snow-cap" style="left:${o.x}px;top:${o.y - lift}px">❄️</span>`;
+      });
+      for (let i = 0; i < 12; i++)
+        html += `<span class="snowflake" style="left:${rx()}px;top:${ry()}px;font-size:${10 + Math.round(rng() * 10)}px;animation-delay:-${(rng() * 8).toFixed(1)}s;animation-duration:${(7 + rng() * 6).toFixed(1)}s">❄️</span>`;
+    } else if (season === "spring") {
+      trees.forEach((o, i) => { if (i % 3 === 0) html += `<span class="season-decor" style="left:${o.x + 10}px;top:${o.y - 8}px">🌸</span>`; });
+      for (let i = 0; i < 12; i++)
+        html += `<span class="petal" style="left:${rx()}px;top:${ry()}px;animation-delay:-${(rng() * 8).toFixed(1)}s;animation-duration:${(8 + rng() * 6).toFixed(1)}s">🌸</span>`;
+    } else if (season === "autumn") {
+      trees.forEach((o, i) => { if (i % 2) html += `<span class="season-decor" style="left:${o.x}px;top:${o.y - 6}px">🍂</span>`; });
+      for (let i = 0; i < 12; i++)
+        html += `<span class="leaf-fall" style="left:${rx()}px;top:${ry()}px;animation-delay:-${(rng() * 8).toFixed(1)}s;animation-duration:${(7 + rng() * 6).toFixed(1)}s">🍁</span>`;
+    } else { // summer — extra butterflies + fireflies around the ponds
+      [[905, 1285], [960, 1330], [1005, 1300], [2245, 1170]].forEach(([x, y], i) =>
+        html += `<span class="map-butterfly" style="left:${x}px;top:${y}px;animation-delay:-${(i * 0.6).toFixed(1)}s">🦋</span>`);
+      for (let i = 0; i < 6; i++)
+        html += `<i class="firefly" style="left:${920 + Math.round(rng() * 140)}px;top:${1270 + Math.round(rng() * 70)}px;animation-delay:-${(rng() * 2).toFixed(1)}s"></i>`;
+    }
+
+    if (sp.pumpkins)
+      html += `<span class="season-decor pumpkin" style="left:230px;top:1300px">🎃</span>
+        <span class="season-decor pumpkin" style="left:305px;top:1355px">🎃</span>`;
+    if (sp.fireworks)
+      [[520, 360], [1200, 300], [2000, 340]].forEach(([x, y], i) =>
+        html += `<span class="firework" style="left:${x}px;top:${y}px;animation-delay:-${(i * 0.8).toFixed(1)}s">🎆</span>`);
+    return html;
+  },
+
   mapNodes() {
     if (this._mapNodes) return this._mapNodes;
     const A = this.mapAnchors;
@@ -618,7 +726,7 @@ const UI = {
     let html = this.terrainSvg();
     const blobs = WORLDS.map((w, i) => {
       const [ax, ay] = this.mapAnchors[i], [bx, by] = this.mapAnchors[i + 1];
-      return `radial-gradient(740px 580px at ${Math.round((ax + bx) / 2)}px ${Math.round((ay + by) / 2)}px, ${w.gradient[1]}59, transparent 72%)`;
+      return `radial-gradient(740px 580px at ${Math.round((ax + bx) / 2)}px ${Math.round((ay + by) / 2)}px, ${w.gradient[1]}33, transparent 72%)`;
     }).join(",");
     html += `<div class="region-tints" style="background-image:${blobs}"></div>`;
 
@@ -644,7 +752,7 @@ const UI = {
     const wild = SAVE.wildToday();
     const patches = this.grassSpotsToday().filter(s => !wild.grassUsed.includes(s.id));
     html += patches.map(s =>
-      `<button class="map-grass" data-spot="${s.id}" data-w="${s.w}" style="left:${s.x}px;top:${s.y}px" title="Something is rustling in the grass!"><span class="g-rustle">${mapSprite("grasstuft", 38)}</span></button>`).join("");
+      `<button class="map-grass" data-spot="${s.id}" data-w="${s.w}" style="left:${s.x}px;top:${s.y}px" title="Something is rustling in the grass!"><span class="g-rustle">${worldSprite("grasstuft", 40)}</span></button>`).join("");
     const castsLeft = Math.max(0, this.CASTS_PER_DAY - wild.casts);
     this.FISH_SPOTS.filter(f => SAVE.worldUnlocked(f.need)).forEach(f => {
       html += `<button class="map-fish ${castsLeft ? "" : "spent"}" style="left:${f.x}px;top:${f.y}px" title="${castsLeft ? "Fishing spot — cast a line!" : "No more bites today"}"><span class="f-rod">🎣</span></button>`;
@@ -659,20 +767,24 @@ const UI = {
       this._hintedThisRender = true;
       this.toast("🌿 See the rustling grass? A wild Pokemon hides there — click it!", "gold");
     }
-    html += this.MAP_DECOR.concat(this.scatterDecor()).map(o =>
-      `<span class="map-decor" style="left:${o.x}px;top:${o.y}px;${o.e ? `font-size:${o.s}px` : ""}">${o.t ? tileSprite(o.t, o.sc) : o.sp ? mapSprite(o.sp, o.s, o.c) : o.e}</span>`).join("");
+    const allDecor = this.MAP_DECOR.concat(this.scatterDecor());
+    html += allDecor.map(o =>
+      `<span class="map-decor" style="left:${o.x}px;top:${o.y}px;${o.e ? `font-size:${o.s}px` : ""}">${o.art ? artSprite(o.art, o.s) : o.t ? worldTile(o.t, o.sc) : o.sp ? worldSprite(o.sp, o.s, o.c) : o.e}</span>`).join("");
+    // seasonal dressing rides on top of the base decor (pure decoration)
+    html += this.seasonLayer(allDecor);
     html += this.MAP_CITIES.map(c =>
-      `<div class="map-city" style="left:${c.x}px;top:${c.y}px"><span class="city-art">${c.t ? tileSprite(c.t, c.sc) : mapSprite(c.sp, c.s)}</span><b>${c.n}</b></div>`).join("");
+      `<div class="map-city" style="left:${c.x}px;top:${c.y}px"><span class="city-art">${c.t ? worldTile(c.t, c.sc) : worldSprite(c.sp, c.s)}</span><b>${c.n}</b></div>`).join("");
 
     // Trainer School: practice with no countdown, any time
     html += `<button class="map-school" style="left:430px;top:1330px" title="Trainer School — no countdown, race your records!">
-      <span>${mapSprite("school", 68)}</span><b>Trainer School</b></button>`;
+      <span>${worldSprite("school", 90)}</span><b>Trainer School</b></button>`;
 
-    // Puzzle Lab: a side building beside the school — opens once Mt. Moon is
-    // reached, so a brand-new trainer never sees it
+    // Puzzle Lab: now a flight perch — tap it to fly off to the Circuit &
+    // Counting isles. Opens once Mt. Moon is reached (worldUnlocked(1)), so a
+    // brand-new trainer never sees it.
     if (SAVE.worldUnlocked(1)) {
-      html += `<button class="map-lab" style="left:238px;top:1392px" title="Puzzle Lab — code your way to new Pokemon!">
-        <span>${mapSprite("lab", 70)}</span><b>🧩 Puzzle Lab</b></button>`;
+      html += `<button class="map-lab" style="left:238px;top:1392px" title="Flight perch — fly to the puzzle isles!">
+        <span>${worldSprite("lab", 84)}</span><b>🧩 Puzzle Isles</b></button>`;
     }
 
     // Professor's Daily Drill podium beside the school
@@ -684,7 +796,16 @@ const UI = {
     // Family Trading Post: a market stall on the south shore where two family
     // trainers swap Pokemon 1-for-1
     html += `<button class="map-trade" style="left:770px;top:1418px" title="Trading Post — swap Pokemon with your family!">
-      <span>${mapSprite("trade", 74)}</span><b>🤝 Trading Post</b></button>`;
+      <span>${worldSprite("trade", 84)}</span><b>🤝 Trading Post</b></button>`;
+
+    // the Battle Tower rises near the Battle Stadium — an endless typing climb.
+    // Opens once the trainer reaches the Stadium (worldUnlocked(2)).
+    if (SAVE.worldUnlocked(2)) {
+      const tb = SAVE.state.tower && SAVE.state.tower.best;
+      html += `<button class="map-tower" style="left:1120px;top:905px"
+        title="Battle Tower — an endless typing climb${tb ? ` · best floor ${tb}` : ""}!">
+        <span class="tower-art">${artSprite("tq-clocktower", 92)}</span><b>🗼 Battle Tower</b></button>`;
+    }
 
     WORLDS.forEach((w, wi) => {
       const ns = nodes[wi];
@@ -791,6 +912,7 @@ const UI = {
         <b>${label}</b></button>`;
     }
 
+    map.dataset.season = this.seasonNow();
     map.innerHTML = html;
     this.renderPartyBar();
     this._mapSel = null; // keyboard nav selection resets with the map
@@ -868,6 +990,100 @@ const UI = {
 
   closeAreaPanel() {
     this.$("area-panel").classList.add("hidden");
+  },
+
+  // ---------- the flying isles: perch card + bird flight ----------
+  // Tapping the Puzzle Lab building (the flight perch) opens a destination card;
+  // picking an isle plays a short bird sweep, then lands on the isle scene.
+  // Reduced-motion players skip the sweep entirely. The overlay is always
+  // skippable by tap, with a safety timeout so input can never be trapped.
+
+  // per-isle progress: total stars earned and Pokemon caught there
+  perchProgress(pack) {
+    const stages = PUZZLE_STAGES.filter(s => s.pack === pack);
+    const puz = (SAVE.state && SAVE.state.puzzle) || {};
+    const dex = (SAVE.state && SAVE.state.dex) || {};
+    const stars = stages.reduce((n, s) => n + (((puz[s.id] || {}).stars) || 0), 0);
+    const catchStages = stages.filter(s => s.reward && s.reward.catch);
+    const caught = catchStages.filter(s => dex[s.reward.catch]).length;
+    return { stars, maxStars: stages.length * 3, caught, catchTotal: catchStages.length };
+  },
+
+  openPerchCard() {
+    const panel = this.$("perch-panel");
+    const dest = (pack, e, name, blurb) => {
+      const p = this.perchProgress(pack);
+      return `<button class="perch-dest ${pack}" data-fly="${pack}">
+        <span class="pd-e">${e}</span>
+        <span class="pd-info"><b>${name}</b><i>${blurb}</i>
+          <span class="pd-prog">⭐ ${p.stars}/${p.maxStars}${p.catchTotal ? ` · 🐾 ${p.caught}/${p.catchTotal}` : ""}</span></span>
+        <span class="pd-go">Fly ✈️</span></button>`;
+    };
+    panel.innerHTML = `<div class="perch-card">
+      <button id="perch-close" aria-label="Close">✕</button>
+      <h3>🕊️ Where to, trainer?</h3>
+      <p class="perch-sub">Hop on and pick an isle to fly to!</p>
+      <div class="perch-dests">
+        ${dest("code", "💻", "Circuit Isle", "Walk, loop &amp; decide with code blocks")}
+        ${dest("math", "🔢", "Counting Isle", "Counting, times-tables &amp; number hops")}
+      </div>
+    </div>`;
+    panel.classList.remove("hidden");
+  },
+
+  closePerchCard() {
+    this.$("perch-panel").classList.add("hidden");
+  },
+
+  // the rider: the trainer avatar sitting on the chunky bird
+  flyRiderHtml() {
+    const t = SAVE.state && SAVE.state.profile;
+    return `<div class="fly-rider">
+      ${birdSvg(150)}
+      <span class="fly-trainer">${this.avatarHtml(t)}</span>
+    </div>`;
+  },
+
+  // fly OUT to an isle: sweep up-and-across, then show the isle scene
+  flyToIsle(pack) {
+    Puzzle.currentPack = pack;
+    this.closePerchCard();
+    if (this._reducedMotion) { this.show("lab"); return; }
+    this._runFlight("out", () => this.show("lab"));
+  },
+
+  // fly HOME: sweep back down, then the map centred on the perch
+  flyHome() {
+    const done = () => {
+      this.show("map");
+      this.centerMapOn(238, 1392);
+    };
+    if (this._reducedMotion) { done(); return; }
+    this._runFlight("home", done);
+  },
+
+  // shared flight animation. `dir` is "out" or "home". Always resolves once:
+  // on animationend, on a skip tap, or on a safety timeout — whichever is first.
+  _runFlight(dir, then) {
+    const ov = this.$("fly-overlay");
+    if (this._flyTimer) { clearTimeout(this._flyTimer); this._flyTimer = null; }
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      if (this._flyTimer) { clearTimeout(this._flyTimer); this._flyTimer = null; }
+      ov.classList.add("hidden");
+      ov.innerHTML = "";
+      ov.onclick = null;
+      then();
+    };
+    ov.className = `fly-${dir}`; // removes "hidden", sets the sweep direction
+    ov.innerHTML = `${this.flyRiderHtml()}<div class="fly-say">🕊️ Hold on tight!</div>`;
+    ov.onclick = finish; // tap to skip
+    const rider = ov.querySelector(".fly-rider");
+    if (rider) rider.addEventListener("animationend", finish, { once: true });
+    SFX.combo();
+    this._flyTimer = setTimeout(finish, 1400); // safety: never trap input
   },
 
   // ---------- Family Trading Post ----------
@@ -1208,6 +1424,11 @@ const UI = {
       if (e.key === "Escape") { e.preventDefault(); this.closeTradePanel(); }
       return;
     }
+    // the flight-perch destination card owns keys while it's open
+    if (!this.$("perch-panel").classList.contains("hidden")) {
+      if (e.key === "Escape") { e.preventDefault(); this.closePerchCard(); }
+      return;
+    }
     if (!this.$("day-card").classList.contains("hidden")) {
       if (e.key === "Escape" || e.key === "Enter") {
         e.preventDefault();
@@ -1362,7 +1583,7 @@ const UI = {
       const lab = e.target.closest(".map-lab");
       if (lab) {
         SFX.init();
-        this.show("lab");
+        this.openPerchCard();
         return;
       }
       const pd = e.target.closest(".map-podium");
@@ -1376,6 +1597,12 @@ const UI = {
       if (tr) {
         SFX.init();
         this.openTradePost();
+        return;
+      }
+      const tw = e.target.closest(".map-tower");
+      if (tw) {
+        SFX.init();
+        Engine.startTower();
         return;
       }
       // wild Pokemon living on the map: say hi (caught) or open the
@@ -2044,6 +2271,7 @@ const UI = {
     this._paragraphNext = null;
     this._rematchNext = res.rematch ? { w: res.w, tierId: res.rematch.id } : null;
     this._raidNext = null;
+    this._towerReplay = false;
     this._practiceMode = false;
     this._resultsAt = performance.now();
     this.$("btn-replay").textContent = res.rematch ? "↻ Try Again" : "↻ Replay";
@@ -2257,6 +2485,7 @@ const UI = {
     // a lost rematch retries the rematch, not a plain boss fight
     this._rematchNext = S.rematch ? { w: S.w, tierId: S.rematch.id } : null;
     this._raidNext = null;
+    this._towerReplay = false;
     this._practiceMode = false;
     this._resultsAt = performance.now();
     this.$("results-egg").className = "hidden";          // no stale egg note
@@ -2646,7 +2875,7 @@ const UI = {
       err.classList.remove("hidden");
       return;
     }
-    SFX.correct();
+    SFX.word();
     this.closeWordPackForm();
     this.renderWordPacks();
     this.toast(editing ? `📚 Updated “${res.pack.name}”!` : `📚 New pack “${res.pack.name}” ready — go practice!`, "gold");
@@ -2735,6 +2964,7 @@ const UI = {
     this._paragraphNext = null;
     this._rematchNext = null;
     this._raidNext = null;
+    this._towerReplay = false;
     this._practiceMode = true;
     this._nextTarget = null;
     this._lastStage = null;
@@ -2814,6 +3044,7 @@ const UI = {
     this._practiceNext = null;
     this._rematchNext = null;
     this._raidNext = null;
+    this._towerReplay = false;
     this._practiceMode = true; // btn-replay returns to the Trainer School
     this._nextTarget = null;
     this._lastStage = null;
@@ -2874,6 +3105,7 @@ const UI = {
     this._practiceMode = false;
     this._nextTarget = null;
     this._lastStage = null;
+    this._towerReplay = false;
     this._resultsAt = performance.now();
     const down = !!info.defeated;
     const canClaim = !!info.canClaim; // this player contributed and hasn't claimed
@@ -3360,6 +3592,95 @@ const UI = {
   _museumTab: "trophies",
   _failCount: {},
 
+  // ---------- Diplomas: printable certificates for the biggest milestones ----------
+  DIPLOMAS: [
+    { id: "champion", e: "🏆", title: "Champion of the Island",
+      line: "defeated the Elite Four and became the Champion",
+      earned: () => !!SAVE.state.trophies.champion,
+      need: "Become the Champion to earn this one!" },
+    { id: "puzzle-code", e: "💻", title: "Puzzle Master Coder",
+      line: "earned a star on every coding stage in the Puzzle Lab",
+      earned: () => !!SAVE.state.trophies["puzzle-code"],
+      need: "Star every coding stage in the Puzzle Lab to earn this one!" },
+    { id: "puzzle-math", e: "🔢", title: "Number Wizard",
+      line: "earned a star on every math stage in the Puzzle Lab",
+      earned: () => !!SAVE.state.trophies["puzzle-math"],
+      need: "Star every math stage in the Puzzle Lab to earn this one!" },
+    { id: "license-1", e: "🪪", title: "Licensed Typist",
+      line: "earned all four Typing License stamps",
+      earned: () => !!SAVE.state.trophies["license-1"],
+      need: "Earn all four Typing License stamps to unlock this one!" },
+    { id: "dex-all", e: "📕", title: "Pokedex Master",
+      line: "caught every Pokemon in the Pokedex",
+      earned: () => SAVE.caughtCount() >= CREATURES.flat().length,
+      need: "Complete the whole Pokedex to earn this one!" },
+  ],
+
+  renderDiplomas() {
+    this.$("diploma-wing").innerHTML = this.DIPLOMAS.map(d => {
+      const got = d.earned();
+      if (!got) {
+        return `<div class="diploma-card locked">
+          <div class="dip-seal dim">${d.e}</div>
+          <div class="dip-info"><b>${this.esc(d.title)}</b>
+            <i class="dip-need">🔒 ${this.esc(d.need)}</i></div>
+        </div>`;
+      }
+      const date = SAVE.diplomaDate(d.id);
+      const nice = this.diplomaNiceDate(date);
+      return `<div class="diploma-card">
+        <div class="dip-seal">${d.e}</div>
+        <div class="dip-info"><b>${this.esc(d.title)}</b>
+          <i>Earned ${nice}</i></div>
+        <button class="dip-print" data-diploma="${d.id}">🖨️ Print</button>
+      </div>`;
+    }).join("");
+  },
+
+  diplomaNiceDate(iso) {
+    const d = new Date(iso + "T00:00:00");
+    return isNaN(d) ? iso : d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+  },
+
+  // build the certificate into #diploma-print, then hand off to the browser's
+  // print dialog. @media print hides everything but the certificate.
+  printDiploma(id) {
+    const d = this.DIPLOMAS.find(x => x.id === id);
+    if (!d || !d.earned()) return;
+    const date = SAVE.diplomaDate(id);
+    const p = SAVE.state.profile || {};
+    const name = p.name || "Trainer";
+    const party = (SAVE.state.party || []).map(k => SAVE.creatureByKey(k)).filter(Boolean);
+    const partyHtml = party.length
+      ? party.map(c => `<span class="dp-mon">${this.pokeHtml(c.id, c.e, { shiny: c.shiny, cls: "poke-img dp-mon-img" })}</span>`).join("")
+      : "";
+    this.$("diploma-print").innerHTML = `
+      <div class="dp-cert">
+        <div class="dp-inner">
+          <div class="dp-logo">TypeQuest ⚡</div>
+          <div class="dp-kicker">Certificate of Achievement</div>
+          <div class="dp-seal-big">${d.e}</div>
+          <div class="dp-cert-body">
+            <span class="dp-line">This certifies that</span>
+            <div class="dp-name">${this.esc(name)}</div>
+            <span class="dp-line">has earned the rank of</span>
+            <div class="dp-rank">${this.esc(d.title)}</div>
+            <span class="dp-line">and ${this.esc(d.line)}.</span>
+          </div>
+          <div class="dp-trainer">${this.avatarHtml(p, "dp-av")}</div>
+          ${partyHtml ? `<div class="dp-party-row"><span class="dp-party-label">My team</span><div class="dp-party">${partyHtml}</div></div>` : ""}
+          <div class="dp-foot">
+            <span>Awarded ${this.diplomaNiceDate(date)}</span>
+            <span class="dp-sig">Professor Oak ✒️</span>
+          </div>
+        </div>
+      </div>`;
+    const trophies = SAVE.awardDiplomaPrint();
+    window.print();
+    if (this.current === "trophies") this.renderTrophies();
+    trophies.forEach((t, i) => setTimeout(() => this.trophyToast(t), 500 + i * 800));
+  },
+
   renderTrophies() {
     const got = SAVE.state.trophies;
     const fresh = (SAVE.state.flags && SAVE.state.flags.newTrophies) || {};
@@ -3401,7 +3722,9 @@ const UI = {
       b.classList.toggle("active", b.dataset.tab === this._museumTab));
     this.$("trophy-grid").classList.toggle("hidden", this._museumTab !== "trophies");
     this.$("medal-wing").classList.toggle("hidden", this._museumTab !== "medals");
+    this.$("diploma-wing").classList.toggle("hidden", this._museumTab !== "diplomas");
     this.$("gallery-wing").classList.toggle("hidden", this._museumTab !== "gallery");
+    if (this._museumTab === "diplomas") this.renderDiplomas();
 
     // ---- trophies wing ----
     this.$("trophy-grid").innerHTML = TROPHIES.map(t => `
@@ -3481,7 +3804,8 @@ const UI = {
       <div class="stat-card"><div class="stat-v">${s.keys.toLocaleString()}</div><div class="stat-l">keys pressed</div></div>
       <div class="stat-card"><div class="stat-v">${SAVE.caughtCount()}</div><div class="stat-l">Pokemon</div></div>
       <div class="stat-card"><div class="stat-v">${s.evolutions || 0}</div><div class="stat-l">evolutions</div></div>
-      <div class="stat-card"><div class="stat-v">${SAVE.state.streak.count || 0}</div><div class="stat-l">day streak</div></div>`;
+      <div class="stat-card"><div class="stat-v">${SAVE.state.streak.count || 0}</div><div class="stat-l">day streak</div></div>
+      ${SAVE.state.tower && SAVE.state.tower.best ? `<div class="stat-card"><div class="stat-v">🗼 ${SAVE.state.tower.best}</div><div class="stat-l">best tower floor</div></div>` : ""}`;
 
     const hist = s.history.slice(-12);
     const max = Math.max(10, ...hist.map(h => h.wpm));
@@ -3557,6 +3881,122 @@ const UI = {
     }
     this.announce(label, 2200);
     this.updateHud(S);
+  },
+
+  // ---------- Battle Tower ----------
+  towerScene(S, floor) {
+    this.show("game");
+    this.setGameKeyboard(false);
+    this.$("screen-game").classList.remove("paragraph-mode");
+    const w = S.world;
+    document.body.classList.remove("super-mode");
+    this.$("capslock-warn").classList.add("hidden");
+    this.applyKbVisibility();
+    this.practiceTimerUI(false);
+    this.$("hud-stage").textContent = `🗼 Battle Tower · Floor ${floor}`;
+    this.$("hud-progress").classList.remove("hidden");
+    this.$("hud-progress-fill").style.width = "0%";
+    this.$("hud-hearts").classList.remove("hidden");   // the 3 hearts last the whole climb
+    this.renderHearts(S);
+    this.$("boss-bar").classList.add("hidden");
+    this.$("target-label").classList.add("hidden");
+    this.$("player-avatar").innerHTML = this.avatarHtml(SAVE.state.profile);
+    this.showPartner(S);
+    this.partnerMeter(S);
+    const arena = this.$("arena");
+    arena.style.background = `linear-gradient(160deg, ${w.gradient[0]}, ${w.gradient[1]})`;
+    arena.style.setProperty("--wa", w.accent);
+    const scene = this.$("scene-emojis");
+    scene.innerHTML = "";
+    for (let i = 0; i < 7; i++) {
+      const e = document.createElement("span");
+      e.textContent = w.sceneEmojis[i % w.sceneEmojis.length];
+      e.style.left = `${5 + Math.random() * 90}%`;
+      e.style.top = `${5 + Math.random() * 80}%`;
+      e.style.fontSize = `${14 + Math.random() * 22}px`;
+      e.style.animationDelay = `${Math.random() * 3}s`;
+      scene.appendChild(e);
+    }
+    this.announce(`🗼 Floor ${floor} — climb!`, 1500);
+    this.updateHud(S);
+  },
+
+  // a 2-second breather between floors
+  towerBreather(floor, reward, cb) {
+    const el = this.$("tower-breather");
+    let rewardHtml = "";
+    if (reward) {
+      const bits = [`+${reward.xp} XP`];
+      if (reward.voucher) bits.push("🎟 candy voucher");
+      if (reward.shiny) bits.push(`✨ ${this.esc(reward.shiny.n)} turned shiny!`);
+      rewardHtml = `<div class="tb-reward">🎁 Banked: ${bits.join(" · ")}</div>`;
+    }
+    el.innerHTML = `<div class="tb-card">
+      <div class="tb-floor">Floor ${floor} cleared! 🗼</div>
+      ${rewardHtml}
+      <div class="tb-next">Next floor coming up…</div>
+    </div>`;
+    el.classList.remove("hidden");
+    SFX.fanfare();
+    clearTimeout(this._tbT);
+    this._tbT = setTimeout(() => { el.classList.add("hidden"); cb(); }, 2000);
+  },
+
+  showTowerResults(res) {
+    this.show("results");
+    this.renderTopbar();
+    this._practiceNext = null;
+    this._paragraphNext = null;
+    this._rematchNext = null;
+    this._raidNext = null;
+    this._towerReplay = false;
+    this._practiceMode = false;
+    this._nextTarget = null;
+    this._lastStage = null;
+    this._resultsAt = performance.now();
+
+    const card = this.$("results-card");
+    card.classList.remove("defeat");
+    card.style.setProperty("--wa", "#c8a24a");
+    this.$("results-title").textContent = res.floor > 0
+      ? `🗼 Reached Floor ${res.floor}!`
+      : "🗼 The Battle Tower";
+    this.$("results-stars").classList.add("hidden");
+
+    const best = (SAVE.state.tower && SAVE.state.tower.best) || 0;
+    this.$("results-grid").innerHTML = `
+      <div class="rstat"><div class="rstat-v">${res.floor}</div><div class="rstat-l">floors climbed</div></div>
+      <div class="rstat"><div class="rstat-v">x${res.bestCombo}</div><div class="rstat-l">best combo</div></div>
+      <div class="rstat"><div class="rstat-v">${best}</div><div class="rstat-l">best floor ever</div></div>`;
+
+    // banked rewards recap — always kept, win or quit
+    const b = res.banked || { xp: 0, vouchers: 0, shinies: [] };
+    const lines = [];
+    if (b.xp) lines.push(`+${b.xp} XP banked`);
+    if (b.vouchers) lines.push(`🎟 ${b.vouchers} candy voucher${b.vouchers > 1 ? "s" : ""}`);
+    (b.shinies || []).forEach(c => lines.push(`✨ ${this.esc(c.n)} turned shiny`));
+    const catchBox = this.$("results-catch");
+    catchBox.className = "catch-result";
+    catchBox.innerHTML = `<div class="record-note ${lines.length ? "gold" : ""}">
+      ${res.quit ? "🗼 The tower will be waiting — great climb!" : "💛 Out of hearts — what a climb!"}
+      ${lines.length ? `<br>🎁 Rewards kept: <b>${lines.join(" · ")}</b>` : "<br>Reach floor 5 to start banking rewards!"}
+    </div>`;
+    this.$("results-egg").className = "hidden";
+    this.$("results-medal").className = "hidden";
+    this.$("results-offer").className = "hidden";
+
+    const lv = levelFromXp(SAVE.state.xp);
+    this.$("xp-gained").textContent = b.xp ? `+${b.xp} XP` : "";
+    this.$("xp-level").textContent = `Lv ${lv.level} · ${titleForLevel(lv.level)}`;
+    this.$("results-xpfill").style.transition = "none";
+    this.$("results-xpfill").style.width = `${100 * lv.into / lv.need}%`;
+
+    this.$("btn-next").classList.add("hidden");
+    this.$("btn-replay").classList.remove("hidden");
+    this.$("btn-replay").textContent = "🗼 Climb Again";
+    this._towerReplay = true;
+    if (res.floor >= 5) { this.confetti(); SFX.fanfare(); }
+    else SFX.word();
   },
 
   // ---------- Journal: daily drill, research board, Elite Four ----------
@@ -4002,7 +4442,8 @@ const UI = {
       } else this.show("map");
     });
     this.$("btn-replay").addEventListener("click", () => {
-      if (this._rematchNext) Engine.startRematch(this._rematchNext.w, this._rematchNext.tierId);
+      if (this._towerReplay) Engine.startTower();
+      else if (this._rematchNext) Engine.startRematch(this._rematchNext.w, this._rematchNext.tierId);
       else if (this._practiceMode) this.show("practice");
       else if (this._lastStage) {
         const [w, s] = this._lastStage;
@@ -4065,6 +4506,14 @@ const UI = {
       }
     });
 
+    this.$("perch-panel").addEventListener("click", e => {
+      if (e.target.closest("#perch-close") || e.target.id === "perch-panel") {
+        SFX.click(); this.closePerchCard(); return;
+      }
+      const dest = e.target.closest(".perch-dest");
+      if (dest) { SFX.init(); this.flyToIsle(dest.dataset.fly); }
+    });
+
     this.$("trade-panel").addEventListener("click", e => {
       const T = this._trade;
       if (e.target.closest("#trade-close") || e.target.id === "trade-panel") {
@@ -4099,6 +4548,10 @@ const UI = {
       SFX.click();
       this._museumTab = b.dataset.tab;
       this.renderTrophies();
+    });
+    this.$("diploma-wing").addEventListener("click", e => {
+      const pr = e.target.closest(".dip-print");
+      if (pr) { SFX.click(); this.printDiploma(pr.dataset.diploma); }
     });
     this.$("museum-ledger").addEventListener("click", e => {
       const link = e.target.closest(".ledger-link");
