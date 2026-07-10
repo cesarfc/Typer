@@ -1491,6 +1491,7 @@ const TROPHIES = [
   { id: "trade-1", e: "🤝", name: "Best Friends", desc: "Trade a Pokemon with a family trainer" },
   { id: "words-1", e: "📚", name: "Word Collector", desc: "Finish a My Words spelling drill" },
   { id: "license-1", e: "🪪", name: "Licensed Typist", desc: "Earn all four Typing License stamps" },
+  { id: "diploma-1", e: "🎓", name: "Framed and Famous", desc: "Print your first diploma from the Museum" },
 ];
 
 const ENCOURAGE = [

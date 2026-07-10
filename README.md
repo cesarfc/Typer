@@ -254,7 +254,12 @@ mystery Pokemon — then the clock starts.
   timed rewards, nothing to miss) and the particles rest under reduced-motion.
 - **Combos** — 25 correct keys in a row triggers SUPER MODE.
 - **XP, levels and titles** — from Rookie all the way to Typing Legend.
-- **47 trophies**, daily play streaks, and a personal-best speed chart.
+- **🎓 Printable diplomas** — the Museum's Diplomas tab lists the biggest
+  milestones (Champion, Puzzle Master Coder, Number Wizard, Licensed Typist,
+  Pokedex Master). Each earned one prints a landscape certificate with the
+  trainer's name, avatar, party lineup and the date earned — ready to hang on
+  a real wall. Unearned ones show a kind "how to earn it" note.
+- **48 trophies**, daily play streaks, and a personal-best speed chart.
 - **🥷 Ninja Mode** — hide the on-screen keyboard for 1.5× XP (this is the
   real goal: typing without looking!).
 

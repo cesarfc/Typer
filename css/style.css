@@ -1846,6 +1846,94 @@ button, .screen, #topbar { touch-action: manipulation; }
 .medal-next.done { color: var(--good); font-weight: 800; }
 .medal-next.dim { opacity: .7; }
 
+/* ---------- Diplomas wing ---------- */
+#diploma-wing { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+.diploma-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 10px 16px;
+}
+.diploma-card.locked { opacity: .78; }
+.dip-seal { font-size: 34px; width: 46px; text-align: center; flex: none; filter: drop-shadow(0 2px 3px rgba(0,0,0,.25)); }
+.dip-seal.dim { filter: grayscale(1); opacity: .55; }
+.dip-info { flex: 1; min-width: 0; }
+.dip-info b { font-size: 15px; display: block; }
+.dip-info i { font-style: normal; font-size: 12.5px; color: var(--dim); }
+.dip-need { color: var(--dim); }
+.dip-print {
+  flex: none;
+  background: linear-gradient(180deg, #ffe28a, var(--gold));
+  border: 2px solid var(--ink);
+  border-bottom-width: 4px;
+  border-radius: 12px;
+  color: #1a1404;
+  font-weight: 900;
+  font-size: 13px;
+  padding: 7px 12px;
+}
+
+/* ---------- Printable certificate (hidden on screen; only shown in print) ---------- */
+#diploma-print { display: none; }
+.dp-cert {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 10mm;
+  background: #fff8ea;
+  color: var(--ink);
+  font-family: var(--font);
+}
+.dp-inner {
+  height: 100%;
+  border: 6px double var(--ink);
+  outline: 2px solid var(--gold);
+  outline-offset: 6px;
+  border-radius: 10px;
+  padding: 8mm 12mm;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  box-shadow: inset 0 0 0 3px rgba(255,201,60,.35);
+}
+.dp-logo { font-size: 30px; font-weight: 900; letter-spacing: .5px; }
+.dp-logo, .dp-rank { color: var(--ink); }
+.dp-kicker { font-size: 15px; letter-spacing: 3px; text-transform: uppercase; color: #a07b1c; margin-top: 2px; }
+.dp-seal-big { font-size: 58px; margin: 6px 0; }
+.dp-cert-body { margin: 2px 0 4px; }
+.dp-line { font-size: 15px; color: #6a5a4a; }
+.dp-name { font-size: 34px; font-weight: 900; margin: 4px 0; border-bottom: 2px solid var(--gold); display: inline-block; padding: 0 22px 3px; }
+.dp-rank { font-size: 24px; font-weight: 900; margin: 3px 0; }
+.dp-trainer { margin: 6px 0; }
+.dp-av.avatar-emoji { font-size: 64px; }
+.dp-av.trainer-svg, .dp-trainer .trainer-svg { width: 90px; height: 90px; }
+.dp-party-row { margin-top: auto; }
+.dp-party-label { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #a07b1c; display: block; margin-bottom: 3px; }
+.dp-party { display: flex; gap: 8px; justify-content: center; }
+.dp-mon-img { width: 44px; height: 44px; }
+.dp-foot {
+  width: 100%;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(58,49,48,.3);
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #6a5a4a;
+}
+.dp-sig { font-style: italic; font-weight: 700; }
+@media print {
+  @page { size: landscape; margin: 0; }
+  body > * { display: none !important; }
+  body > #diploma-print { display: block !important; position: absolute; inset: 0; margin: 0; }
+  #diploma-print .dp-cert { min-height: 100vh; }
+}
+
 #gallery-wing { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
 .shelf-title { font-weight: 900; font-size: 14px; margin-bottom: 6px; }
 .shelf-title span { color: var(--gold); font-size: 12.5px; }

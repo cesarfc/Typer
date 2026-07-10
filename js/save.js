@@ -73,6 +73,8 @@ const SAVE = {
       day: null,                   // today's adventure stamps { date, levels, wild, school, shown }
       elite: null,                 // { bestRound, clears }
       hof: [],                     // Hall of Fame entries { date, party, wpm }
+      diplomas: {},                // diploma id -> YYYY-MM-DD first earned (stored lazily)
+      tower: null,                 // Battle Tower { best, climbs }
     };
   },
 
@@ -569,6 +571,26 @@ const SAVE = {
       return true;
     }
     return false;
+  },
+
+  // ---- Diplomas: the date a certificate was earned, stored lazily. Existing
+  // saves that already earned one simply stamp "today" the first time it's
+  // shown — good enough for a printed keepsake, and never blocks anything. ----
+  diplomaDate(id) {
+    if (!this.state.diplomas) this.state.diplomas = {};
+    if (!this.state.diplomas[id]) {
+      this.state.diplomas[id] = new Date().toISOString().slice(0, 10);
+      this.save();
+    }
+    return this.state.diplomas[id];
+  },
+
+  // award the "print your first diploma" trophy (fires once, on print)
+  awardDiplomaPrint() {
+    const list = [];
+    this.award("diploma-1", list);
+    if (list.length) this.save();
+    return list;
   },
 
   recordKey(expected, ok) {

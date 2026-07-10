@@ -3572,6 +3572,95 @@ const UI = {
   _museumTab: "trophies",
   _failCount: {},
 
+  // ---------- Diplomas: printable certificates for the biggest milestones ----------
+  DIPLOMAS: [
+    { id: "champion", e: "🏆", title: "Champion of the Island",
+      line: "defeated the Elite Four and became the Champion",
+      earned: () => !!SAVE.state.trophies.champion,
+      need: "Become the Champion to earn this one!" },
+    { id: "puzzle-code", e: "💻", title: "Puzzle Master Coder",
+      line: "earned a star on every coding stage in the Puzzle Lab",
+      earned: () => !!SAVE.state.trophies["puzzle-code"],
+      need: "Star every coding stage in the Puzzle Lab to earn this one!" },
+    { id: "puzzle-math", e: "🔢", title: "Number Wizard",
+      line: "earned a star on every math stage in the Puzzle Lab",
+      earned: () => !!SAVE.state.trophies["puzzle-math"],
+      need: "Star every math stage in the Puzzle Lab to earn this one!" },
+    { id: "license-1", e: "🪪", title: "Licensed Typist",
+      line: "earned all four Typing License stamps",
+      earned: () => !!SAVE.state.trophies["license-1"],
+      need: "Earn all four Typing License stamps to unlock this one!" },
+    { id: "dex-all", e: "📕", title: "Pokedex Master",
+      line: "caught every Pokemon in the Pokedex",
+      earned: () => SAVE.caughtCount() >= CREATURES.flat().length,
+      need: "Complete the whole Pokedex to earn this one!" },
+  ],
+
+  renderDiplomas() {
+    this.$("diploma-wing").innerHTML = this.DIPLOMAS.map(d => {
+      const got = d.earned();
+      if (!got) {
+        return `<div class="diploma-card locked">
+          <div class="dip-seal dim">${d.e}</div>
+          <div class="dip-info"><b>${this.esc(d.title)}</b>
+            <i class="dip-need">🔒 ${this.esc(d.need)}</i></div>
+        </div>`;
+      }
+      const date = SAVE.diplomaDate(d.id);
+      const nice = this.diplomaNiceDate(date);
+      return `<div class="diploma-card">
+        <div class="dip-seal">${d.e}</div>
+        <div class="dip-info"><b>${this.esc(d.title)}</b>
+          <i>Earned ${nice}</i></div>
+        <button class="dip-print" data-diploma="${d.id}">🖨️ Print</button>
+      </div>`;
+    }).join("");
+  },
+
+  diplomaNiceDate(iso) {
+    const d = new Date(iso + "T00:00:00");
+    return isNaN(d) ? iso : d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+  },
+
+  // build the certificate into #diploma-print, then hand off to the browser's
+  // print dialog. @media print hides everything but the certificate.
+  printDiploma(id) {
+    const d = this.DIPLOMAS.find(x => x.id === id);
+    if (!d || !d.earned()) return;
+    const date = SAVE.diplomaDate(id);
+    const p = SAVE.state.profile || {};
+    const name = p.name || "Trainer";
+    const party = (SAVE.state.party || []).map(k => SAVE.creatureByKey(k)).filter(Boolean);
+    const partyHtml = party.length
+      ? party.map(c => `<span class="dp-mon">${this.pokeHtml(c.id, c.e, { shiny: c.shiny, cls: "poke-img dp-mon-img" })}</span>`).join("")
+      : "";
+    this.$("diploma-print").innerHTML = `
+      <div class="dp-cert">
+        <div class="dp-inner">
+          <div class="dp-logo">TypeQuest ⚡</div>
+          <div class="dp-kicker">Certificate of Achievement</div>
+          <div class="dp-seal-big">${d.e}</div>
+          <div class="dp-cert-body">
+            <span class="dp-line">This certifies that</span>
+            <div class="dp-name">${this.esc(name)}</div>
+            <span class="dp-line">has earned the rank of</span>
+            <div class="dp-rank">${this.esc(d.title)}</div>
+            <span class="dp-line">and ${this.esc(d.line)}.</span>
+          </div>
+          <div class="dp-trainer">${this.avatarHtml(p, "dp-av")}</div>
+          ${partyHtml ? `<div class="dp-party-row"><span class="dp-party-label">My team</span><div class="dp-party">${partyHtml}</div></div>` : ""}
+          <div class="dp-foot">
+            <span>Awarded ${this.diplomaNiceDate(date)}</span>
+            <span class="dp-sig">Professor Oak ✒️</span>
+          </div>
+        </div>
+      </div>`;
+    const trophies = SAVE.awardDiplomaPrint();
+    window.print();
+    if (this.current === "trophies") this.renderTrophies();
+    trophies.forEach((t, i) => setTimeout(() => this.trophyToast(t), 500 + i * 800));
+  },
+
   renderTrophies() {
     const got = SAVE.state.trophies;
     const fresh = (SAVE.state.flags && SAVE.state.flags.newTrophies) || {};
@@ -3613,7 +3702,9 @@ const UI = {
       b.classList.toggle("active", b.dataset.tab === this._museumTab));
     this.$("trophy-grid").classList.toggle("hidden", this._museumTab !== "trophies");
     this.$("medal-wing").classList.toggle("hidden", this._museumTab !== "medals");
+    this.$("diploma-wing").classList.toggle("hidden", this._museumTab !== "diplomas");
     this.$("gallery-wing").classList.toggle("hidden", this._museumTab !== "gallery");
+    if (this._museumTab === "diplomas") this.renderDiplomas();
 
     // ---- trophies wing ----
     this.$("trophy-grid").innerHTML = TROPHIES.map(t => `
@@ -4319,6 +4410,10 @@ const UI = {
       SFX.click();
       this._museumTab = b.dataset.tab;
       this.renderTrophies();
+    });
+    this.$("diploma-wing").addEventListener("click", e => {
+      const pr = e.target.closest(".dip-print");
+      if (pr) { SFX.click(); this.printDiploma(pr.dataset.diploma); }
     });
     this.$("museum-ledger").addEventListener("click", e => {
       const link = e.target.closest(".ledger-link");
