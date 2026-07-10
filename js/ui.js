@@ -1451,6 +1451,32 @@ const UI = {
       }
     });
 
+    this.$("wordpack-list").addEventListener("click", e => {
+      const gp = e.target.closest(".ghost-pick");
+      if (gp) { this.pickRaceGhost(gp); return; }
+      const edit = e.target.closest(".wp-edit");
+      if (edit) { this.openWordPackForm(edit.dataset.pack); return; }
+      const del = e.target.closest(".wp-del");
+      if (del) { this.deleteWordPackFlow(del.dataset.pack); return; }
+      if (e.target.closest(".wordpack-new")) { this.openWordPackForm(null); return; }
+      const card = e.target.closest(".wordpack-card");
+      if (!card) return;
+      SFX.init();
+      const pack = SAVE.wordPackById(card.dataset.pack);
+      const sel = pack && this._raceGhost && this._raceGhost[`pack:${pack.name}`];
+      Engine.startPractice(`custom-${card.dataset.pack}`, sel && sel !== "mine" ? sel : null);
+    });
+
+    this.$("license-list").addEventListener("click", e => {
+      const gp = e.target.closest(".ghost-pick");
+      if (gp) { this.pickRaceGhost(gp); return; }
+      const card = e.target.closest(".license-card");
+      if (!card || card.classList.contains("locked")) return;
+      SFX.init();
+      const sel = this._raceGhost && this._raceGhost[`practice:license-${card.dataset.license}`];
+      Engine.startPractice(`license-${card.dataset.license}`, sel && sel !== "mine" ? sel : null);
+    });
+
     this.$("party-bar").addEventListener("click", e => {
       const slot = e.target.closest(".party-slot.filled");
       if (!slot) return;
@@ -1515,8 +1541,9 @@ const UI = {
     return m[base] || null;
   },
 
-  buildKeyboard() {
-    const rows = KB_ROWS;
+  // Build the key HTML for a given row layout. KB_ROWS is the everyday layout;
+  // KB_ROWS_FULL adds the number row + "/" for Typing License sessions.
+  kbHtml(rows) {
     const shiftRowIdx = rows.length - 2; // the row that gets the ⇧ keys
     let html = "";
     rows.forEach((row, ri) => {
@@ -1533,7 +1560,13 @@ const UI = {
       html += `</div>`;
     });
     html += `<div class="kb-row"><div class="key space f8" data-key=" ">space</div></div>`;
+    return html;
+  },
+
+  buildKeyboard() {
+    const html = this.kbHtml(KB_ROWS);
     // one keyboard + hands for the game screen, one set for the tutorial
+    this._kbFull = false;
     this.$("kb").innerHTML = html;
     this.$("tut-kb").innerHTML = html;
     this.$("hand-left").innerHTML = this.handSvg("l");
@@ -1541,6 +1574,15 @@ const UI = {
     this.$("tut-hand-left").innerHTML = this.handSvg("l");
     this.$("tut-hand-right").innerHTML = this.handSvg("r");
     this.applyKbVisibility();
+  },
+
+  // Swap the GAME keyboard between the everyday layout and the full number-row
+  // layout (Typing License only). The tutorial keyboard is left untouched. Hands
+  // are shared and don't change. Only rebuilds when the layout actually flips.
+  setGameKeyboard(full) {
+    if (!!full === !!this._kbFull) return;
+    this._kbFull = !!full;
+    this.$("kb").innerHTML = this.kbHtml(full ? KB_ROWS_FULL : KB_ROWS);
   },
 
   applyKbVisibility() {
@@ -1598,6 +1640,7 @@ const UI = {
     const w = S.world;
     document.body.classList.remove("super-mode");
     this.$("capslock-warn").classList.add("hidden");
+    this.setGameKeyboard(false); // adventure levels use the everyday layout
     this.applyKbVisibility();
     this.practiceTimerUI(false);
 
@@ -2418,6 +2461,7 @@ const UI = {
     const w = S.world;
     document.body.classList.remove("super-mode");
     this.$("capslock-warn").classList.add("hidden");
+    this.setGameKeyboard(!!S.fullKb); // License drills show the number row
     this.applyKbVisibility();
     this.practiceTimerUI(true);
     this.$("hud-stage").textContent = S.paragraph
@@ -2505,6 +2549,150 @@ const UI = {
       </button>`;
       return `<div class="tier-wrap">${card}${open ? this.ghostRaceHtml("paragraph", p.id, pb) : ""}</div>`;
     }).join("");
+
+    this.renderWordPacks();
+    this.renderLicense();
+  },
+
+  // ---- My Words: list custom spelling packs as playable tier-cards, each with
+  // edit/delete, plus a "New word pack" card that opens the form. ----
+  renderWordPacks() {
+    const list = this.$("wordpack-list");
+    if (!list) return;
+    const packs = SAVE.wordPacks();
+    let html = packs.map(pk => {
+      const pb = SAVE.state.practice["custom-" + pk.id];
+      const pbHtml = pb
+        ? `⏱ best ${this.fmtTime(pb.time)} · ⚡ best ${pb.wpm} wpm`
+        : `no record yet — set one!`;
+      const card = `<button class="tier-card wordpack-card" data-pack="${this.esc(pk.id)}">
+        <span class="tier-e">📚</span>
+        <span class="tier-info">
+          <b>${this.esc(pk.name)}</b>
+          <i>${pk.words.length} word${pk.words.length === 1 ? "" : "s"}</i>
+          <em>${pbHtml}</em>
+        </span>
+      </button>`;
+      const actions = `<div class="wp-actions">
+        <button class="wp-edit" data-pack="${this.esc(pk.id)}" title="Edit this pack">✏️ Edit</button>
+        <button class="wp-del" data-pack="${this.esc(pk.id)}" title="Delete this pack">🗑️</button>
+      </div>`;
+      return `<div class="tier-wrap"><div class="wordpack-row">${card}${actions}</div>${this.ghostRaceHtml("pack", pk.name, pb)}</div>`;
+    }).join("");
+
+    if (packs.length < WORDPACK_MAX) {
+      html += `<button class="tier-card wordpack-new" data-newpack="1">
+        <span class="tier-e">➕</span>
+        <span class="tier-info"><b>New word pack</b><i>Turn a spelling list into a drill</i></span>
+      </button>`;
+    } else {
+      html += `<p class="wordpack-full">📚 You have all ${WORDPACK_MAX} word packs — delete one to add more.</p>`;
+    }
+    list.innerHTML = html;
+  },
+
+  // open the create/edit form. packId null → create; otherwise prefill for edit.
+  openWordPackForm(packId) {
+    SFX.click();
+    const form = this.$("wordpack-form");
+    const pack = packId ? SAVE.wordPackById(packId) : null;
+    const name = pack ? pack.name : "";
+    const words = pack ? pack.words.join("\n") : "";
+    form.dataset.editing = packId || "";
+    form.innerHTML = `
+      <div class="wp-form-inner">
+        <h4>${pack ? "✏️ Edit word pack" : "📚 New word pack"}</h4>
+        <label class="wp-field">
+          <span>Pack name</span>
+          <input id="wp-name" type="text" maxlength="${WORDPACK_NAME_MAXLEN}" placeholder="e.g. Week 12 Spelling" value="${this.esc(name)}">
+        </label>
+        <label class="wp-field">
+          <span>Words — one per line (up to ${WORDPACK_WORDS_MAX})</span>
+          <textarea id="wp-words" rows="7" placeholder="friend\nbecause\nlittle\n...">${this.esc(words)}</textarea>
+        </label>
+        <p class="wp-hint">Letters, spaces, and . , ' ! ? are welcome. Capitals are fine!</p>
+        <div id="wp-error" class="wp-error hidden"></div>
+        <div class="wp-form-btns">
+          <button id="wp-save" class="btn primary">💾 Save pack</button>
+          <button id="wp-cancel" class="btn">Cancel</button>
+        </div>
+      </div>`;
+    form.classList.remove("hidden");
+    this.$("wp-save").addEventListener("click", () => this.saveWordPackForm());
+    this.$("wp-cancel").addEventListener("click", () => this.closeWordPackForm());
+    const nameEl = this.$("wp-name");
+    nameEl.focus();
+    form.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  },
+
+  closeWordPackForm() {
+    SFX.click();
+    const form = this.$("wordpack-form");
+    form.classList.add("hidden");
+    form.innerHTML = "";
+    form.dataset.editing = "";
+  },
+
+  saveWordPackForm() {
+    const form = this.$("wordpack-form");
+    const editing = form.dataset.editing || null;
+    const name = this.$("wp-name").value;
+    const words = this.$("wp-words").value;
+    const res = SAVE.saveWordPack(editing, name, words);
+    if (!res.ok) {
+      SFX.error();
+      const err = this.$("wp-error");
+      err.textContent = res.error;
+      err.classList.remove("hidden");
+      return;
+    }
+    SFX.correct();
+    this.closeWordPackForm();
+    this.renderWordPacks();
+    this.toast(editing ? `📚 Updated “${res.pack.name}”!` : `📚 New pack “${res.pack.name}” ready — go practice!`, "gold");
+  },
+
+  deleteWordPackFlow(packId) {
+    const pack = SAVE.wordPackById(packId);
+    if (!pack) return;
+    if (!confirm(`Delete “${pack.name}”? Its best times go too, but any XP and trophies you earned stay yours. 💛`)) return;
+    SAVE.deleteWordPack(packId);
+    SFX.click();
+    this.closeWordPackForm();
+    this.renderWordPacks();
+    this.toast(`📚 “${pack.name}” removed.`);
+  },
+
+  // ---- Typing License: post-Champion number-row exam. Shows a locked teaser
+  // until you're Champion; then four stamp-collectible tiers that unlock in
+  // order. License records live under practice["license-"+id] and share ghosts
+  // across profiles via the "practice" kind (ids match, unlike word packs). ----
+  renderLicense() {
+    const list = this.$("license-list");
+    if (!list) return;
+    if (!SAVE.state.trophies.champion) {
+      list.innerHTML = `<div class="license-teaser">🔒 Become the 👑 Champion first — then your Typing License opens!</div>`;
+      return;
+    }
+    list.innerHTML = LICENSE_TIERS.map((t, i) => {
+      const key = "license-" + t.id;
+      const pb = SAVE.state.practice[key];
+      const open = SAVE.licenseTierOpen(i);
+      const stamped = !!(pb && pb.stamp);
+      const pbHtml = pb
+        ? `⏱ best ${this.fmtTime(pb.time)} · ⚡ best ${pb.wpm} wpm`
+        : (open ? `no stamp yet — earn 90%!` : `🔒 finish the last tier to unlock`);
+      const card = `<button class="tier-card license-card ${open ? "" : "locked"} ${stamped ? "stamped" : ""}" data-license="${t.id}" ${open ? "" : "disabled"}>
+        <span class="tier-e">${t.e}</span>
+        <span class="tier-info">
+          <b>${t.label}${stamped ? " <span class=\"license-stamp\">🪪 STAMPED</span>" : ""}</b>
+          <i>${this.esc(t.desc)}</i>
+          <em>${pbHtml}</em>
+        </span>
+      </button>`;
+      const race = open ? this.ghostRaceHtml("practice", key, pb) : "";
+      return `<div class="tier-wrap">${card}${race}</div>`;
+    }).join("");
   },
 
   // Sibling ghost selector shown under a tier/story card when at least one
@@ -2555,7 +2743,11 @@ const UI = {
     const card = this.$("results-card");
     card.classList.remove("defeat");
     card.style.setProperty("--wa", "#4dc3ff");
-    this.$("results-title").textContent = `🏫 Practice · ${res.tier.label}`;
+    this.$("results-title").textContent = res.custom
+      ? `📚 My Words · ${res.tier.label}`
+      : res.license
+        ? `🪪 License · ${res.tier.label}`
+        : `🏫 Practice · ${res.tier.label}`;
     this.$("results-stars").classList.add("hidden");
     this.$("results-grid").innerHTML = `
       <div class="rstat"><div class="rstat-v">${this.fmtTime(res.timeMs)}</div><div class="rstat-l">your time</div></div>
@@ -2577,9 +2769,17 @@ const UI = {
         ? `🏁 You beat ${who} by <b>${secs}s</b>!`
         : `👻 ${Who} won by <b>${secs}s</b> — rematch?`);
     }
+    // Typing License stamp verdict — the gentle 90% gate, never a "fail"
+    const st = res.license && res.stamp;
+    const newStamp = st && st.earned && !st.already;
+    if (st) {
+      if (newStamp) lines.push(`🪪 <b>STAMP EARNED!</b> ${Math.round(res.acc * 100)}% accuracy — nice steady fingers!`);
+      else if (st.earned) lines.push(`🪪 Stamped again — ${Math.round(res.acc * 100)}% accuracy, still sharp!`);
+      else lines.push(`So close — steady fingers earn the stamp! (need 90%, you had ${Math.round(res.acc * 100)}%)`);
+    }
     const catchBox = this.$("results-catch");
     catchBox.className = "catch-result";
-    catchBox.innerHTML = `<div class="record-note ${record ? "gold" : ""}">${lines.join("<br>")}</div>`;
+    catchBox.innerHTML = `<div class="record-note ${record || newStamp ? "gold" : ""}">${lines.join("<br>")}</div>`;
     this.$("results-egg").className = "hidden";
     this.$("results-medal").className = "hidden";
     this.$("results-offer").className = "hidden";
@@ -2594,10 +2794,13 @@ const UI = {
     next.innerHTML = `⏱ Try Again <small class="key-hint">Enter</small>`;
     this.$("btn-replay").textContent = "🎚 Difficulty";
     (res.newTrophies || []).forEach((t, i) => setTimeout(() => this.trophyToast(t), 900 + i * 800));
-    if (record) {
+    if (record || newStamp) {
       this.confetti();
       SFX.fanfare();
-      setTimeout(() => this.toast(`🏫 New ${res.tier.label} record! Can you beat it?`, "gold"), 700);
+      const msg = newStamp
+        ? `🪪 ${res.tier.label} stamp earned — one step to your license!`
+        : `🏫 New ${res.tier.label} record! Can you beat it?`;
+      setTimeout(() => this.toast(msg, "gold"), 700);
     } else {
       SFX.word();
     }
@@ -2737,6 +2940,7 @@ const UI = {
   // each finished word chips it with a floating damage number
   raidScene(S) {
     this.show("game");
+    this.setGameKeyboard(false);
     this.$("screen-game").classList.remove("paragraph-mode");
     const raid = S.raid;
     document.body.classList.remove("super-mode");
@@ -2839,6 +3043,7 @@ const UI = {
   // ---------- wild encounter scene (grass + fishing + legendary) ----------
   wildScene(S) {
     this.show("game");
+    this.setGameKeyboard(false);
     this.$("screen-game").classList.remove("paragraph-mode");
     const w = S.world;
     const c = S.wild.creature;
@@ -3320,6 +3525,7 @@ const UI = {
   // ---------- special scene (Daily Drill & friends: countdown, no boss) ----------
   specialScene(S, label) {
     this.show("game");
+    this.setGameKeyboard(false);
     this.$("screen-game").classList.remove("paragraph-mode");
     const w = S.world;
     document.body.classList.remove("super-mode");

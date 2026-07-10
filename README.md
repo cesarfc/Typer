@@ -193,11 +193,23 @@ mystery Pokemon — then the clock starts.
   👻 ghost instead of your own — the marker shows their name and the results
   card cheers "You beat Maya's ghost by 3.2s!" (earning the 🏁 Family Race
   trophy the first time).
+- **📚 My Words (custom spelling packs)** — inside the Trainer School, parents
+  can add weekly spelling lists (one word per line) that run as their own
+  stopwatch drills, with best times, ghost racing, and the 📚 Word Collector
+  trophy. Edit or delete a pack any time — deleting drops its best times but
+  keeps the XP and trophies already earned.
 - **📖 Story Typing** — also inside the Trainer School, unlocked once you reach
   the 👑 Hall of Fame (you'll need your capitals and punctuation). Type a whole
   short story as flowing prose — ten to choose from — with no countdown: the
   stopwatch counts up while you type and you race your own best WPM (or a
   sibling's ghost, with the same 🏁 Race picker as the speed drills).
+- **🪪 Typing License** — the end-game number-row course, unlocked in the
+  Trainer School once you become the 👑 Champion. Four tiers — Learner 🔰,
+  Bronze 🥉, Silver 🥈, Gold 🥇 — take you from bare digits and years, through
+  numbers inside words and shifted punctuation, up to full sentences with both.
+  The on-screen keyboard grows the number row just for these drills, and typing
+  a tier at 90%+ accuracy earns its stamp; collect all four for the 🪪 Licensed
+  Typist trophy.
 - **🧩 Puzzle Lab (block coding + math)** — a second side-building beside the
   Trainer School, opening once you reach Mt. Moon. **No keyboard needed to
   play:** snap code blocks together to guide a Pokemon through grid puzzles,
@@ -230,7 +242,7 @@ mystery Pokemon — then the clock starts.
   Kelvin Shadewing (via the Tuxemon project — see CREDITS.md).
 - **Combos** — 25 correct keys in a row triggers SUPER MODE.
 - **XP, levels and titles** — from Rookie all the way to Typing Legend.
-- **45 trophies**, daily play streaks, and a personal-best speed chart.
+- **47 trophies**, daily play streaks, and a personal-best speed chart.
 - **🥷 Ninja Mode** — hide the on-screen keyboard for 1.5× XP (this is the
   real goal: typing without looking!).
 

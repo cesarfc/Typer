@@ -84,6 +84,16 @@ const KB_ROWS = [
   ["z", "x", "c", "v", "b", "n", "m", ",", "."],
 ];
 
+// Full layout with the number row + the "/" key — used only for Typing License
+// sessions, where digits and shifted punctuation ( ! ? ) need on-screen keys.
+// KEY_FINGER already carries finger assignments for every one of these.
+const KB_ROWS_FULL = [
+  ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
+  ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
+  ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";", "'"],
+  ["z", "x", "c", "v", "b", "n", "m", ",", ".", "/"],
+];
+
 // key -> finger (0..3 left pinky..left index, 4..7 right index..right pinky, 8 thumb)
 const KEY_FINGER = {
   q: 0, a: 0, z: 0,
@@ -752,6 +762,59 @@ const PRACTICE_TIERS = [
   { id: "medium", label: "Medium", e: "⭐", desc: "Words & moves · Stadium & Dragon's Den", worlds: [2, 3], count: 12, need: 2 },
   { id: "hard",   label: "Hard",   e: "🔥", desc: "Expert moves & long phrases · Eterna",  worlds: [4],    count: 10, need: 4 },
   { id: "expert", label: "Expert", e: "👑", desc: "Capitals & full sentences · Hall of Fame", worlds: [5], count: 6,  need: 5 },
+];
+
+// ---- My Words: parents type weekly spelling lists that run as practice drills.
+// Caps keep saves tidy and each word typeable with the taught keys. The allowed
+// charset is exactly what the finger guide (KB rows + SHIFT_MAP + KEY_FINGER)
+// can teach: letters (capitals fine), spaces, and the taught punctuation . , ' ! ?
+const WORDPACK_MAX = 10;          // packs per player
+const WORDPACK_WORDS_MAX = 30;    // words per pack
+const WORDPACK_WORD_MAXLEN = 24;  // characters per word
+const WORDPACK_NAME_MAXLEN = 24;  // characters in a pack name
+const WORDPACK_ALLOWED = /[A-Za-z .,'!?]/;  // one allowed character
+
+// friendly name for a rejected character, so the message can say what to fix
+function charName(ch) {
+  const names = { " ": "a space", "\t": "a tab", "\n": "a line break",
+    "0": "the digit 0", "1": "the digit 1", "2": "the digit 2", "3": "the digit 3",
+    "4": "the digit 4", "5": "the digit 5", "6": "the digit 6", "7": "the digit 7",
+    "8": "the digit 8", "9": "the digit 9",
+    '"': "a double-quote", ":": "a colon", ";": "a semicolon", "-": "a dash",
+    "@": "an @ sign", "#": "a # sign", "&": "an & sign", "/": "a slash", "\\": "a backslash",
+    "(": "a (", ")": "a )", "%": "a percent sign" };
+  if (names[ch]) return names[ch];
+  if (/\d/.test(ch)) return `the digit ${ch}`;
+  return `“${ch}”`;
+}
+
+// ---- Typing License: the post-Champion number-row curriculum. Four tiers,
+// stopwatch / no-fail, sequential unlock. Every character below is coverable by
+// KB_ROWS_FULL (digits + / ) plus SHIFT_MAP (so ! ? light Shift + a base key).
+const LICENSE_TIERS = [
+  { id: "learner", label: "Learner", e: "🔰",
+    desc: "Bare digits and years — meet the number row",
+    prompts: ["2026", "425", "80", "1998", "12 34", "007", "3 2 1", "100", "64",
+              "2 4 6 8", "555", "90210"] },
+  { id: "bronze", label: "Bronze", e: "🥉",
+    desc: "Numbers tucked inside words",
+    prompts: ["route 25", "level 100", "caught 151 pokemon", "gym number 8",
+              "5 badges", "team of 6", "50 potions", "route 66", "10 gym leaders",
+              "win 3 battles", "top 4", "150 pokedex"] },
+  { id: "silver", label: "Silver", e: "🥈",
+    desc: "Shifted punctuation joins the party",
+    prompts: ["gotta catch them all!", "who is that pokemon?", "it is super effective!",
+              "wow, a shiny!", "is it a bird?", "go, pikachu!", "you did it!",
+              "what a battle!", "ready, set, go!", "can you catch it?",
+              "amazing, trainer!", "lets go!"] },
+  { id: "gold", label: "Gold", e: "🥇",
+    desc: "Full sentences with numbers AND punctuation",
+    prompts: ["Ash caught 25 Pokemon in 3 days!", "Is route 66 longer than route 9?",
+              "Pikachu won 3 battles today!", "Level 100 is the top, right?",
+              "Team Rocket stole 5 Poke Balls!", "Can you beat all 8 gyms?",
+              "The gym opens at 9, be there!", "I found 2 shiny Eevee!",
+              "Lets go, Ash! Route 1 awaits!", "Did you catch all 151?",
+              "Only 3 badges to go, trainer!"] },
 ];
 
 // ============================================================
@@ -1426,6 +1489,8 @@ const TROPHIES = [
   { id: "puzzle-stars", e: "🌟", name: "Puzzle Perfect", desc: "Earn 3 stars on every stage in the Puzzle Lab" },
   { id: "race-sibling", e: "🏁", name: "Family Race", desc: "Beat a sibling's ghost in Trainer School or Story Typing" },
   { id: "trade-1", e: "🤝", name: "Best Friends", desc: "Trade a Pokemon with a family trainer" },
+  { id: "words-1", e: "📚", name: "Word Collector", desc: "Finish a My Words spelling drill" },
+  { id: "license-1", e: "🪪", name: "Licensed Typist", desc: "Earn all four Typing License stamps" },
 ];
 
 const ENCOURAGE = [
