@@ -101,39 +101,41 @@ const Puzzle = {
     });
     this.$("screen-puzzle").appendChild(cp);
 
-    // the picker (wings + chapters + stage cards)
+    // the isle scene (trail nodes + the fly-home button)
     this.$("lab-body").addEventListener("click", e => {
-      const card = e.target.closest(".pz-stage");
-      if (card) {
+      const home = e.target.closest(".fly-home");
+      if (home) { SFX.click(); UI.flyHome(); return; }
+      const node = e.target.closest(".isle-node");
+      if (node) {
         SFX.init();
-        if (card.classList.contains("locked")) {
-          card.classList.remove("denied"); void card.offsetWidth; card.classList.add("denied");
+        if (node.classList.contains("locked")) {
+          node.classList.remove("denied"); void node.offsetWidth; node.classList.add("denied");
           SFX.error();
-          UI.toast(card.dataset.lock || "🔒 Finish the puzzle before it to open this one!");
+          UI.toast(node.dataset.lock || "🔒 Finish the puzzle before it to open this one!");
         } else {
-          this.openStage(card.dataset.stage);
+          this.openStage(node.dataset.stage);
         }
-        return;
-      }
-      const wing = e.target.closest(".pz-wing.locked");
-      if (wing) {
-        SFX.error();
-        UI.toast("🔢 The Math Wing opens after you finish the Loops chapter — keep coding!");
       }
     });
   },
 
-  // ---------- picker ----------
+  // ---------- the flying isles ----------
+  // Each pack is its own island the trainer flies to (see UI.flyToIsle). The
+  // stages lay out as a winding trail of tap-nodes across a painted islet, with
+  // existing Lost Legends art as chapter landmarks. currentPack tracks which
+  // isle we are on so every return (back / win / catch) lands home again.
+  currentPack: "code",
+
   CH_NAMES: {
     code: { 1: "Chapter 1 · Moves", 2: "Chapter 2 · Loops", 3: "Chapter 3 · Ifs", 4: "Chapter 4 · Else", 5: "Chapter 5 · Logic" },
     math: { 1: "Chapter 1 · Counting", 2: "Chapter 2 · Times", 3: "Chapter 3 · Plus & Minus", 4: "Chapter 4 · Compare" },
   },
   chapterName(pack, ch) { return (this.CH_NAMES[pack] || {})[ch] || `Chapter ${ch}`; },
+  chapterSuffix(pack, ch) { return this.chapterName(pack, ch).split("· ")[1] || `Chapter ${ch}`; },
 
-  // a chapter opens once every stage of the chapter before it has >=1 star
+  // a chapter opens once every stage of the chapter before it has >=1 star.
+  // (No cross-pack gate any more — both isles are reachable from the perch.)
   chapterUnlocked(pack, ch) { return ch === 1 || SAVE.puzzleChapterComplete(pack, ch - 1); },
-  // the whole Math Wing opens once the coding Loops chapter (ch.2) is finished
-  mathWingOpen() { return SAVE.puzzleChapterComplete("code", 2); },
 
   stageUnlocked(idx, list) {
     if (idx === 0) return true;
@@ -142,83 +144,200 @@ const Puzzle = {
     return !!(rec && rec.stars > 0);
   },
 
-  renderPicker() {
-    const host = this.$("lab-body");
-    let html = `<div class="pz-wing coding"><span class="pz-wing-e">💻</span>
-      <div class="pz-wing-info"><b>Coding Wing</b><i>Guide Pokemon with blocks — walk, loop, and decide!</i></div></div>`;
-    html += this.renderChapters("code");
-
-    // Math wing — its gate is coding chapter 2 (Loops). Once Loops is finished
-    // the whole wing opens and renders its own chapters right below.
-    const mathOpen = this.mathWingOpen();
-    html += `<div class="pz-wing math ${mathOpen ? "" : "locked"}"><span class="pz-wing-e">🔢</span>
-      <div class="pz-wing-info"><b>Math Wing</b><i>${mathOpen
-        ? "Numbers come alive — count, times-tables, number-line hops and comparing!"
-        : "🔒 Finish the Loops chapter to open"}</i></div></div>`;
-    if (mathOpen) html += this.renderChapters("math");
-
-    host.innerHTML = html;
+  // per-isle look: hero centrepiece, chapter-boundary landmarks (existing art),
+  // a few ambient props, and a soft region tint — all Lost Legends assets.
+  ISLE_DECOR: {
+    code: {
+      e: "💻", name: "Circuit Isle", tint: "#b39df1",
+      center: { art: "tq-puzzle-lab", x: 450, y: 110, s: 106 },
+      boundary: ["tq-clocktower", "tq-lantern-post", "tq-signpost", "tq-rock-cluster"],
+      ambient: [
+        { art: "tq-grass-tuft", x: 120, y: 560, s: 40 },
+        { art: "tq-rock-cluster", x: 806, y: 205, s: 46 },
+        { art: "tq-lantern-post", x: 812, y: 512, s: 40 },
+      ],
+    },
+    math: {
+      e: "🔢", name: "Counting Isle", tint: "#5cc6d8",
+      center: { art: "tq-sparkle-pond", x: 450, y: 118, s: 104 },
+      boundary: ["tq-stone-well", "tq-berry-bush", "tq-market-stall"],
+      ambient: [
+        { art: "tq-flower-patch", x: 120, y: 560, s: 44 },
+        { art: "tq-berry-bush", x: 806, y: 210, s: 46 },
+        { art: "tq-flower-patch", x: 812, y: 520, s: 40 },
+      ],
+    },
   },
 
-  // render every chapter (and its stage cards) for one pack
-  renderChapters(pack) {
+  // isle canvas is a fixed 900×640 viewBox; nodes are placed in that space and
+  // rendered as %-positioned buttons so the whole scene scales to any width.
+  ISLE_W: 900,
+  ISLE_H: 640,
+
+  // a boustrophedon (snake) trail: fill left→right, drop a row, right→left…,
+  // with a gentle wobble so it reads as a path, not a grid.
+  isleNodePositions(count) {
+    const cols = 5, X0 = 170, X1 = 730, Y0 = 205, Y1 = 520;
+    const rows = Math.max(1, Math.ceil(count / cols));
+    const pts = [];
+    for (let i = 0; i < count; i++) {
+      const r = Math.floor(i / cols);
+      let c = i % cols;
+      if (r % 2 === 1) c = cols - 1 - c;
+      const xf = cols === 1 ? 0.5 : c / (cols - 1);
+      const yf = rows === 1 ? 0.5 : r / (rows - 1);
+      const wob = Math.sin(i * 1.7) * 13;
+      pts.push({ x: Math.round(X0 + (X1 - X0) * xf), y: Math.round(Y0 + (Y1 - Y0) * yf + wob) });
+    }
+    return pts;
+  },
+
+  // a smooth sandy path threaded through the node points (quadratic midpoints)
+  isleTrailPath(pts) {
+    if (!pts.length) return "";
+    let d = `M ${pts[0].x} ${pts[0].y}`;
+    for (let i = 1; i < pts.length - 1; i++) {
+      const mx = (pts[i].x + pts[i + 1].x) / 2, my = (pts[i].y + pts[i + 1].y) / 2;
+      d += ` Q ${pts[i].x} ${pts[i].y} ${mx} ${my}`;
+    }
+    d += ` L ${pts[pts.length - 1].x} ${pts[pts.length - 1].y}`;
+    return d;
+  },
+
+  // the painted islet: teal sea, lime island, sandy trail hugging the nodes
+  isleTerrainSvg(pack, pts) {
+    const cfg = this.ISLE_DECOR[pack];
+    const coast = UI.smoothClosed([
+      [120, 130], [320, 78], [560, 92], [772, 138], [850, 320],
+      [812, 486], [648, 566], [430, 588], [214, 542], [82, 356],
+    ]);
+    const trail = this.isleTrailPath(pts);
+    const forest = (cx, cy, s) => [[0, 0], [s, -s * .3], [-s * .9, s * .4], [s * .7, s * .55]]
+      .map(([dx, dy], i) => `<circle cx="${cx + dx}" cy="${cy + dy}" r="${s * (0.9 - i * 0.14)}" />`).join("");
+    return `<svg class="isle-svg" viewBox="0 0 ${this.ISLE_W} ${this.ISLE_H}" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <rect width="100%" height="100%" fill="#6fcfe0"/>
+      <path d="${coast}" fill="none" stroke="#bfeef4" stroke-width="30" opacity=".5"/>
+      <path d="${coast}" fill="none" stroke="#f2ddb0" stroke-width="18" opacity=".9"/>
+      <path d="${coast}" fill="#8fd14f"/>
+      <path d="${coast}" fill="#9ad95a" opacity=".5" transform="translate(0,-12)"/>
+      <g fill="#79c247" opacity=".33">${forest(230, 250, 54)}${forest(700, 470, 50)}${forest(300, 470, 44)}</g>
+      <ellipse cx="450" cy="330" rx="470" ry="330" fill="${cfg.tint}" opacity=".08"/>
+      <path d="${trail}" fill="none" stroke="#f2ddb0" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>
+      <path d="${trail}" fill="none" stroke="#e7cf9c" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" opacity=".25" stroke-dasharray="4 26"/>
+    </svg>`;
+  },
+
+  // one grounded art prop positioned by its centre in isle space
+  isleProp(art, x, y, s, extra = "") {
+    const g = artSprite(art, s) || artIcon(art, s);
+    return `<span class="isle-landmark" style="left:${(x / this.ISLE_W) * 100}%;top:${(y / this.ISLE_H) * 100}%"${extra}>${g}</span>`;
+  },
+
+  // build the whole isle scene into #lab-body for the given pack
+  renderIsle(pack) {
+    if (!this.ISLE_DECOR[pack]) pack = "code";
+    this.currentPack = pack;
+    const cfg = this.ISLE_DECOR[pack];
+    const stages = PUZZLE_STAGES.filter(s => s.pack === pack);
+    const pts = this.isleNodePositions(stages.length);
+
+    // group into chapters to resolve within-chapter unlock + chapter labels,
+    // keeping the flat play order (PUZZLE_STAGES is already ordered)
     const chapters = [];
-    PUZZLE_STAGES.filter(s => s.pack === pack).forEach(s => {
+    stages.forEach(s => {
       let g = chapters.find(c => c.ch === s.chapter);
       if (!g) chapters.push(g = { ch: s.chapter, stages: [] });
       g.stages.push(s);
     });
-
-    let html = "";
+    const meta = []; // per flat stage: { s, ch, li, chList, chOpen }
     chapters.forEach(g => {
       const chOpen = this.chapterUnlocked(pack, g.ch);
-      html += `<h3 class="pz-chapter">${this.chapterName(pack, g.ch)}${chOpen ? "" : " 🔒"}</h3>`;
-      if (!chOpen) {
-        const prev = this.chapterName(pack, g.ch - 1).split("· ")[1] || "the chapter before";
-        html += `<div class="pz-chapter-lock">Finish ${prev} to open these puzzles</div>`;
-      }
-      html += `<div class="pz-stage-grid">`;
-      g.stages.forEach((s, i) => {
-        const rec = SAVE.state.puzzle[s.id];
-        const stars = rec ? rec.stars || 0 : 0;
-        const open = chOpen && this.stageUnlocked(i, g.stages);
-        const catchKey = s.reward && s.reward.catch;
-        const uncaught = catchKey && !SAVE.state.dex[catchKey];
-        let reward = "";
-        if (catchKey) {
-          const [w, ci] = catchKey.split("-").map(Number);
-          const c = CREATURES[w][ci];
-          reward = uncaught
-            ? `<span class="pz-reward new" title="Solve to catch ${c.n}!">🐾 catch!</span>`
-            : `<span class="pz-reward got" title="You caught ${c.n} here">✓ ${c.n}</span>`;
-        }
-        const badge = !open ? "🔒" : stars > 0 ? "✓" : (i + 1);
-        const starRow = open
-          ? `<span class="pz-stars">${"★".repeat(stars)}<span class="off">${"★".repeat(3 - stars)}</span></span>`
-          : `<span class="pz-locknote">${chOpen ? "Finish the one before to open" : "Chapter locked"}</span>`;
-        const lockMsg = !chOpen
-          ? "🔒 Finish the chapter before it to open this one!"
-          : "🔒 Finish the puzzle before it to open this one!";
-        html += `<button class="pz-stage ${open ? "" : "locked"} ${stars > 0 ? "done" : ""} ${s.capstone ? "capstone" : ""}"
-            data-stage="${s.id}" data-lock="${lockMsg}">
-          <span class="pz-badge">${badge}</span>
-          <span class="pz-info">
-            <b>${UI.esc(s.name)}</b>
-            <i>${UI.esc(s.concept)}</i>
-            ${starRow}
-          </span>
-          ${reward}
-        </button>`;
-      });
-      html += `</div>`;
+      g.stages.forEach((s, li) => meta.push({ s, ch: g.ch, li, chList: g.stages, chOpen }));
     });
-    return html;
+
+    // progress summary
+    const starSum = stages.reduce((n, s) => n + (((SAVE.state.puzzle[s.id] || {}).stars) || 0), 0);
+    const maxStars = stages.length * 3;
+    const catchStages = stages.filter(s => s.reward && s.reward.catch);
+    const caught = catchStages.filter(s => SAVE.state.dex[s.reward.catch]).length;
+
+    // frontier: first open, unsolved stage gets the gold "next" pulse
+    let frontier = -1;
+    meta.forEach((m, i) => {
+      if (frontier !== -1) return;
+      const rec = SAVE.state.puzzle[m.s.id];
+      if (m.chOpen && this.stageUnlocked(m.li, m.chList) && !(rec && rec.stars > 0)) frontier = i;
+    });
+
+    // ----- decor: hero centrepiece, chapter-boundary landmarks, ambient -----
+    let decor = this.isleProp(cfg.center.art, cfg.center.x, cfg.center.y, cfg.center.s, ' data-center="1"');
+    cfg.ambient.forEach(a => { decor += this.isleProp(a.art, a.x, a.y, a.s); });
+    let bi = 0;
+    for (let i = 0; i < meta.length - 1; i++) {
+      if (meta[i].ch !== meta[i + 1].ch && cfg.boundary[bi]) {
+        const mx = (pts[i].x + pts[i + 1].x) / 2, my = (pts[i].y + pts[i + 1].y) / 2 - 8;
+        decor += this.isleProp(cfg.boundary[bi], mx, my, 48);
+        bi++;
+      }
+    }
+
+    // ----- chapter labels: a pill above each chapter's first node -----
+    let labels = "";
+    chapters.forEach(g => {
+      const idx = meta.findIndex(m => m.ch === g.ch);
+      const p = pts[idx];
+      const lock = this.chapterUnlocked(pack, g.ch) ? "" : " 🔒";
+      labels += `<span class="isle-chlabel" style="left:${(p.x / this.ISLE_W) * 100}%;top:${((p.y - 52) / this.ISLE_H) * 100}%">Ch ${g.ch} · ${UI.esc(this.chapterSuffix(pack, g.ch))}${lock}</span>`;
+    });
+
+    // ----- nodes -----
+    let nodes = "";
+    meta.forEach((m, i) => {
+      const s = m.s, p = pts[i];
+      const rec = SAVE.state.puzzle[s.id];
+      const stars = rec ? rec.stars || 0 : 0;
+      const open = m.chOpen && this.stageUnlocked(m.li, m.chList);
+      const isNext = i === frontier;
+      const catchKey = s.reward && s.reward.catch;
+      const uncaught = catchKey && !SAVE.state.dex[catchKey];
+      const lockMsg = !m.chOpen
+        ? "🔒 Finish the chapter before it to open this one!"
+        : "🔒 Finish the puzzle before it to open this one!";
+      const badge = open
+        ? `<span class="isle-num">${i + 1}</span>`
+        : `<span class="isle-num lock">${artIcon("tq-padlock", 26) || "🔒"}</span>`;
+      const starRow = open
+        ? `<span class="isle-stars">${"★".repeat(stars)}<span class="off">${"★".repeat(3 - stars)}</span></span>`
+        : "";
+      const catchMark = open && uncaught ? `<span class="isle-catch" title="Solve to catch a new friend!">🐾</span>` : "";
+      const title = open ? `${UI.esc(s.name)} — ${UI.esc(s.concept)}` : "Locked — finish the one before it";
+      nodes += `<button class="isle-node ${open ? "" : "locked"} ${stars > 0 ? "done" : ""} ${isNext ? "next" : ""} ${s.capstone ? "capstone" : ""}"
+          style="left:${(p.x / this.ISLE_W) * 100}%;top:${(p.y / this.ISLE_H) * 100}%"
+          data-stage="${s.id}" data-lock="${lockMsg}" title="${title}">
+        ${badge}${starRow}${catchMark}
+      </button>`;
+    });
+
+    this.$("lab-body").innerHTML = `<div class="isle-scene" data-pack="${pack}">
+      <div class="isle-topbar">
+        <button class="fly-home">🏠 Fly home</button>
+        <div class="isle-title"><b>${cfg.e} ${UI.esc(cfg.name)}</b>
+          <span>⭐ ${starSum}/${maxStars}${catchStages.length ? ` · 🐾 ${caught}/${catchStages.length}` : ""}</span></div>
+      </div>
+      <div class="isle-stage">
+        ${this.isleTerrainSvg(pack, pts)}
+        ${decor}
+        ${labels}
+        ${nodes}
+      </div>
+    </div>`;
   },
 
   // ---------- mount a stage ----------
   openStage(stageId) {
     const stage = PUZZLE_STAGES.find(s => s.id === stageId);
     if (!stage) return;
+    this.currentPack = stage.pack || this.currentPack; // return to this stage's isle
     this.stage = stage;
     this.program = [];
     this.caret = { cont: "", idx: 0 };
@@ -1037,7 +1156,7 @@ const Puzzle = {
       buttons = `<button class="big-btn" data-act="catch" data-catch="${catchKey}">🎁 Meet ${UI.esc(c.n)}! ▶</button>
         <button class="mid-btn" data-act="replay">↺ Play again</button>`;
     } else {
-      buttons = `<button class="big-btn" data-act="lab">🧩 Back to Lab</button>
+      buttons = `<button class="big-btn" data-act="lab">🏝️ Back to the isle</button>
         <button class="mid-btn" data-act="replay">↺ Play again</button>`;
     }
 
