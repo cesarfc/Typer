@@ -326,6 +326,18 @@ const Puzzle = {
     return -1;
   },
 
+  // the stage to play after `stage`: its sequel in the pack when unlocked
+  // (played or not, so kids can chain in order while star-chasing), else the
+  // pack frontier. Null when the pack is all clear.
+  nextStageAfter(stage) {
+    const { meta } = this.isleStageMeta(stage.pack);
+    const i = meta.findIndex(m => m.s.id === stage.id);
+    const n = meta[i + 1];
+    if (n && n.chOpen && this.stageUnlocked(n.li, n.chList)) return n.s;
+    const f = this.frontierIndex(meta);
+    return f === -1 ? null : meta[f].s;
+  },
+
   // mount the frontier stage for a pack; returns false when it is all-clear.
   openFrontierStage(pack) {
     const { meta } = this.isleStageMeta(pack);
@@ -1504,7 +1516,9 @@ const Puzzle = {
       buttons = `<button class="big-btn" data-act="catch" data-catch="${catchKey}">🎁 Meet ${UI.esc(c.n)}! ▶</button>
         <button class="mid-btn" data-act="replay">↺ Play again</button>`;
     } else {
-      buttons = `<button class="big-btn" data-act="lab">🏝️ Back to the isle</button>
+      const nxt = this.nextStageAfter(this.stage);
+      buttons = `${nxt ? `<button class="big-btn" data-act="next" data-next="${nxt.id}">▶ Next: ${UI.esc(nxt.name)}</button>` : ""}
+        <button class="${nxt ? "mid-btn" : "big-btn"}" data-act="lab">🏝️ Back to the isle</button>
         <button class="mid-btn" data-act="replay">↺ Play again</button>`;
     }
 
@@ -1523,6 +1537,7 @@ const Puzzle = {
       SFX.init();
       const act = btn.dataset.act;
       if (act === "lab") UI.show("lab");
+      else if (act === "next") { this.hideMsg(); this.openStage(btn.dataset.next); }
       else if (act === "replay") { this.hideMsg(); this.resetRun(); }
       else if (act === "catch") {
         const c = SAVE.puzzleCatchPick(btn.dataset.catch);
