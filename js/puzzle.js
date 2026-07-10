@@ -127,8 +127,8 @@ const Puzzle = {
   currentPack: "code",
 
   CH_NAMES: {
-    code: { 1: "Chapter 1 · Moves", 2: "Chapter 2 · Loops", 3: "Chapter 3 · Ifs", 4: "Chapter 4 · Else", 5: "Chapter 5 · Logic" },
-    math: { 1: "Chapter 1 · Counting", 2: "Chapter 2 · Times", 3: "Chapter 3 · Plus & Minus", 4: "Chapter 4 · Compare" },
+    code: { 1: "Chapter 1 · Moves", 2: "Chapter 2 · Loops", 3: "Chapter 3 · Ifs", 4: "Chapter 4 · Else", 5: "Chapter 5 · Logic", 6: "Chapter 6 · Inventions" },
+    math: { 1: "Chapter 1 · Counting", 2: "Chapter 2 · Times", 3: "Chapter 3 · Plus & Minus", 4: "Chapter 4 · Compare", 5: "Chapter 5 · Sharing" },
   },
   chapterName(pack, ch) { return (this.CH_NAMES[pack] || {})[ch] || `Chapter ${ch}`; },
   chapterSuffix(pack, ch) { return this.chapterName(pack, ch).split("· ")[1] || `Chapter ${ch}`; },
@@ -826,6 +826,18 @@ const Puzzle = {
     return { n: g.n, m: g.deltas[0], total: g.n * g.deltas[0] };
   },
 
+  // read a DIVISION fact off a winning number-line program: an outer repeat
+  // whose body is a single equal hop → "total split into n equal hops of m".
+  // Mirrors deriveMulFact for the Sharing chapter's Equal-Hops stages.
+  deriveDivHopFact(nodes, landed) {
+    if (nodes.length !== 1 || nodes[0].t !== "repeat") return null;
+    const body = nodes[0].body;
+    if (body.length !== 1 || body[0].t !== "hop" || body[0].v < 2) return null;
+    const n = nodes[0].n, m = body[0].v;
+    if (n < 2 || n * m !== landed) return null;
+    return { n, m, total: landed };
+  },
+
   simulate() {
     if (this.isLine()) return this.simulateLine();
     const st = this.stage;
@@ -961,7 +973,8 @@ const Puzzle = {
     const blocks = this.countBlocks(this.program);
     let stars = 0;
     if (outcome === "win") stars = blocks <= st.optimal ? 3 : blocks <= st.budget ? 2 : 1;
-    return { frames, outcome, blocks, stars, mulFact: null, total: p, landed: p };
+    const divHop = outcome === "win" ? this.deriveDivHopFact(this.program, p) : null;
+    return { frames, outcome, blocks, stars, mulFact: null, divHop, total: p, landed: p };
   },
 
   run() {
@@ -1174,7 +1187,12 @@ const Puzzle = {
     let mathBanner = "";
     if (sim.mulFact) {
       const { n, m, total } = sim.mulFact;
-      mathBanner = `<div class="pz-win-math">${n} groups of ${m} = ${total}! ✨</div>`;
+      mathBanner = this.stage.divide
+        ? `<div class="pz-win-math">${total} shared into ${n} groups = ${m} each! ✨</div>`
+        : `<div class="pz-win-math">${n} groups of ${m} = ${total}! ✨</div>`;
+    } else if (sim.divHop) {
+      const { n, m, total } = sim.divHop;
+      mathBanner = `<div class="pz-win-math">${total} split into ${n} equal hops of ${m}! ✨</div>`;
     } else if (this.isLine()) {
       mathBanner = `<div class="pz-win-math">You landed right on ${this.stage.need}! 🎯</div>`;
     } else if (this.stage.goal === "collect") {

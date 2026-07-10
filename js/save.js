@@ -1158,8 +1158,8 @@ const SAVE = {
     this.dayInfo().school = true; // a lab solve counts for the day's third stamp
     const newTrophies = [];
     this.award("puzzle-1", newTrophies);                                  // 🧩 first solve ever
-    if (this.allCodingStagesSolved()) this.award("puzzle-code", newTrophies); // 💻 all 18 coding stages
-    if (this.allMathStagesSolved()) this.award("puzzle-math", newTrophies);   // 🔢 all 14 math stages
+    if (this.allCodingStagesSolved()) this.award("puzzle-code", newTrophies); // 💻 all 24 coding stages
+    if (this.allMathStagesSolved()) this.award("puzzle-math", newTrophies);   // 🔢 all 19 math stages
     if (this.allStagesThreeStars()) this.award("puzzle-stars", newTrophies);  // 🌟 3★ on every stage
     this.collectTrophies(newTrophies); // harmless now; catches add the real dex growth
     this.save();
@@ -1175,14 +1175,14 @@ const SAVE = {
       return !!(r && r.stars > 0);
     });
   },
-  // Master Coder: a star on all 18 coding stages
+  // Master Coder: a star on all 24 coding stages
   allCodingStagesSolved() {
     return PUZZLE_STAGES.filter(s => s.pack === "code").every(s => {
       const r = this.state.puzzle[s.id];
       return !!(r && r.stars > 0);
     });
   },
-  // Number Wizard: a star on all 14 math stages
+  // Number Wizard: a star on all 19 math stages
   allMathStagesSolved() {
     return PUZZLE_STAGES.filter(s => s.pack === "math").every(s => {
       const r = this.state.puzzle[s.id];
