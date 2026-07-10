@@ -1491,6 +1491,9 @@ const TROPHIES = [
   { id: "trade-1", e: "🤝", name: "Best Friends", desc: "Trade a Pokemon with a family trainer" },
   { id: "words-1", e: "📚", name: "Word Collector", desc: "Finish a My Words spelling drill" },
   { id: "license-1", e: "🪪", name: "Licensed Typist", desc: "Earn all four Typing License stamps" },
+  { id: "diploma-1", e: "🎓", name: "Framed and Famous", desc: "Print your first diploma from the Museum" },
+  { id: "tower-5", e: "🗼", name: "Tower Challenger", desc: "Reach floor 5 of the Battle Tower" },
+  { id: "tower-15", e: "🏯", name: "Tower Master", desc: "Reach floor 15 of the Battle Tower" },
 ];
 
 const ENCOURAGE = [

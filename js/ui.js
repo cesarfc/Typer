@@ -605,6 +605,83 @@ const UI = {
     return out;
   },
 
+  // ---------- Seasonal map dressing (pure decoration — never a reward) ----------
+  // Driven by the real calendar; a debug override (window.TQ.debugSeason) lets
+  // us preview any season. Winter/spring/autumn/summer each add a gentle tint,
+  // a handful of drifting particles, and season-flavored decor. Two single-day
+  // touches: fireworks on Jan 1 / Jul 4, pumpkins in the last week of October.
+  seasonNow() {
+    if (this._debugSeason && this._debugSeason !== "fireworks") return this._debugSeason;
+    const m = new Date().getMonth();          // 0 = January
+    return (m === 11 || m <= 1) ? "winter"
+      : m <= 4 ? "spring"
+      : m <= 7 ? "summer" : "autumn";
+  },
+
+  seasonSpecials() {
+    const s = { fireworks: false, pumpkins: false };
+    if (this._debugSeason === "fireworks") { s.fireworks = true; return s; }
+    const now = new Date();
+    const m = now.getMonth(), day = now.getDate();
+    if ((m === 0 && day === 1) || (m === 6 && day === 4)) s.fireworks = true;  // Jan 1 / Jul 4
+    if (m === 9 && day >= 25) s.pumpkins = true;                               // last week of Oct
+    return s;
+  },
+
+  // preview any season live from the console: TQ.debugSeason("winter"|"spring"|
+  // "summer"|"autumn"|"fireworks"|null-to-clear)
+  debugSeason(name) {
+    this._debugSeason = name || null;
+    if (this.current === "map") this.renderMap();
+    return this._debugSeason || "(live calendar)";
+  },
+
+  // the seasonal overlay HTML: a tint plane, a few light CSS particles, and
+  // season-flavored decor appended over the existing map (all decoration).
+  seasonLayer(decor) {
+    const season = this.seasonNow();
+    const sp = this.seasonSpecials();
+    let html = `<div class="season-tint season-${season}"></div>`;
+    // deterministic scatter so the dressing never jitters between renders
+    let h = 20240101;
+    const rng = () => { h = (h * 1664525 + 1013904223) >>> 0; return h / 4294967296; };
+    const rx = () => Math.round(rng() * this.MAP_W);
+    const ry = () => Math.round(rng() * this.MAP_H);
+    const trees = decor.filter(o => o.sp === "tree" || o.t === "pine" || o.t === "pineBig");
+
+    if (season === "winter") {
+      // snowy caps atop about half the trees
+      trees.forEach((o, i) => {
+        if (i % 2) return;
+        const lift = (o.s || o.sc * 20) * 0.7;
+        html += `<span class="snow-cap" style="left:${o.x}px;top:${o.y - lift}px">❄️</span>`;
+      });
+      for (let i = 0; i < 12; i++)
+        html += `<span class="snowflake" style="left:${rx()}px;top:${ry()}px;font-size:${10 + Math.round(rng() * 10)}px;animation-delay:-${(rng() * 8).toFixed(1)}s;animation-duration:${(7 + rng() * 6).toFixed(1)}s">❄️</span>`;
+    } else if (season === "spring") {
+      trees.forEach((o, i) => { if (i % 3 === 0) html += `<span class="season-decor" style="left:${o.x + 10}px;top:${o.y - 8}px">🌸</span>`; });
+      for (let i = 0; i < 12; i++)
+        html += `<span class="petal" style="left:${rx()}px;top:${ry()}px;animation-delay:-${(rng() * 8).toFixed(1)}s;animation-duration:${(8 + rng() * 6).toFixed(1)}s">🌸</span>`;
+    } else if (season === "autumn") {
+      trees.forEach((o, i) => { if (i % 2) html += `<span class="season-decor" style="left:${o.x}px;top:${o.y - 6}px">🍂</span>`; });
+      for (let i = 0; i < 12; i++)
+        html += `<span class="leaf-fall" style="left:${rx()}px;top:${ry()}px;animation-delay:-${(rng() * 8).toFixed(1)}s;animation-duration:${(7 + rng() * 6).toFixed(1)}s">🍁</span>`;
+    } else { // summer — extra butterflies + fireflies around the ponds
+      [[905, 1285], [960, 1330], [1005, 1300], [2245, 1170]].forEach(([x, y], i) =>
+        html += `<span class="map-butterfly" style="left:${x}px;top:${y}px;animation-delay:-${(i * 0.6).toFixed(1)}s">🦋</span>`);
+      for (let i = 0; i < 6; i++)
+        html += `<i class="firefly" style="left:${920 + Math.round(rng() * 140)}px;top:${1270 + Math.round(rng() * 70)}px;animation-delay:-${(rng() * 2).toFixed(1)}s"></i>`;
+    }
+
+    if (sp.pumpkins)
+      html += `<span class="season-decor pumpkin" style="left:230px;top:1300px">🎃</span>
+        <span class="season-decor pumpkin" style="left:305px;top:1355px">🎃</span>`;
+    if (sp.fireworks)
+      [[520, 360], [1200, 300], [2000, 340]].forEach(([x, y], i) =>
+        html += `<span class="firework" style="left:${x}px;top:${y}px;animation-delay:-${(i * 0.8).toFixed(1)}s">🎆</span>`);
+    return html;
+  },
+
   mapNodes() {
     if (this._mapNodes) return this._mapNodes;
     const A = this.mapAnchors;
@@ -690,8 +767,11 @@ const UI = {
       this._hintedThisRender = true;
       this.toast("🌿 See the rustling grass? A wild Pokemon hides there — click it!", "gold");
     }
-    html += this.MAP_DECOR.concat(this.scatterDecor()).map(o =>
+    const allDecor = this.MAP_DECOR.concat(this.scatterDecor());
+    html += allDecor.map(o =>
       `<span class="map-decor" style="left:${o.x}px;top:${o.y}px;${o.e ? `font-size:${o.s}px` : ""}">${o.art ? artSprite(o.art, o.s) : o.t ? worldTile(o.t, o.sc) : o.sp ? worldSprite(o.sp, o.s, o.c) : o.e}</span>`).join("");
+    // seasonal dressing rides on top of the base decor (pure decoration)
+    html += this.seasonLayer(allDecor);
     html += this.MAP_CITIES.map(c =>
       `<div class="map-city" style="left:${c.x}px;top:${c.y}px"><span class="city-art">${c.t ? worldTile(c.t, c.sc) : worldSprite(c.sp, c.s)}</span><b>${c.n}</b></div>`).join("");
 
@@ -717,6 +797,15 @@ const UI = {
     // trainers swap Pokemon 1-for-1
     html += `<button class="map-trade" style="left:770px;top:1418px" title="Trading Post — swap Pokemon with your family!">
       <span>${worldSprite("trade", 84)}</span><b>🤝 Trading Post</b></button>`;
+
+    // the Battle Tower rises near the Battle Stadium — an endless typing climb.
+    // Opens once the trainer reaches the Stadium (worldUnlocked(2)).
+    if (SAVE.worldUnlocked(2)) {
+      const tb = SAVE.state.tower && SAVE.state.tower.best;
+      html += `<button class="map-tower" style="left:1120px;top:905px"
+        title="Battle Tower — an endless typing climb${tb ? ` · best floor ${tb}` : ""}!">
+        <span class="tower-art">${artSprite("tq-clocktower", 92)}</span><b>🗼 Battle Tower</b></button>`;
+    }
 
     WORLDS.forEach((w, wi) => {
       const ns = nodes[wi];
@@ -823,6 +912,7 @@ const UI = {
         <b>${label}</b></button>`;
     }
 
+    map.dataset.season = this.seasonNow();
     map.innerHTML = html;
     this.renderPartyBar();
     this._mapSel = null; // keyboard nav selection resets with the map
@@ -1509,6 +1599,12 @@ const UI = {
         this.openTradePost();
         return;
       }
+      const tw = e.target.closest(".map-tower");
+      if (tw) {
+        SFX.init();
+        Engine.startTower();
+        return;
+      }
       // wild Pokemon living on the map: say hi (caught) or open the
       // area guide so the mystery shows how it can be caught
       const pk = e.target.closest(".map-poke");
@@ -2175,6 +2271,7 @@ const UI = {
     this._paragraphNext = null;
     this._rematchNext = res.rematch ? { w: res.w, tierId: res.rematch.id } : null;
     this._raidNext = null;
+    this._towerReplay = false;
     this._practiceMode = false;
     this._resultsAt = performance.now();
     this.$("btn-replay").textContent = res.rematch ? "↻ Try Again" : "↻ Replay";
@@ -2388,6 +2485,7 @@ const UI = {
     // a lost rematch retries the rematch, not a plain boss fight
     this._rematchNext = S.rematch ? { w: S.w, tierId: S.rematch.id } : null;
     this._raidNext = null;
+    this._towerReplay = false;
     this._practiceMode = false;
     this._resultsAt = performance.now();
     this.$("results-egg").className = "hidden";          // no stale egg note
@@ -2866,6 +2964,7 @@ const UI = {
     this._paragraphNext = null;
     this._rematchNext = null;
     this._raidNext = null;
+    this._towerReplay = false;
     this._practiceMode = true;
     this._nextTarget = null;
     this._lastStage = null;
@@ -2945,6 +3044,7 @@ const UI = {
     this._practiceNext = null;
     this._rematchNext = null;
     this._raidNext = null;
+    this._towerReplay = false;
     this._practiceMode = true; // btn-replay returns to the Trainer School
     this._nextTarget = null;
     this._lastStage = null;
@@ -3005,6 +3105,7 @@ const UI = {
     this._practiceMode = false;
     this._nextTarget = null;
     this._lastStage = null;
+    this._towerReplay = false;
     this._resultsAt = performance.now();
     const down = !!info.defeated;
     const canClaim = !!info.canClaim; // this player contributed and hasn't claimed
@@ -3491,6 +3592,95 @@ const UI = {
   _museumTab: "trophies",
   _failCount: {},
 
+  // ---------- Diplomas: printable certificates for the biggest milestones ----------
+  DIPLOMAS: [
+    { id: "champion", e: "🏆", title: "Champion of the Island",
+      line: "defeated the Elite Four and became the Champion",
+      earned: () => !!SAVE.state.trophies.champion,
+      need: "Become the Champion to earn this one!" },
+    { id: "puzzle-code", e: "💻", title: "Puzzle Master Coder",
+      line: "earned a star on every coding stage in the Puzzle Lab",
+      earned: () => !!SAVE.state.trophies["puzzle-code"],
+      need: "Star every coding stage in the Puzzle Lab to earn this one!" },
+    { id: "puzzle-math", e: "🔢", title: "Number Wizard",
+      line: "earned a star on every math stage in the Puzzle Lab",
+      earned: () => !!SAVE.state.trophies["puzzle-math"],
+      need: "Star every math stage in the Puzzle Lab to earn this one!" },
+    { id: "license-1", e: "🪪", title: "Licensed Typist",
+      line: "earned all four Typing License stamps",
+      earned: () => !!SAVE.state.trophies["license-1"],
+      need: "Earn all four Typing License stamps to unlock this one!" },
+    { id: "dex-all", e: "📕", title: "Pokedex Master",
+      line: "caught every Pokemon in the Pokedex",
+      earned: () => SAVE.caughtCount() >= CREATURES.flat().length,
+      need: "Complete the whole Pokedex to earn this one!" },
+  ],
+
+  renderDiplomas() {
+    this.$("diploma-wing").innerHTML = this.DIPLOMAS.map(d => {
+      const got = d.earned();
+      if (!got) {
+        return `<div class="diploma-card locked">
+          <div class="dip-seal dim">${d.e}</div>
+          <div class="dip-info"><b>${this.esc(d.title)}</b>
+            <i class="dip-need">🔒 ${this.esc(d.need)}</i></div>
+        </div>`;
+      }
+      const date = SAVE.diplomaDate(d.id);
+      const nice = this.diplomaNiceDate(date);
+      return `<div class="diploma-card">
+        <div class="dip-seal">${d.e}</div>
+        <div class="dip-info"><b>${this.esc(d.title)}</b>
+          <i>Earned ${nice}</i></div>
+        <button class="dip-print" data-diploma="${d.id}">🖨️ Print</button>
+      </div>`;
+    }).join("");
+  },
+
+  diplomaNiceDate(iso) {
+    const d = new Date(iso + "T00:00:00");
+    return isNaN(d) ? iso : d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+  },
+
+  // build the certificate into #diploma-print, then hand off to the browser's
+  // print dialog. @media print hides everything but the certificate.
+  printDiploma(id) {
+    const d = this.DIPLOMAS.find(x => x.id === id);
+    if (!d || !d.earned()) return;
+    const date = SAVE.diplomaDate(id);
+    const p = SAVE.state.profile || {};
+    const name = p.name || "Trainer";
+    const party = (SAVE.state.party || []).map(k => SAVE.creatureByKey(k)).filter(Boolean);
+    const partyHtml = party.length
+      ? party.map(c => `<span class="dp-mon">${this.pokeHtml(c.id, c.e, { shiny: c.shiny, cls: "poke-img dp-mon-img" })}</span>`).join("")
+      : "";
+    this.$("diploma-print").innerHTML = `
+      <div class="dp-cert">
+        <div class="dp-inner">
+          <div class="dp-logo">TypeQuest ⚡</div>
+          <div class="dp-kicker">Certificate of Achievement</div>
+          <div class="dp-seal-big">${d.e}</div>
+          <div class="dp-cert-body">
+            <span class="dp-line">This certifies that</span>
+            <div class="dp-name">${this.esc(name)}</div>
+            <span class="dp-line">has earned the rank of</span>
+            <div class="dp-rank">${this.esc(d.title)}</div>
+            <span class="dp-line">and ${this.esc(d.line)}.</span>
+          </div>
+          <div class="dp-trainer">${this.avatarHtml(p, "dp-av")}</div>
+          ${partyHtml ? `<div class="dp-party-row"><span class="dp-party-label">My team</span><div class="dp-party">${partyHtml}</div></div>` : ""}
+          <div class="dp-foot">
+            <span>Awarded ${this.diplomaNiceDate(date)}</span>
+            <span class="dp-sig">Professor Oak ✒️</span>
+          </div>
+        </div>
+      </div>`;
+    const trophies = SAVE.awardDiplomaPrint();
+    window.print();
+    if (this.current === "trophies") this.renderTrophies();
+    trophies.forEach((t, i) => setTimeout(() => this.trophyToast(t), 500 + i * 800));
+  },
+
   renderTrophies() {
     const got = SAVE.state.trophies;
     const fresh = (SAVE.state.flags && SAVE.state.flags.newTrophies) || {};
@@ -3532,7 +3722,9 @@ const UI = {
       b.classList.toggle("active", b.dataset.tab === this._museumTab));
     this.$("trophy-grid").classList.toggle("hidden", this._museumTab !== "trophies");
     this.$("medal-wing").classList.toggle("hidden", this._museumTab !== "medals");
+    this.$("diploma-wing").classList.toggle("hidden", this._museumTab !== "diplomas");
     this.$("gallery-wing").classList.toggle("hidden", this._museumTab !== "gallery");
+    if (this._museumTab === "diplomas") this.renderDiplomas();
 
     // ---- trophies wing ----
     this.$("trophy-grid").innerHTML = TROPHIES.map(t => `
@@ -3612,7 +3804,8 @@ const UI = {
       <div class="stat-card"><div class="stat-v">${s.keys.toLocaleString()}</div><div class="stat-l">keys pressed</div></div>
       <div class="stat-card"><div class="stat-v">${SAVE.caughtCount()}</div><div class="stat-l">Pokemon</div></div>
       <div class="stat-card"><div class="stat-v">${s.evolutions || 0}</div><div class="stat-l">evolutions</div></div>
-      <div class="stat-card"><div class="stat-v">${SAVE.state.streak.count || 0}</div><div class="stat-l">day streak</div></div>`;
+      <div class="stat-card"><div class="stat-v">${SAVE.state.streak.count || 0}</div><div class="stat-l">day streak</div></div>
+      ${SAVE.state.tower && SAVE.state.tower.best ? `<div class="stat-card"><div class="stat-v">🗼 ${SAVE.state.tower.best}</div><div class="stat-l">best tower floor</div></div>` : ""}`;
 
     const hist = s.history.slice(-12);
     const max = Math.max(10, ...hist.map(h => h.wpm));
@@ -3688,6 +3881,122 @@ const UI = {
     }
     this.announce(label, 2200);
     this.updateHud(S);
+  },
+
+  // ---------- Battle Tower ----------
+  towerScene(S, floor) {
+    this.show("game");
+    this.setGameKeyboard(false);
+    this.$("screen-game").classList.remove("paragraph-mode");
+    const w = S.world;
+    document.body.classList.remove("super-mode");
+    this.$("capslock-warn").classList.add("hidden");
+    this.applyKbVisibility();
+    this.practiceTimerUI(false);
+    this.$("hud-stage").textContent = `🗼 Battle Tower · Floor ${floor}`;
+    this.$("hud-progress").classList.remove("hidden");
+    this.$("hud-progress-fill").style.width = "0%";
+    this.$("hud-hearts").classList.remove("hidden");   // the 3 hearts last the whole climb
+    this.renderHearts(S);
+    this.$("boss-bar").classList.add("hidden");
+    this.$("target-label").classList.add("hidden");
+    this.$("player-avatar").innerHTML = this.avatarHtml(SAVE.state.profile);
+    this.showPartner(S);
+    this.partnerMeter(S);
+    const arena = this.$("arena");
+    arena.style.background = `linear-gradient(160deg, ${w.gradient[0]}, ${w.gradient[1]})`;
+    arena.style.setProperty("--wa", w.accent);
+    const scene = this.$("scene-emojis");
+    scene.innerHTML = "";
+    for (let i = 0; i < 7; i++) {
+      const e = document.createElement("span");
+      e.textContent = w.sceneEmojis[i % w.sceneEmojis.length];
+      e.style.left = `${5 + Math.random() * 90}%`;
+      e.style.top = `${5 + Math.random() * 80}%`;
+      e.style.fontSize = `${14 + Math.random() * 22}px`;
+      e.style.animationDelay = `${Math.random() * 3}s`;
+      scene.appendChild(e);
+    }
+    this.announce(`🗼 Floor ${floor} — climb!`, 1500);
+    this.updateHud(S);
+  },
+
+  // a 2-second breather between floors
+  towerBreather(floor, reward, cb) {
+    const el = this.$("tower-breather");
+    let rewardHtml = "";
+    if (reward) {
+      const bits = [`+${reward.xp} XP`];
+      if (reward.voucher) bits.push("🎟 candy voucher");
+      if (reward.shiny) bits.push(`✨ ${this.esc(reward.shiny.n)} turned shiny!`);
+      rewardHtml = `<div class="tb-reward">🎁 Banked: ${bits.join(" · ")}</div>`;
+    }
+    el.innerHTML = `<div class="tb-card">
+      <div class="tb-floor">Floor ${floor} cleared! 🗼</div>
+      ${rewardHtml}
+      <div class="tb-next">Next floor coming up…</div>
+    </div>`;
+    el.classList.remove("hidden");
+    SFX.fanfare();
+    clearTimeout(this._tbT);
+    this._tbT = setTimeout(() => { el.classList.add("hidden"); cb(); }, 2000);
+  },
+
+  showTowerResults(res) {
+    this.show("results");
+    this.renderTopbar();
+    this._practiceNext = null;
+    this._paragraphNext = null;
+    this._rematchNext = null;
+    this._raidNext = null;
+    this._towerReplay = false;
+    this._practiceMode = false;
+    this._nextTarget = null;
+    this._lastStage = null;
+    this._resultsAt = performance.now();
+
+    const card = this.$("results-card");
+    card.classList.remove("defeat");
+    card.style.setProperty("--wa", "#c8a24a");
+    this.$("results-title").textContent = res.floor > 0
+      ? `🗼 Reached Floor ${res.floor}!`
+      : "🗼 The Battle Tower";
+    this.$("results-stars").classList.add("hidden");
+
+    const best = (SAVE.state.tower && SAVE.state.tower.best) || 0;
+    this.$("results-grid").innerHTML = `
+      <div class="rstat"><div class="rstat-v">${res.floor}</div><div class="rstat-l">floors climbed</div></div>
+      <div class="rstat"><div class="rstat-v">x${res.bestCombo}</div><div class="rstat-l">best combo</div></div>
+      <div class="rstat"><div class="rstat-v">${best}</div><div class="rstat-l">best floor ever</div></div>`;
+
+    // banked rewards recap — always kept, win or quit
+    const b = res.banked || { xp: 0, vouchers: 0, shinies: [] };
+    const lines = [];
+    if (b.xp) lines.push(`+${b.xp} XP banked`);
+    if (b.vouchers) lines.push(`🎟 ${b.vouchers} candy voucher${b.vouchers > 1 ? "s" : ""}`);
+    (b.shinies || []).forEach(c => lines.push(`✨ ${this.esc(c.n)} turned shiny`));
+    const catchBox = this.$("results-catch");
+    catchBox.className = "catch-result";
+    catchBox.innerHTML = `<div class="record-note ${lines.length ? "gold" : ""}">
+      ${res.quit ? "🗼 The tower will be waiting — great climb!" : "💛 Out of hearts — what a climb!"}
+      ${lines.length ? `<br>🎁 Rewards kept: <b>${lines.join(" · ")}</b>` : "<br>Reach floor 5 to start banking rewards!"}
+    </div>`;
+    this.$("results-egg").className = "hidden";
+    this.$("results-medal").className = "hidden";
+    this.$("results-offer").className = "hidden";
+
+    const lv = levelFromXp(SAVE.state.xp);
+    this.$("xp-gained").textContent = b.xp ? `+${b.xp} XP` : "";
+    this.$("xp-level").textContent = `Lv ${lv.level} · ${titleForLevel(lv.level)}`;
+    this.$("results-xpfill").style.transition = "none";
+    this.$("results-xpfill").style.width = `${100 * lv.into / lv.need}%`;
+
+    this.$("btn-next").classList.add("hidden");
+    this.$("btn-replay").classList.remove("hidden");
+    this.$("btn-replay").textContent = "🗼 Climb Again";
+    this._towerReplay = true;
+    if (res.floor >= 5) { this.confetti(); SFX.fanfare(); }
+    else SFX.word();
   },
 
   // ---------- Journal: daily drill, research board, Elite Four ----------
@@ -4133,7 +4442,8 @@ const UI = {
       } else this.show("map");
     });
     this.$("btn-replay").addEventListener("click", () => {
-      if (this._rematchNext) Engine.startRematch(this._rematchNext.w, this._rematchNext.tierId);
+      if (this._towerReplay) Engine.startTower();
+      else if (this._rematchNext) Engine.startRematch(this._rematchNext.w, this._rematchNext.tierId);
       else if (this._practiceMode) this.show("practice");
       else if (this._lastStage) {
         const [w, s] = this._lastStage;
@@ -4238,6 +4548,10 @@ const UI = {
       SFX.click();
       this._museumTab = b.dataset.tab;
       this.renderTrophies();
+    });
+    this.$("diploma-wing").addEventListener("click", e => {
+      const pr = e.target.closest(".dip-print");
+      if (pr) { SFX.click(); this.printDiploma(pr.dataset.diploma); }
     });
     this.$("museum-ledger").addEventListener("click", e => {
       const link = e.target.closest(".ledger-link");

@@ -141,6 +141,18 @@ const Engine = {
     S.state = "between";
     SFX.flee();
 
+    // Battle Tower: a missed word costs a heart from the whole-climb pool
+    if (S.tower) {
+      S.hearts--;
+      SFX.hurt();
+      UI.renderHearts(S);
+      UI.updateHud(S);
+      if (S.hearts <= 0) { this.towerEnd(false); return; }
+      UI.announce("💔 A heart lost — keep climbing!", 1000);
+      setTimeout(() => { this.paused ? this.pendingNext = true : this.nextPrompt(); }, 800);
+      return;
+    }
+
     if (S.isBoss) {
       S.hearts--;
       UI.bossAttack(S);
@@ -446,6 +458,7 @@ const Engine = {
   finishStage() {
     const S = this.session;
     this.stopTimer();
+    if (S.tower) { this.finishTowerFloor(); return; }
     if (S.raid) { this.finishRaid(false); return; }
     if (S.practice) {
       S.state = "done";
@@ -1102,6 +1115,7 @@ const Engine = {
 
   defeat() {
     const S = this.session;
+    if (S && S.tower) { this.towerEnd(false); return; }
     if (S && S.elite) { this.eliteDefeat(); return; }
     // a raid attempt that runs out of hearts still banks the damage it dealt —
     // the family's effort is never wasted
@@ -1162,6 +1176,8 @@ const Engine = {
   },
 
   quitToMap() {
+    // a Battle Tower climb ends with a results card (banked rewards are safe)
+    if (this._tower) { this.towerEnd(true); return; }
     this.cleanupSpecial();
     this.stopTimer();
     this.paused = false;
@@ -1401,5 +1417,102 @@ const Engine = {
     this.session = null;
     UI.superMode(false);
     UI.hofCeremony(entry, newTrophies);
+  },
+
+  // ============ The Battle Tower — an endless typing climb ============
+  // Floors of 4 battle words from every unlocked world. The clock tightens ~4%
+  // a floor (never below 0.55x); 3 hearts last the whole climb; a timeout costs
+  // a heart. Rewards bank every 5 floors and are NEVER lost — quitting or
+  // losing keeps everything already earned.
+  startTower() {
+    if (!SAVE.worldUnlocked(2)) return;   // opens at the Battle Stadium
+    this._tower = { floor: 0, hearts: 3, bestCombo: 0, banked: { xp: 0, vouchers: 0, shinies: [] } };
+    this.startTowerFloor();
+  },
+
+  startTowerFloor() {
+    const T = this._tower;
+    if (!T) return;
+    const floor = T.floor + 1;
+    // words from every world the trainer has opened up
+    let pool = [];
+    WORLDS.forEach((w, wi) => {
+      if (!SAVE.worldUnlocked(wi)) return;
+      w.levels.forEach(l => l.pool.forEach(p => { if (p.length >= 3) pool.push(p); }));
+    });
+    pool = [...new Set(pool)];
+    const prompts = shuffle(pool.slice()).slice(0, 4);   // 4 words a floor
+
+    // generous to start, tightening ~4% a floor, capped at 0.55x
+    const tighten = Math.max(0.55, 1 - 0.04 * (floor - 1));
+
+    this.paused = false;
+    this.pendingNext = false;
+    this.session = {
+      w: 2, s: -9, isBoss: false, tower: true, towerFloor: floor,
+      world: {
+        name: "Battle Tower", emoji: "🗼",
+        gradient: ["#241a34", "#3c2a5e"], accent: "#c8a24a",
+        targets: ["🗼", "⚔️", "⭐"], projectile: "⚡",
+        hitText: ["Up you go!", "Higher!", "Climb on!", "Next floor!"],
+        sceneEmojis: ["🗼", "⚔️", "✨", "🏯"], levels: [],
+      },
+      prompts, idx: -1, text: "", pos: 0,
+      score: 0, combo: 0, bestCombo: 0,
+      hits: 0, errors: 0, errorsThisPrompt: 0, timeouts: 0,
+      hearts: T.hearts,
+      typingMs: 0, promptStart: 0, timerMs: 0, timerRemaining: 0,
+      baseTime: 5 * tighten, state: "play",
+      partner: SAVE.leadCreature(), charge: 0, partnerReady: false, meterOn: false,
+      ninjaEligible: false, pendingRes: null, catchCreature: null,
+    };
+    UI.towerScene(this.session, floor);
+    this.nextPrompt();
+  },
+
+  // a floor cleared: carry hearts/combo, bank milestone rewards, breather, next
+  finishTowerFloor() {
+    const S = this.session;
+    this.stopTimer();
+    S.state = "done";
+    const T = this._tower;
+    T.hearts = S.hearts;
+    T.bestCombo = Math.max(T.bestCombo, S.bestCombo);
+    T.floor++;
+    const floor = T.floor;
+
+    let reward = null;
+    if (floor % 5 === 0) {
+      reward = SAVE.applyTowerFloor(floor);
+      T.banked.xp += reward.xp;
+      if (reward.voucher) T.banked.vouchers++;
+      if (reward.shiny) T.banked.shinies.push(reward.shiny);
+    }
+    const trophies = (SAVE.towerReach(floor) || []).concat(reward ? reward.trophies : []);
+    SAVE.save();
+
+    UI.towerBreather(floor, reward, () => {
+      if (this._tower !== T) return;   // quit during the breather
+      this.startTowerFloor();
+    });
+    trophies.forEach((t, i) => setTimeout(() => UI.trophyToast(t), 500 + i * 850));
+  },
+
+  // the climb ends (hearts out or quit). Banked rewards are already applied.
+  towerEnd(quit) {
+    const T = this._tower;
+    this.stopTimer();
+    if (this.session) this.session.state = "done";
+    const floor = T ? T.floor : 0;
+    const bestCombo = T ? T.bestCombo : 0;
+    const banked = T ? T.banked : { xp: 0, vouchers: 0, shinies: [] };
+    SAVE.towerFinish(floor);
+    this._tower = null;
+    this.session = null;
+    this.paused = false;
+    this.pendingNext = false;
+    UI.pauseOverlay(false);
+    UI.superMode(false);
+    UI.showTowerResults({ floor, bestCombo, banked, quit });
   },
 };

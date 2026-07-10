@@ -285,6 +285,33 @@ button:active { transform: translateY(1px) scale(.98); }
   to { opacity: 1; transform: scale(1.15); }
 }
 
+/* ---------- Seasonal map dressing (pure decoration) ---------- */
+/* a gentle full-map tint; particles freeze away under reduced-motion (they
+   fade in from opacity 0, so the static "dusting" that remains is the tint) */
+.season-tint { position: absolute; inset: 0; pointer-events: none; z-index: 1; mix-blend-mode: soft-light; }
+.season-winter { background: radial-gradient(circle at 50% 40%, rgba(255,255,255,.30), rgba(214,232,255,.16)); }
+.season-autumn { background: linear-gradient(160deg, rgba(214,138,58,.18), rgba(176,88,40,.10)); }
+.season-spring { background: radial-gradient(circle at 40% 60%, rgba(255,188,224,.14), transparent 70%); }
+.season-summer { background: radial-gradient(circle at 33% 84%, rgba(255,240,150,.14), transparent 62%); }
+.snow-cap { position: absolute; transform: translate(-50%,-50%); font-size: 15px; pointer-events: none; z-index: 4; opacity: .92; filter: drop-shadow(0 1px 1px rgba(0,0,0,.3)); }
+.season-decor { position: absolute; transform: translate(-50%,-50%); pointer-events: none; z-index: 4; font-size: 22px; filter: drop-shadow(0 3px 4px rgba(0,0,0,.35)); }
+.season-decor.pumpkin { font-size: 34px; }
+.snowflake, .petal, .leaf-fall { position: absolute; pointer-events: none; z-index: 6; font-size: 14px; opacity: .85; animation: seasonFall linear infinite; }
+.petal { font-size: 15px; }
+.leaf-fall { font-size: 18px; }
+@keyframes seasonFall {
+  0% { transform: translateY(-24px) rotate(0deg); opacity: 0; }
+  12% { opacity: .9; }
+  100% { transform: translateY(260px) rotate(320deg); opacity: 0; }
+}
+.firework { position: absolute; transform-origin: center; font-size: 46px; pointer-events: none; z-index: 6; animation: fireworkPop 1.9s ease-out infinite; }
+@keyframes fireworkPop {
+  0% { transform: scale(.3); opacity: 0; }
+  25% { transform: scale(1); opacity: 1; }
+  60% { opacity: .85; }
+  100% { transform: scale(1.45); opacity: 0; }
+}
+
 /* wild encounter spots */
 .map-grass {
   position: absolute;
@@ -574,6 +601,45 @@ button:active { transform: translateY(1px) scale(.98); }
 .map-trade span { font-size: 42px; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)); }
 .map-trade b { font-size: 12px; background: rgba(58,49,48,.78); padding: 3px 9px; border-radius: 999px; border: 1px solid var(--gold); white-space: nowrap; color: var(--gold); animation: pulseGlow 1.8s ease-in-out infinite; }
 .map-trade:hover { background: radial-gradient(circle at 50% 55%, rgba(255, 211, 77, .3), transparent 72%); border-radius: 50%; }
+
+/* Battle Tower building on the map */
+.map-tower {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: none;
+  border: none;
+  text-align: center;
+  z-index: 5;
+  padding: 8px;
+}
+.map-tower .tower-art { display: block; filter: drop-shadow(0 6px 10px rgba(0,0,0,.5)); }
+.map-tower b { font-size: 12px; background: rgba(58,49,48,.78); padding: 3px 9px; border-radius: 999px; border: 1px solid var(--gold); white-space: nowrap; color: var(--gold); animation: pulseGlow 1.8s ease-in-out infinite; }
+.map-tower:hover { background: radial-gradient(circle at 50% 55%, rgba(255, 211, 77, .3), transparent 72%); border-radius: 50%; }
+
+/* Battle Tower between-floors breather card */
+#tower-breather {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(30, 22, 44, .55);
+  pointer-events: none;
+}
+.tb-card {
+  background: var(--card);
+  border: 3px solid var(--ink);
+  border-radius: 20px;
+  padding: 22px 30px;
+  text-align: center;
+  box-shadow: 0 12px 34px rgba(0,0,0,.4);
+  animation: tbPop .35s ease;
+}
+.tb-floor { font-size: 26px; font-weight: 900; color: var(--ink); }
+.tb-reward { margin-top: 8px; font-size: 15px; font-weight: 800; color: #a07b1c; }
+.tb-next { margin-top: 6px; font-size: 13px; color: var(--dim); }
+@keyframes tbPop { from { transform: scale(.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
 /* hover feedback on map pins must never change geometry (scale, size,
    font) — moving pixels under the cursor makes them hard to click.
@@ -1379,7 +1445,7 @@ button:active { transform: translateY(1px) scale(.98); }
    ============================================================ */
 .mnode, .map-grass, .map-fish, .map-roamer, .map-school, .map-lab, .map-city,
 .region-label, .map-marker, .map-poke, .map-decor, .map-smoke, .map-parcel,
-.map-podium, .map-trade {
+.map-podium, .map-trade, .map-tower {
   transform: translate(-50%, -100%) rotateX(calc(-1 * var(--tilt)));
   transform-origin: 50% 100%;
   margin: 0;
@@ -1395,6 +1461,7 @@ button:active { transform: translateY(1px) scale(.98); }
 .map-parcel:hover, .map-parcel:active,
 .map-podium:hover, .map-podium:active,
 .map-trade:hover, .map-trade:active,
+.map-tower:hover, .map-tower:active,
 .map-poke:hover, .map-poke:active {
   transform: translate(-50%, -100%) rotateX(calc(-1 * var(--tilt)));
   filter: none; /* never toggle filters on 3D-positioned pins */
@@ -1402,7 +1469,7 @@ button:active { transform: translateY(1px) scale(.98); }
 /* hover glow = pure background paint: no transform, no filter, no
    stacking-context change — cannot move or reproject in any browser */
 .map-school:hover, .map-lab:hover, .map-fish:hover, .map-grass:hover,
-.map-roamer:hover, .map-poke:hover, .map-trade:hover {
+.map-roamer:hover, .map-poke:hover, .map-trade:hover, .map-tower:hover {
   background: radial-gradient(circle at 50% 55%, rgba(125, 200, 255, .32), transparent 72%);
   border-radius: 50%;
 }
@@ -1818,6 +1885,94 @@ button, .screen, #topbar { touch-action: manipulation; }
 .medal-next b { display: inline; font-size: 12.5px; color: var(--gold); }
 .medal-next.done { color: var(--good); font-weight: 800; }
 .medal-next.dim { opacity: .7; }
+
+/* ---------- Diplomas wing ---------- */
+#diploma-wing { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+.diploma-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 10px 16px;
+}
+.diploma-card.locked { opacity: .78; }
+.dip-seal { font-size: 34px; width: 46px; text-align: center; flex: none; filter: drop-shadow(0 2px 3px rgba(0,0,0,.25)); }
+.dip-seal.dim { filter: grayscale(1); opacity: .55; }
+.dip-info { flex: 1; min-width: 0; }
+.dip-info b { font-size: 15px; display: block; }
+.dip-info i { font-style: normal; font-size: 12.5px; color: var(--dim); }
+.dip-need { color: var(--dim); }
+.dip-print {
+  flex: none;
+  background: linear-gradient(180deg, #ffe28a, var(--gold));
+  border: 2px solid var(--ink);
+  border-bottom-width: 4px;
+  border-radius: 12px;
+  color: #1a1404;
+  font-weight: 900;
+  font-size: 13px;
+  padding: 7px 12px;
+}
+
+/* ---------- Printable certificate (hidden on screen; only shown in print) ---------- */
+#diploma-print { display: none; }
+.dp-cert {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 10mm;
+  background: #fff8ea;
+  color: var(--ink);
+  font-family: var(--font);
+}
+.dp-inner {
+  height: 100%;
+  border: 6px double var(--ink);
+  outline: 2px solid var(--gold);
+  outline-offset: 6px;
+  border-radius: 10px;
+  padding: 8mm 12mm;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  box-shadow: inset 0 0 0 3px rgba(255,201,60,.35);
+}
+.dp-logo { font-size: 30px; font-weight: 900; letter-spacing: .5px; }
+.dp-logo, .dp-rank { color: var(--ink); }
+.dp-kicker { font-size: 15px; letter-spacing: 3px; text-transform: uppercase; color: #a07b1c; margin-top: 2px; }
+.dp-seal-big { font-size: 58px; margin: 6px 0; }
+.dp-cert-body { margin: 2px 0 4px; }
+.dp-line { font-size: 15px; color: #6a5a4a; }
+.dp-name { font-size: 34px; font-weight: 900; margin: 4px 0; border-bottom: 2px solid var(--gold); display: inline-block; padding: 0 22px 3px; }
+.dp-rank { font-size: 24px; font-weight: 900; margin: 3px 0; }
+.dp-trainer { margin: 6px 0; }
+.dp-av.avatar-emoji { font-size: 64px; }
+.dp-av.trainer-svg, .dp-trainer .trainer-svg { width: 90px; height: 90px; }
+.dp-party-row { margin-top: auto; }
+.dp-party-label { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #a07b1c; display: block; margin-bottom: 3px; }
+.dp-party { display: flex; gap: 8px; justify-content: center; }
+.dp-mon-img { width: 44px; height: 44px; }
+.dp-foot {
+  width: 100%;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(58,49,48,.3);
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #6a5a4a;
+}
+.dp-sig { font-style: italic; font-weight: 700; }
+@media print {
+  @page { size: landscape; margin: 0; }
+  body > * { display: none !important; }
+  body > #diploma-print { display: block !important; position: absolute; inset: 0; margin: 0; }
+  #diploma-print .dp-cert { min-height: 100vh; }
+}
 
 #gallery-wing { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
 .shelf-title { font-weight: 900; font-size: 14px; margin-bottom: 6px; }
