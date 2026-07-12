@@ -796,17 +796,21 @@ button:active { transform: translateY(1px) scale(.98); }
 .region-label { position: absolute; transform: translate(-50%, -50%); text-align: center; pointer-events: auto; cursor: pointer; z-index: 3; }
 .region-label b {
   display: block;
-  font-size: 21px;
-  text-shadow: 0 2px 10px rgba(0,0,0,.85);
+  width: fit-content;
+  margin: 0 auto;
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--text);
   white-space: nowrap;
-  background: rgba(58,49,48,.45);
-  border: 2px solid transparent;
-  border-radius: 12px;
-  padding: 3px 14px;
+  background: var(--card);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  padding: 2px 12px;
+  box-shadow: 0 2px 0 rgba(58,49,48,.3);
   transition: background .15s, border-color .15s; /* paint only — pins never animate transforms */
 }
-.region-label:hover b { background: rgba(58,49,48,.9); border-color: var(--gold); }
-.region-label span { font-size: 13px; font-weight: 800; color: var(--gold); background: rgba(58,49,48,.7); padding: 2px 10px; border-radius: 999px; }
+.region-label:hover b { background: #fffdf5; border-color: var(--gold); }
+.region-label span { display: block; width: fit-content; margin: 3px auto 0; font-size: 11px; font-weight: 900; color: #a07b1c; background: var(--card); border: 2px solid var(--ink); padding: 0 8px; border-radius: 999px; }
 .map-poke { position: absolute; transform: translate(-50%, -50%); z-index: 3; cursor: pointer; background: none; border: none; padding: 4px; }
 .map-poke-img { height: 48px; filter: drop-shadow(0 5px 8px rgba(0,0,0,.5)); }
 .map-poke.greet .map-poke-img { animation: pokeGreet .55s cubic-bezier(.3, 1.5, .4, 1); }
@@ -2143,7 +2147,14 @@ button, .screen, #topbar { touch-action: manipulation; }
   cursor: pointer;
 }
 .map-podium span { font-size: 40px; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)); }
-.map-podium .podium-glow { animation: pulseGlow 1.4s ease-in-out infinite; }
+/* the "come do your Daily Drill!" pulse hugs the clipboard emoji as a soft
+   gold halo. (It used to ride a box-shadow, which drew a stray cream rectangle
+   on the terrain because the emoji span has no pill behind it.) */
+.map-podium .podium-glow { animation: podiumPing 1.4s ease-in-out infinite; }
+@keyframes podiumPing {
+  0%, 100% { filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)) drop-shadow(0 0 2px rgba(255,224,130,.95)); }
+  50% { filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)) drop-shadow(0 0 12px rgba(255,224,130,.2)); }
+}
 .map-podium b { font-size: 12px; background: rgba(58,49,48,.78); padding: 3px 9px; border-radius: 999px; border: 1px solid var(--gold); white-space: nowrap; color: var(--gold); }
 .map-podium.done b { border-color: var(--good); color: var(--good); }
 
@@ -2482,8 +2493,36 @@ button, .screen, #topbar { touch-action: manipulation; }
 /* ---- the flying isles (screen-lab) ---- */
 #lab-body { width: min(920px, 96%); margin: 8px auto 28px; }
 .isle-scene { display: flex; flex-direction: column; gap: 12px; }
-.isle-topbar { display: flex; align-items: center; gap: 12px; }
+.isle-topbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .fly-home { flex: none; padding: 9px 15px; font-size: 15px; font-weight: 800; border-radius: 12px; }
+/* jump straight into the frontier stage (same node the gold pulse marks) */
+.isle-next {
+  flex: none;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 9px 16px;
+  font-size: 15px;
+  font-weight: 900;
+  border-radius: 12px;
+  color: #1a1404;
+  background: linear-gradient(180deg, #ffe28a, var(--gold));
+  border: 3px solid var(--ink);
+  box-shadow: 0 4px 0 var(--edge);
+  animation: pulseGlow 1.6s ease-in-out infinite;
+}
+.isle-next:hover { filter: brightness(1.05); }
+.isle-allclear {
+  flex: none;
+  padding: 9px 16px;
+  font-size: 15px;
+  font-weight: 900;
+  border-radius: 12px;
+  color: var(--good);
+  background: var(--card);
+  border: 3px solid var(--good);
+}
 .isle-title { flex: 1; text-align: right; display: flex; flex-direction: column; line-height: 1.15; }
 .isle-title b { font-size: 20px; font-weight: 900; }
 .isle-title span { font-size: 13px; color: var(--dim); font-weight: 800; }
@@ -2538,8 +2577,27 @@ button, .screen, #topbar { touch-action: manipulation; }
 .perch-sub { text-align: center; font-size: 14px; color: var(--dim); font-weight: 700; margin: 4px 0 16px; }
 #perch-close { position: absolute; top: 12px; right: 12px; width: 34px; height: 34px; border-radius: 50%; background: var(--card2); border: 2px solid var(--ink); font-weight: 900; padding: 0; }
 .perch-dests { display: flex; flex-direction: column; gap: 12px; }
-.perch-dest { display: flex; align-items: center; gap: 14px; text-align: left; padding: 14px 16px; border-radius: 16px; border: 3px solid var(--ink); background: var(--card); }
+.perch-dest-row { display: flex; gap: 8px; align-items: stretch; }
+.perch-dest { flex: 1; display: flex; align-items: center; gap: 14px; text-align: left; padding: 14px 16px; border-radius: 16px; border: 3px solid var(--ink); background: var(--card); min-width: 0; }
 .perch-dest:hover { border-color: var(--gold); }
+/* secondary action: fly AND drop straight into the frontier stage */
+.perch-continue {
+  flex: none;
+  width: 74px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.1;
+  padding: 6px;
+  border-radius: 16px;
+  color: var(--text);
+  background: var(--card2);
+  border: 3px solid var(--ink);
+}
+.perch-continue:hover { border-color: var(--gold); background: #fbedc8; }
 .perch-dest.code { background: linear-gradient(135deg, #efe6ff, #f6efff); }
 .perch-dest.math { background: linear-gradient(135deg, #e0f2fb, #eaf6fc); }
 .pd-e { font-size: 34px; flex: none; }

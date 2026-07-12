@@ -425,9 +425,13 @@ const UI = {
   mapY: 0,
   // route anchor per world + final endpoint; stages snake between them
   mapAnchors: [[230, 1190], [660, 640], [1210, 1010], [1730, 430], [2140, 1030], [2480, 560], [2680, 300]],
+  // hand-tuned region-label anchors (bottom-centre) placed in each world's
+  // clearest gap so the name pill never lands on a stage node, city or wild
+  // Pokemon at default zoom. Fall back to the mid-node if a world is missing.
+  MAP_LABELS: [[326, 907], [809, 974], [1356, 714], [1980, 706], [2426, 972], [2697, 598]],
 
   MAP_CITIES: [
-    { x: 180, y: 1330, t: "centerRed", sc: 1.9, n: "Pallet Town" },
+    { x: 152, y: 1298, t: "centerRed", sc: 1.9, n: "Pallet Town" },
     { x: 545, y: 455, sp: "mine", s: 100, n: "Moonstone City" },
     { x: 1340, y: 1165, t: "martBlue", sc: 1.9, n: "Victory City" },
     { x: 1905, y: 290, sp: "volcano", s: 108, n: "Ember Town" },
@@ -440,7 +444,7 @@ const UI = {
     // Pallet Meadow
     { x: 95, y: 1115, sp: "tree", s: 54 }, { x: 335, y: 1005, t: "pine", sc: 2 }, { x: 470, y: 1265, sp: "flower", s: 26 },
     { x: 150, y: 950, sp: "tree", s: 44 }, { x: 420, y: 1125, t: "mushroomT", sc: 1.8 }, { x: 300, y: 1330, sp: "flower", s: 24, c: "#ffd34d" },
-    { x: 640, y: 1090, sp: "tree", s: 48 }, { x: 250, y: 1180, sp: "sign", s: 26 }, { x: 255, y: 1290, sp: "house", s: 46, c: "#3a6fd8" },
+    { x: 640, y: 1090, sp: "tree", s: 48 }, { x: 250, y: 1180, sp: "sign", s: 26 }, { x: 238, y: 1248, sp: "house", s: 46, c: "#3a6fd8" },
     { x: 360, y: 1135, t: "bushPair", sc: 1.8 }, { x: 530, y: 1190, t: "pine", sc: 1.8 }, { x: 120, y: 1255, t: "pineBig", sc: 1.7 },
     // Mt. Moon
     { x: 560, y: 835, sp: "rock", s: 36 }, { x: 770, y: 515, sp: "mountain", s: 86 }, { x: 855, y: 720, sp: "mountain", s: 66 },
@@ -545,9 +549,13 @@ const UI = {
         ${sand(1730, 430, 130, 80)}${sand(2140, 1030, 150, 90)}${sand(2480, 560, 130, 80)}
         ${sand(2680, 300, 110, 70)}${sand(430, 1330, 120, 66)}
       </g>
-      <!-- a sandy trail hugging the winding route -->
-      <path d="M230,1190 Q450,900 660,640 Q940,820 1210,1010 Q1470,720 1730,430 Q1940,730 2140,1030 Q2310,800 2480,560 L2680,300" fill="none"
-        stroke="#f2ddb0" stroke-width="46" stroke-linecap="round" stroke-linejoin="round" opacity=".7"/>
+      <!-- a sandy trail hugging the winding route: a soft, narrow footpath
+           rather than a wide ribbon (which read like a light-beam under the
+           map tilt). Two strokes = soft halo + crisp core, so the edges taper. -->
+      <path d="M230,1190 Q450,900 660,640 Q940,820 1210,1010 Q1470,720 1730,430 Q1940,730 2140,1030 Q2310,800 2480,560 Q2600,410 2680,300" fill="none"
+        stroke="#f2ddb0" stroke-width="32" stroke-linecap="round" stroke-linejoin="round" opacity=".3"/>
+      <path d="M230,1190 Q450,900 660,640 Q940,820 1210,1010 Q1470,720 1730,430 Q1940,730 2140,1030 Q2310,800 2480,560 Q2600,410 2680,300" fill="none"
+        stroke="#f7e6bd" stroke-width="17" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>
       <!-- fishing lakes & pond: bright teal water -->
       <path d="M700,620 C 770,810 850,930 890,1080 C 910,1170 930,1240 945,1295" fill="none"
         stroke="#3fb5cf" stroke-width="24" stroke-linecap="round" opacity=".9"/>
@@ -783,7 +791,7 @@ const UI = {
     // Counting isles. Opens once Mt. Moon is reached (worldUnlocked(1)), so a
     // brand-new trainer never sees it.
     if (SAVE.worldUnlocked(1)) {
-      html += `<button class="map-lab" style="left:238px;top:1392px" title="Flight perch — fly to the puzzle isles!">
+      html += `<button class="map-lab" style="left:324px;top:1372px" title="Flight perch — fly to the puzzle isles!">
         <span>${worldSprite("lab", 84)}</span><b>🧩 Puzzle Isles</b></button>`;
     }
 
@@ -802,7 +810,7 @@ const UI = {
     // Opens once the trainer reaches the Stadium (worldUnlocked(2)).
     if (SAVE.worldUnlocked(2)) {
       const tb = SAVE.state.tower && SAVE.state.tower.best;
-      html += `<button class="map-tower" style="left:1120px;top:905px"
+      html += `<button class="map-tower" style="left:1158px;top:848px"
         title="Battle Tower — an endless typing climb${tb ? ` · best floor ${tb}` : ""}!">
         <span class="tower-art">${artSprite("tq-clocktower", 92)}</span><b>🗼 Battle Tower</b></button>`;
     }
@@ -812,9 +820,10 @@ const UI = {
       const unlocked = SAVE.worldUnlocked(wi);
       const maxStars = (w.levels.length + 1) * 3;
       const mid = ns[Math.floor(ns.length / 2)];
+      const lp = this.MAP_LABELS[wi] || [mid.x, mid.y - 138];
       const medal = SAVE.worldMedal(wi);
       html += `<div class="region-label" data-rw="${wi}" role="button"
-        title="Who lives in ${this.esc(w.name)}?" style="left:${mid.x}px;top:${mid.y - 138}px">
+        title="Who lives in ${this.esc(w.name)}?" style="left:${lp[0]}px;top:${lp[1]}px">
         <b>${w.emoji} ${w.name}</b><span>★ ${SAVE.worldStars(wi)}/${maxStars}${medal ? ` ${MEDAL_E[medal]}` : ""}</span></div>`;
 
       // wild Pokemon living on the map: color when caught, silhouette when not
@@ -1013,11 +1022,15 @@ const UI = {
     const panel = this.$("perch-panel");
     const dest = (pack, e, name, blurb) => {
       const p = this.perchProgress(pack);
-      return `<button class="perch-dest ${pack}" data-fly="${pack}">
-        <span class="pd-e">${e}</span>
-        <span class="pd-info"><b>${name}</b><i>${blurb}</i>
-          <span class="pd-prog">⭐ ${p.stars}/${p.maxStars}${p.catchTotal ? ` · 🐾 ${p.caught}/${p.catchTotal}` : ""}</span></span>
-        <span class="pd-go">Fly ✈️</span></button>`;
+      const cont = p.stars > 0 ? "Continue ▶" : "Start ▶";
+      return `<div class="perch-dest-row">
+        <button class="perch-dest ${pack}" data-fly="${pack}">
+          <span class="pd-e">${e}</span>
+          <span class="pd-info"><b>${name}</b><i>${blurb}</i>
+            <span class="pd-prog">⭐ ${p.stars}/${p.maxStars}${p.catchTotal ? ` · 🐾 ${p.caught}/${p.catchTotal}` : ""}</span></span>
+          <span class="pd-go">Fly ✈️</span></button>
+        <button class="perch-continue" data-continue="${pack}" title="Fly there and jump straight into your next puzzle">${cont}</button>
+      </div>`;
     };
     panel.innerHTML = `<div class="perch-card">
       <button id="perch-close" aria-label="Close">✕</button>
@@ -1052,11 +1065,21 @@ const UI = {
     this._runFlight("out", () => this.show("lab"));
   },
 
+  // fly OUT and drop straight into the frontier puzzle (perch "Continue ▶").
+  // If the isle is already all-clear there is no frontier, so just land on it.
+  flyToIsleContinue(pack) {
+    Puzzle.currentPack = pack;
+    this.closePerchCard();
+    const land = () => { if (!Puzzle.openFrontierStage(pack)) this.show("lab"); };
+    if (this._reducedMotion) { land(); return; }
+    this._runFlight("out", land);
+  },
+
   // fly HOME: sweep back down, then the map centred on the perch
   flyHome() {
     const done = () => {
       this.show("map");
-      this.centerMapOn(238, 1392);
+      this.centerMapOn(324, 1372);
     };
     if (this._reducedMotion) { done(); return; }
     this._runFlight("home", done);
@@ -4510,6 +4533,8 @@ const UI = {
       if (e.target.closest("#perch-close") || e.target.id === "perch-panel") {
         SFX.click(); this.closePerchCard(); return;
       }
+      const cont = e.target.closest(".perch-continue");
+      if (cont) { SFX.init(); this.flyToIsleContinue(cont.dataset.continue); return; }
       const dest = e.target.closest(".perch-dest");
       if (dest) { SFX.init(); this.flyToIsle(dest.dataset.fly); }
     });

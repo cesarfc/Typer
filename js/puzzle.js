@@ -115,6 +115,8 @@ const Puzzle = {
     this.$("lab-body").addEventListener("click", e => {
       const home = e.target.closest(".fly-home");
       if (home) { SFX.click(); UI.flyHome(); return; }
+      const next = e.target.closest(".isle-next");
+      if (next) { SFX.init(); this.openStage(next.dataset.stage); return; }
       const hut = e.target.closest(".isle-hut");
       if (hut) {
         SFX.init();
@@ -290,17 +292,11 @@ const Puzzle = {
   },
 
   // build the whole isle scene into #lab-body for the given pack
-  renderIsle(pack) {
-    if (!this.ISLE_DECOR[pack]) pack = "code";
-    this.currentPack = pack;
-    const cfg = this.ISLE_DECOR[pack];
+  // per-stage meta for a pack: chapter grouping + unlock state, keeping the flat
+  // play order (PUZZLE_STAGES is already ordered). Shared by renderIsle and the
+  // perch "Continue" quick-jump so the frontier is computed one way only.
+  isleStageMeta(pack) {
     const stages = PUZZLE_STAGES.filter(s => s.pack === pack);
-    const H = this.curH = this.isleHeight(stages.length);
-    const sy = H / 640; // decor coords are authored in 640-space; stretch to fit
-    const pts = this.isleNodePositions(stages.length);
-
-    // group into chapters to resolve within-chapter unlock + chapter labels,
-    // keeping the flat play order (PUZZLE_STAGES is already ordered)
     const chapters = [];
     stages.forEach(s => {
       let g = chapters.find(c => c.ch === s.chapter);
@@ -312,6 +308,37 @@ const Puzzle = {
       const chOpen = this.chapterUnlocked(pack, g.ch);
       g.stages.forEach((s, li) => meta.push({ s, ch: g.ch, li, chList: g.stages, chOpen }));
     });
+    return { stages, chapters, meta };
+  },
+
+  // index of the frontier stage: the first open, unsolved node (the gold "next"
+  // pulse). -1 when the whole pack is cleared.
+  frontierIndex(meta) {
+    for (let i = 0; i < meta.length; i++) {
+      const m = meta[i];
+      const rec = SAVE.state.puzzle[m.s.id];
+      if (m.chOpen && this.stageUnlocked(m.li, m.chList) && !(rec && rec.stars > 0)) return i;
+    }
+    return -1;
+  },
+
+  // mount the frontier stage for a pack; returns false when it is all-clear.
+  openFrontierStage(pack) {
+    const { meta } = this.isleStageMeta(pack);
+    const f = this.frontierIndex(meta);
+    if (f === -1) return false;
+    this.openStage(meta[f].s.id);
+    return true;
+  },
+
+  renderIsle(pack) {
+    if (!this.ISLE_DECOR[pack]) pack = "code";
+    this.currentPack = pack;
+    const cfg = this.ISLE_DECOR[pack];
+    const { stages, chapters, meta } = this.isleStageMeta(pack);
+    const H = this.curH = this.isleHeight(stages.length);
+    const sy = H / 640; // decor coords are authored in 640-space; stretch to fit
+    const pts = this.isleNodePositions(stages.length);
 
     // progress summary
     const starSum = stages.reduce((n, s) => n + (((SAVE.state.puzzle[s.id] || {}).stars) || 0), 0);
@@ -320,12 +347,7 @@ const Puzzle = {
     const caught = catchStages.filter(s => SAVE.state.dex[s.reward.catch]).length;
 
     // frontier: first open, unsolved stage gets the gold "next" pulse
-    let frontier = -1;
-    meta.forEach((m, i) => {
-      if (frontier !== -1) return;
-      const rec = SAVE.state.puzzle[m.s.id];
-      if (m.chOpen && this.stageUnlocked(m.li, m.chList) && !(rec && rec.stars > 0)) frontier = i;
-    });
+    const frontier = this.frontierIndex(meta);
 
     // ----- decor: hero centrepiece, chapter-boundary landmarks, ambient -----
     let decor = this.isleProp(cfg.center.art, cfg.center.x, cfg.center.y * sy, cfg.center.s, ' data-center="1"');
@@ -390,6 +412,9 @@ const Puzzle = {
     this.$("lab-body").innerHTML = `<div class="isle-scene" data-pack="${pack}">
       <div class="isle-topbar">
         <button class="fly-home">🏠 Fly home</button>
+        ${frontier !== -1
+          ? `<button class="isle-next" data-stage="${meta[frontier].s.id}" title="Jump into your next puzzle">▶ Next: ${UI.esc(meta[frontier].s.name)}</button>`
+          : `<span class="isle-allclear" title="Every puzzle on this isle is solved!">🌟 All clear!</span>`}
         <div class="isle-title"><b>${cfg.e} ${UI.esc(cfg.name)}</b>
           <span>⭐ ${starSum}/${maxStars}${catchStages.length ? ` · 🐾 ${caught}/${catchStages.length}` : ""}</span></div>
       </div>
