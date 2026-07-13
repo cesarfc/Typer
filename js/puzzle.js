@@ -52,6 +52,7 @@ const Puzzle = {
   init() {
     // palette: tap a block to drop it at the glowing caret
     this.$("puzzle-palette").addEventListener("click", e => {
+      if (this._dragSuppress) return; // a real drag just ended — not a tap
       const b = e.target.closest(".pz-pal");
       if (!b || this.playing) return;
       SFX.init();
@@ -60,6 +61,7 @@ const Puzzle = {
 
     // program canvas: steppers, condition chips, delete, and caret moves
     this.$("puzzle-program").addEventListener("click", e => {
+      if (this._dragSuppress) return; // a real drag just ended — not a tap
       if (this.playing) return;
       const step = e.target.closest(".pz-step");
       if (step) { SFX.click(); this.stepRepeat(step.dataset.path, step.dataset.dir); return; }
@@ -141,6 +143,8 @@ const Puzzle = {
         }
       }
     });
+
+    this.dragInit();
   },
 
   // ---------- the flying isles ----------
@@ -320,6 +324,18 @@ const Puzzle = {
       if (m.chOpen && this.stageUnlocked(m.li, m.chList) && !(rec && rec.stars > 0)) return i;
     }
     return -1;
+  },
+
+  // the stage to play after `stage`: its sequel in the pack when unlocked
+  // (played or not, so kids can chain in order while star-chasing), else the
+  // pack frontier. Null when the pack is all clear.
+  nextStageAfter(stage) {
+    const { meta } = this.isleStageMeta(stage.pack);
+    const i = meta.findIndex(m => m.s.id === stage.id);
+    const n = meta[i + 1];
+    if (n && n.chOpen && this.stageUnlocked(n.li, n.chList)) return n.s;
+    const f = this.frontierIndex(meta);
+    return f === -1 ? null : meta[f].s;
   },
 
   // mount the frontier stage for a pack; returns false when it is all-clear.
@@ -680,6 +696,201 @@ const Puzzle = {
     node.n = Math.max(2, Math.min(10, (node.n || 2) + (dir === "inc" ? 1 : -1)));
     this.clearStep();
     this.renderProgram();
+  },
+
+  // ---------- drag-and-drop: build programs the Scratch way ----------
+  // A compact pointer-drag controller layered over the tap editor. Palette blocks
+  // and program cards both start a drag from the SAME recipe as bindMapPan: record
+  // an origin WITHOUT capture, cross a 7px threshold, THEN setPointerCapture and
+  // arm — so a sub-threshold pointerup is still the existing tap (the click
+  // handlers above run untouched, guarded only by _dragSuppress for the 60ms after
+  // a real drag so its trailing synthetic click never inserts/moves the caret).
+  //
+  // Drop targets are the carets/body-slots renderProgram already draws in every
+  // gap: each carries data-cont + data-idx, i.e. an insertion point. While armed
+  // we fatten them into dashed drop bars, pick the NEAREST to the pointer, and on
+  // release splice the node there. Moving a container never offers its own
+  // descendant slots (the guard), and moves resolve array REFERENCES before
+  // mutating so index math survives even when a removal shifts sibling paths.
+  DRAG_THRESH: 7,
+  DROP_RANGE: 80,   // px: pointer must be this close to a bar to drop
+  drag: null,       // active drag state, or null
+  _dragSuppress: false,
+
+  dragInit() {
+    const pal = this.$("puzzle-palette");
+    const prog = this.$("puzzle-program");
+    pal.addEventListener("pointerdown", e => this.dragStart(e, "palette"));
+    prog.addEventListener("pointerdown", e => this.dragStart(e, "card"));
+    // move/up/cancel on window so the gesture survives leaving the source element
+    window.addEventListener("pointermove", e => this.dragMove(e));
+    window.addEventListener("pointerup", e => this.dragEnd(e, false));
+    window.addEventListener("pointercancel", e => this.dragEnd(e, true));
+    window.addEventListener("keydown", e => { if (e.key === "Escape" && this.drag) this.dragCancel(); });
+  },
+
+  dragStart(e, kind) {
+    if (this.playing || this.drag) return;                 // no drags mid-playback; ignore extra fingers
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    let info;
+    if (kind === "palette") {
+      const b = e.target.closest(".pz-pal");
+      if (!b) return;
+      info = { block: b.dataset.block, srcEl: b };
+    } else {
+      // a card grab must not steal taps meant for its controls or nested slots
+      if (e.target.closest(".pz-step, .pz-cond, .pz-del, .pz-caret, .pz-bodyslot")) return;
+      const card = e.target.closest(".pz-card");
+      if (!card) return;
+      info = { path: card.dataset.path, srcEl: card };
+    }
+    this.drag = { kind, id: e.pointerId, sx: e.clientX, sy: e.clientY,
+                  x: e.clientX, y: e.clientY, armed: false, capEl: e.currentTarget, ...info };
+  },
+
+  dragMove(e) {
+    const d = this.drag;
+    if (!d || e.pointerId !== d.id) return;
+    d.x = e.clientX; d.y = e.clientY;
+    if (!d.armed) {
+      if (Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy) <= this.DRAG_THRESH) return;
+      this.dragArm();
+    }
+    this.dragUpdate();
+  },
+
+  dragArm() {
+    const d = this.drag;
+    d.armed = true;
+    this._dragSuppress = true;
+    try { d.capEl.setPointerCapture(d.id); } catch (_) { /* ok */ }
+    // guard: a moving container must never drop into its own descendants
+    d.forbid = d.kind === "card" ? d.path : null;
+    // reuse the carets/body-slots already on screen as drop targets
+    const prog = this.$("puzzle-program");
+    prog.classList.add("pz-dropping");
+    d.slots = [];
+    prog.querySelectorAll(".pz-caret, .pz-bodyslot").forEach(el => {
+      const cont = el.dataset.cont;
+      if (d.forbid && (cont === d.forbid || cont.startsWith(d.forbid + "."))) return;
+      el.classList.add("pz-dropbar");
+      d.slots.push({ el, cont, idx: +el.dataset.idx });
+    });
+    // a floating ghost of the block clone follows the pointer
+    const g = d.srcEl.cloneNode(true);
+    g.className = (d.kind === "palette" ? "pz-pal " : d.srcEl.className.replace("pz-dragsrc", "") + " ") + "pz-drag-ghost";
+    g.removeAttribute("id");
+    g.style.width = d.srcEl.getBoundingClientRect().width + "px";
+    document.body.appendChild(g);
+    d.ghost = g;
+    if (d.kind === "card") d.srcEl.classList.add("pz-dragsrc");
+  },
+
+  dragUpdate() {
+    const d = this.drag;
+    if (d.ghost) { d.ghost.style.left = d.x + "px"; d.ghost.style.top = d.y + "px"; }
+    // nearest bar = smallest distance from the pointer to the bar rectangle
+    let best = null, bestDist = Infinity;
+    for (const s of d.slots) {
+      const r = s.el.getBoundingClientRect();
+      const px = Math.max(r.left, Math.min(d.x, r.right));
+      const py = Math.max(r.top, Math.min(d.y, r.bottom));
+      const dist = Math.hypot(d.x - px, d.y - py);
+      if (dist < bestDist) { bestDist = dist; best = s; }
+    }
+    d.near = best && bestDist <= this.DROP_RANGE ? best : null;
+    for (const s of d.slots) s.el.classList.toggle("pz-dropnear", s === d.near);
+    this.dragAutoScroll();
+  },
+
+  // nudge the program canvas when dragging near its top/bottom edge (it scrolls
+  // once the plan overflows its 190px cap); rect-based targeting re-reads live so
+  // the nearest bar updates as the list scrolls under the pointer.
+  dragAutoScroll() {
+    const prog = this.$("puzzle-program");
+    if (prog.scrollHeight <= prog.clientHeight) return;
+    const r = prog.getBoundingClientRect(), M = 30;
+    if (this.drag.y < r.top + M) prog.scrollTop -= 12;
+    else if (this.drag.y > r.bottom - M) prog.scrollTop += 12;
+  },
+
+  dragEnd(e, cancelled) {
+    const d = this.drag;
+    if (!d || e.pointerId !== d.id) return;
+    if (!d.armed) { this.drag = null; return; } // sub-threshold: leave the tap to the click handler
+    if (!cancelled && d.near) this.dropAt(d.near.cont, d.near.idx);
+    this.dragCleanup();
+  },
+
+  dragCancel() { this.dragCleanup(); }, // Escape / out-of-range: the block returns home, quietly
+
+  // splice the dragged block into the chosen slot. Palette = a fresh deep-clone;
+  // card = move the existing node. Both resolve array refs before mutating and
+  // relocate the caret to just after the landed node via findPath.
+  dropAt(cont, idx) {
+    const d = this.drag;
+    if (d.kind === "palette") {
+      const node = this.blockNode(d.block);
+      if (!node) return;
+      if (this.countBlocks(this.program) >= 40) { UI.toast("That's a very long plan! Try removing a few blocks."); return; }
+      if (node.cond && this.stage.compare) node.cond = { sensor: "berries", cmp: ">=", val: 1 };
+      this.clearStep();
+      this.getContainer(cont).splice(idx, 0, node);
+      this.finishDrop(node);
+    } else {
+      const src = this.splitPath(d.path);
+      const srcArr = this.getContainer(src.cont);
+      const node = srcArr[src.idx];
+      if (!node) return;
+      const tgtArr = this.getContainer(cont); // resolve BEFORE removal — array identity is stable
+      srcArr.splice(src.idx, 1);
+      // same array & landing after the plucked slot: the removal shifted everything down one
+      let ti = idx;
+      if (tgtArr === srcArr && idx > src.idx) ti -= 1;
+      this.clearStep();
+      tgtArr.splice(ti, 0, node);
+      this.finishDrop(node);
+    }
+  },
+
+  finishDrop(node) {
+    this.hideMsg();
+    SFX.click();
+    this.renderProgram();
+    const p = this.findPath(node);
+    if (p) {
+      const sp = this.splitPath(p);
+      this.caret = { cont: sp.cont, idx: sp.idx + 1 };
+      const card = this.$("puzzle-program").querySelector(`.pz-card[data-path="${p}"]`);
+      if (card) { card.classList.add("pz-pop"); setTimeout(() => card.classList.remove("pz-pop"), 320); }
+      this.renderProgram(); // repaint so the moved caret glows on the right gap
+    }
+  },
+
+  // locate a node by identity → its dotted path (post-mutation, so the caret and
+  // pop land on the right card even when a move reshuffled sibling indices)
+  findPath(target, nodes = this.program, base = "") {
+    for (let i = 0; i < nodes.length; i++) {
+      const p = base === "" ? String(i) : `${base}.${i}`;
+      if (nodes[i] === target) return p;
+      if (nodes[i].body) { const r = this.findPath(target, nodes[i].body, `${p}.body`); if (r) return r; }
+      if (nodes[i].else) { const r = this.findPath(target, nodes[i].else, `${p}.else`); if (r) return r; }
+    }
+    return null;
+  },
+
+  dragCleanup() {
+    const d = this.drag;
+    if (!d) return;
+    if (d.ghost) d.ghost.remove();
+    try { if (d.armed) d.capEl.releasePointerCapture(d.id); } catch (_) { /* ok */ }
+    if (d.srcEl) d.srcEl.classList.remove("pz-dragsrc");
+    const prog = this.$("puzzle-program");
+    prog.classList.remove("pz-dropping");
+    prog.querySelectorAll(".pz-dropbar, .pz-dropnear").forEach(el => el.classList.remove("pz-dropbar", "pz-dropnear"));
+    this.drag = null;
+    // hold the tap-suppress just past the trailing synthetic click
+    setTimeout(() => { this._dragSuppress = false; }, 60);
   },
 
   // ---------- recursive renderer (C-shaped nesting) ----------
@@ -1305,7 +1516,9 @@ const Puzzle = {
       buttons = `<button class="big-btn" data-act="catch" data-catch="${catchKey}">🎁 Meet ${UI.esc(c.n)}! ▶</button>
         <button class="mid-btn" data-act="replay">↺ Play again</button>`;
     } else {
-      buttons = `<button class="big-btn" data-act="lab">🏝️ Back to the isle</button>
+      const nxt = this.nextStageAfter(this.stage);
+      buttons = `${nxt ? `<button class="big-btn" data-act="next" data-next="${nxt.id}">▶ Next: ${UI.esc(nxt.name)}</button>` : ""}
+        <button class="${nxt ? "mid-btn" : "big-btn"}" data-act="lab">🏝️ Back to the isle</button>
         <button class="mid-btn" data-act="replay">↺ Play again</button>`;
     }
 
@@ -1324,6 +1537,7 @@ const Puzzle = {
       SFX.init();
       const act = btn.dataset.act;
       if (act === "lab") UI.show("lab");
+      else if (act === "next") { this.hideMsg(); this.openStage(btn.dataset.next); }
       else if (act === "replay") { this.hideMsg(); this.resetRun(); }
       else if (act === "catch") {
         const c = SAVE.puzzleCatchPick(btn.dataset.catch);
