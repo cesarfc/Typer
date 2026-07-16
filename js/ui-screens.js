@@ -67,7 +67,7 @@ Object.assign(UI, {
     if (T.stage === "confirm") {
       const mine = SAVE.creatureByKey(T.mine);
       const theirs = (() => { const [w, i] = T.theirs.split("-").map(Number); const c = CREATURES[w][i];
-        return { ...c, w, i, key: T.theirs, shiny: !!partner.dex[T.theirs].shiny }; })();
+        return { ...c, w, i, key: T.theirs, shiny: !!(partner.dex[T.theirs] && partner.dex[T.theirs].shiny) }; })();
       panel.innerHTML = `<div class="trade-card">${close}
         <div class="trade-ritual">
           <div class="tr-face"><span class="tr-av">${this.avatarHtml(SAVE.state.profile)}</span><b>${this.esc(myName)}</b></div>
@@ -134,7 +134,7 @@ Object.assign(UI, {
     // capture display info BEFORE the swap moves the shiny flags around
     const gave = SAVE.creatureByKey(T.mine);
     const [tw, ti] = T.theirs.split("-").map(Number);
-    const got = { ...CREATURES[tw][ti], id: CREATURES[tw][ti].id, key: T.theirs, shiny: !!partner.dex[T.theirs].shiny };
+    const got = { ...CREATURES[tw][ti], id: CREATURES[tw][ti].id, key: T.theirs, shiny: !!(partner.dex[T.theirs] && partner.dex[T.theirs].shiny) };
     const res = SAVE.executeTrade(T.partnerPid, T.mine, T.theirs);
     if (!res.ok) { this.toast("🤝 That trade could not be completed — nothing changed."); this.closeTradePanel(); return; }
     T.stage = "done";
