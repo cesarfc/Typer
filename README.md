@@ -94,6 +94,29 @@ the artwork belongs to Nintendo/The Pokemon Company, so it stays on your
 computer rather than in the repository. If you skip this step the game
 still works and shows emoji instead.
 
+## Developer tools
+
+The game is plain script-tag JavaScript — no build step. A few Node scripts
+(no npm install needed) keep it healthy:
+
+```bash
+node --test tools/test.mjs        # unit tests for the pure game logic
+node tools/validate-content.mjs   # check the curriculum/puzzles/roster data
+node tools/bump-cache.mjs         # bump every ?v=N in index.html after a deploy
+```
+
+- **`tools/test.mjs`** loads the real `js/data.js` + `js/save.js` + `js/puzzle.js`
+  and tests trades, save migration/backup, XP math, and the trophy table.
+  (`node --test tools/` scans a directory only on newer Node builds; the
+  explicit path above always works, as does `node --test` from the repo root.)
+- **`tools/validate-content.mjs`** mechanically verifies the content promises —
+  every word is typeable with the keys taught so far, every Puzzle Lab stage is
+  solvable for 3 stars within budget (checked with the real interpreter), and
+  the roster/trophy/README counts line up. Exits non-zero on any violation.
+- **`tools/bump-cache.mjs`** rewrites the `?v=N` cache-busters in `index.html`
+  (bump all to N+1, or `--set N`; `--dry` previews). Run it whenever you change
+  CSS/JS so the iPad web-app fetches the new files instead of a stale cache.
+
 ## Never lose progress (backup → commit)
 
 Progress autosaves in the browser, but browsers can lose it (cache clears,
