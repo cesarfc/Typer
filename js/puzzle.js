@@ -233,7 +233,7 @@ const Puzzle = {
       const r = Math.floor(i / cols);
       let c = i % cols;
       if (r % 2 === 1) c = cols - 1 - c;
-      const xf = cols === 1 ? 0.5 : c / (cols - 1);
+      const xf = c / (cols - 1); // cols is fixed at 5, so the row is never a single column
       const yf = rows === 1 ? 0.5 : r / (rows - 1);
       const wob = Math.sin(i * 1.7) * 13;
       pts.push({ x: Math.round(X0 + (X1 - X0) * xf), y: Math.round(Y0 + (Y1 - Y0) * yf + wob) });
@@ -507,8 +507,8 @@ const Puzzle = {
   // ---------- live HUD: a berry counter (A) or number-line total (B) ----------
   resetHud() {
     const st = this.stage;
-    if (this.isLine(st)) this.setHud(st.start.x, 0);
-    else if (st.goal === "collect") this.setHud(0, 0);
+    if (this.isLine(st)) this.setHud(st.start.x);
+    else if (st.goal === "collect") this.setHud(0);
     else { this.$("puzzle-hud").className = "hidden"; this.$("puzzle-hud").innerHTML = ""; }
   },
   // for line stages pass (position); for collect stages pass (berries)
