@@ -125,12 +125,73 @@ const SAVE = {
 
   normalizePlayers() {
     for (const id of Object.keys(this.root.players)) {
-      const raw = this.root.players[id];
-      const p = this.root.players[id] = Object.assign(this.defaults(), raw, { v: raw.v || 2 });
-      if (!DIFFICULTY[p.settings.difficulty]) p.settings.difficulty = "normal";
-      p.party = (p.party || []).filter(k => p.dex[k]).slice(0, PARTY_MAX);
-      this.migratePlayer(p);
+      try {
+        const p = this.root.players[id] = this.normalizePlayer(this.root.players[id]);
+        if (!DIFFICULTY[p.settings.difficulty]) p.settings.difficulty = "normal";
+        p.party = (p.party || []).filter(k => p.dex[k]).slice(0, PARTY_MAX);
+        this.migratePlayer(p);
+      } catch (e) {
+        // one scrambled blob must never brick the whole family — set it aside
+        this.quarantinePlayer(id, e);
+      }
     }
+  },
+
+  // Repair a single player's blob into a valid PlayerState. Every field is
+  // coerced to its default when it's null or the wrong KIND (a stray string
+  // where an object belongs, an object where an array belongs, …), and the
+  // nested defaults (settings/stats/streak/unlocks) are deep-merged so a
+  // sub-field added to defaults() in a future version always backfills instead
+  // of being missing on an old save. Throws only when the blob can't be a
+  // player object at all (e.g. a string/number/null) — the caller quarantines
+  // that one player rather than letting the dereference throw and blank the
+  // game for everyone.
+  normalizePlayer(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+      throw new Error("player blob is not an object");
+    }
+    const def = this.defaults();
+    const p = /** @type {any} */ ({});
+    for (const key of Object.keys(def)) {
+      const dv = def[key];
+      const rv = raw[key];
+      if (dv !== null && typeof dv === "object") {
+        // an object/array default: the raw value must match the kind exactly
+        const wantArray = Array.isArray(dv);
+        if (rv == null || typeof rv !== "object" || wantArray !== Array.isArray(rv)) {
+          p[key] = dv;                         // null / wrong-type / array↔object mismatch
+        } else if (wantArray) {
+          p[key] = rv;                         // arrays copy through as-is
+        } else {
+          p[key] = Object.assign({}, dv, rv);  // deep-merge one level so nested defaults backfill
+        }
+      } else {
+        // scalar or null-default field (profile, egg, …): take raw when present
+        p[key] = key in raw ? rv : dv;
+      }
+    }
+    // carry forward any keys defaults() doesn't know about (e.g. lazily-created
+    // `wild`, or a field from a newer version) so a round-trip never drops data
+    for (const key of Object.keys(raw)) {
+      if (!(key in p)) p[key] = raw[key];
+    }
+    p.v = raw.v || 2;
+    return /** @type {PlayerState} */ (p);
+  },
+
+  // move a hopelessly-corrupt player out of the active roster into
+  // root._quarantine (so nothing is ever silently deleted) and drop it from
+  // the active slot. A quiet console note for a grown-up; the child sees only
+  // the rest of the family, intact.
+  quarantinePlayer(id, err) {
+    const bad = this.root.players[id];
+    delete this.root.players[id];
+    if (!this.root._quarantine) this.root._quarantine = {};
+    this.root._quarantine[id] = bad;
+    if (this.root.active === id) this.root.active = null;
+    try {
+      console.warn(`TypeQuest: a scrambled save for "${id}" was set aside so the game could keep going.`, err);
+    } catch (e) { /* console is best-effort */ }
   },
 
   // ---- party of 6 ----

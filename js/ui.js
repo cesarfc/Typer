@@ -37,7 +37,15 @@ const UI = {
   },
 
   init() {
-    SAVE.load();
+    // load() self-heals a corrupt blob (repair + quarantine), but if it still
+    // throws for any reason we show a calm error card instead of a blank game.
+    try {
+      SAVE.load();
+    } catch (e) {
+      try { if (typeof Hiccups !== "undefined") Hiccups.log("save load failed: " + (e && e.message), "save.js", 0); } catch (_) {}
+      this.showLoadError();
+      return;
+    }
     this.probeSprites();
     this.kbHidden = SAVE.state ? !SAVE.state.settings.hints : false;
     this.buildTitle();
@@ -47,6 +55,27 @@ const UI = {
     this.renderTitle();
     this.show("title");
     if (!SAVE.players().length) this.autoRestore();
+  },
+
+  // A last-resort kind screen when the save couldn't even be loaded. Kept
+  // dead simple (inline styles, no dependence on the rest of UI wiring) so it
+  // works even when init bailed early. A Reload button is the one action.
+  showLoadError() {
+    try {
+      const app = document.getElementById("app") || document.body;
+      const box = document.createElement("div");
+      box.setAttribute("style", "position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#12203a;color:#fff;font-family:system-ui,sans-serif;text-align:center;padding:24px;z-index:9999");
+      box.innerHTML =
+        `<div style="max-width:340px">` +
+        `<div style="font-size:52px">🌈</div>` +
+        `<h2 style="margin:.4em 0">One sec!</h2>` +
+        `<p style="opacity:.85;line-height:1.5">We hit a little hiccup opening your adventure. Your progress is safe — let's try again.</p>` +
+        `<button id="tq-reload" style="margin-top:14px;font-size:18px;padding:12px 22px;border:0;border-radius:14px;background:#ffcb05;color:#12203a;font-weight:700;cursor:pointer">🔄 Reload</button>` +
+        `</div>`;
+      app.appendChild(box);
+      const btn = document.getElementById("tq-reload");
+      if (btn) btn.addEventListener("click", () => location.reload());
+    } catch (e) { /* nothing more we can safely do */ }
   },
 
   // ---------- save backup / restore ----------

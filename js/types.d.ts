@@ -137,6 +137,9 @@ interface SaveRoot {
   players: Record<string, PlayerState>;
   /** shared Weekly Raid Boss bar (lives on the root, not per-player) */
   raid?: any;
+  /** scrambled player blobs set aside by normalizePlayers so nothing is ever
+   *  silently deleted (see quarantinePlayer). */
+  _quarantine?: Record<string, any>;
 }
 
 /** A Puzzle Lab stage definition (one PUZZLE_STAGES entry). Grid stages carry

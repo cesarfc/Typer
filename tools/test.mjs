@@ -194,6 +194,65 @@ test("save: corrupted JSON loads a clean empty root instead of throwing", () => 
   assert.deepEqual(norm(SAVE.root), { active: null, players: {} });
 });
 
+test("save: a player with settings:null boots and is repaired, never throwing", () => {
+  const root = { active: "p1", players: { p1: { v: 3, profile: { name: "Nil", avatar: "🦊" }, xp: 10, settings: null } } };
+  const g = loadGame({ seed: { typequest_save_v2: JSON.stringify(root) } });
+  const { SAVE } = g;
+  const state = SAVE.load();
+  assert.ok(state, "the player boots despite settings:null");
+  assert.equal(typeof state.settings, "object");
+  assert.equal(state.settings.difficulty, "normal", "difficulty repaired to a valid value");
+  assert.equal(state.settings.sound, true, "the rest of settings backfills from defaults");
+});
+
+test("save: dex:null and a garbage party are coerced to their safe defaults", () => {
+  const root = { active: "p1", players: { p1: { v: 3, profile: { name: "Junk", avatar: "🐛" }, xp: 5, dex: null, party: { nope: 1 } } } };
+  const g = loadGame({ seed: { typequest_save_v2: JSON.stringify(root) } });
+  const { SAVE } = g;
+  const state = SAVE.load();
+  assert.ok(state);
+  assert.deepEqual(norm(state.dex), {}, "null dex becomes an empty object");
+  assert.ok(Array.isArray(state.party), "an object where the party array belongs is replaced");
+  assert.equal(state.party.length, 0);
+});
+
+test("save: a string where the party array belongs is replaced, not spread into letters", () => {
+  const root = { active: "p1", players: { p1: { v: 3, profile: { name: "Str", avatar: "🐢" }, dex: { "0-1": { shiny: false } }, party: "0-1" } } };
+  const g = loadGame({ seed: { typequest_save_v2: JSON.stringify(root) } });
+  const { SAVE } = g;
+  const state = SAVE.load();
+  assert.ok(Array.isArray(state.party));
+  assert.equal(state.party.length, 0, "the string is dropped for [], never iterated as chars");
+});
+
+test("save: a nested default sub-field backfills via deep-merge (future-field safety)", () => {
+  // an old save whose `stats` predates several sub-fields present in defaults()
+  const root = { active: "p1", players: { p1: { v: 3, profile: { name: "Old", avatar: "🦊" }, stats: { keys: 99 } } } };
+  const g = loadGame({ seed: { typequest_save_v2: JSON.stringify(root) } });
+  const { SAVE } = g;
+  const state = SAVE.load();
+  assert.equal(state.stats.keys, 99, "the existing sub-field survives the merge");
+  assert.equal(state.stats.correct, 0, "a missing sub-field is filled from defaults");
+  assert.equal(state.stats.bestWpm, 0);
+  assert.deepEqual(norm(state.stats.perKey), {});
+  assert.ok(Array.isArray(state.stats.history));
+});
+
+test("save: an unparseable player is quarantined without harming its siblings", () => {
+  const root = { active: "good", players: {
+    good: { v: 3, profile: { name: "Good", avatar: "🦊" }, xp: 200, dex: { "0-1": { shiny: true } } },
+    bad: "totally not a player object",
+  } };
+  const g = loadGame({ seed: { typequest_save_v2: JSON.stringify(root) } });
+  const { SAVE } = g;
+  const state = SAVE.load();
+  assert.ok(state, "the good sibling still boots");
+  assert.equal(state.profile.name, "Good");
+  assert.equal(state.xp, 200, "the good sibling is untouched");
+  assert.equal(SAVE.root.players.bad, undefined, "the scrambled player is dropped from the roster");
+  assert.ok(SAVE.root._quarantine && SAVE.root._quarantine.bad, "and set aside in _quarantine, never deleted");
+});
+
 test("save: export → import round-trips a player exactly", () => {
   const src = loadGame();
   const { SAVE: A } = src;
