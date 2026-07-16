@@ -643,6 +643,7 @@ const Engine = {
         res.legendShiny = c;
         more = [];
         SAVE.award("shiny", more);
+        SAVE.checkShinyMilestones(more);
       } else {
         SAVE.state.xp += 30;
         res.dupXp = { creature: c, xp: 30 };

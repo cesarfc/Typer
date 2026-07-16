@@ -690,10 +690,7 @@ const SAVE = {
         st.dex[key].shiny = true;
         out.shiny = this.creatureByKey(key);
         this.award("shiny", out.trophies);
-        const n = this.shinyCount();
-        if (n >= 10) this.award("shiny-10", out.trophies);
-        if (n >= 25) this.award("shiny-25", out.trophies);
-        if (n >= 50) this.award("shiny-50", out.trophies);
+        this.checkShinyMilestones(out.trophies);
       }
     }
     this.save();
@@ -786,14 +783,22 @@ const SAVE = {
     this.award("first-catch", newTrophies);
     if (shiny) {
       this.award("shiny", newTrophies);
-      const n = this.shinyCount();
-      if (n >= 10) this.award("shiny-10", newTrophies);
-      if (n >= 25) this.award("shiny-25", newTrophies);
-      if (n >= 50) this.award("shiny-50", newTrophies);
+      this.checkShinyMilestones(newTrophies);
     }
     this.collectTrophies(newTrophies);
     this.save();
     return newTrophies;
+  },
+
+  // Shiny-count milestone trophies (🌟 shiny-10 / -25 / -50). Called from every
+  // site that flips a Pokemon shiny — a fresh catch, a Battle Tower upgrade, an
+  // evolution, or a duplicate legendary — so a milestone can never be missed.
+  // Assumes the shiny flag is ALREADY set (so shinyCount() includes it).
+  checkShinyMilestones(list) {
+    const n = this.shinyCount();
+    if (n >= 10) this.award("shiny-10", list);
+    if (n >= 25) this.award("shiny-25", list);
+    if (n >= 50) this.award("shiny-50", list);
   },
 
   collectTrophies(list) {
@@ -892,7 +897,7 @@ const SAVE = {
     const t = this.state.dex[targetKey];
     let outcome;
     if (!t) { this.state.dex[targetKey] = { shiny: false }; outcome = "new"; }
-    else if (!t.shiny) { t.shiny = true; outcome = "shiny"; this.award("shiny", newTrophies); }
+    else if (!t.shiny) { t.shiny = true; outcome = "shiny"; this.award("shiny", newTrophies); this.checkShinyMilestones(newTrophies); }
     else { this.state.xp += 15; outcome = "xp"; }
     this.state.stats.evolutions = (this.state.stats.evolutions || 0) + 1;
     this.award("evolve-1", newTrophies);

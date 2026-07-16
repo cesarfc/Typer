@@ -401,6 +401,21 @@ test("reward: applyTowerFloor grants milestone XP and a voucher at floor 10", ()
   assert.equal(SAVE.state.xp, xp0 + 25 + 30);
 });
 
+test("trophies: the 10th shiny earned via evolution still awards the shiny-10 milestone", () => {
+  const g = loadGame();
+  const { SAVE } = g;
+  freshPlayer(g, "Evolver");
+  for (let i = 0; i < 9; i++) SAVE.state.dex[`0-${i}`] = { shiny: true }; // 9 shinies so far
+  SAVE.state.dex["1-0"] = { shiny: false };  // a 10th owned Pokemon, not yet shiny
+  assert.equal(SAVE.shinyCount(), 9);
+  // evolving into an already-owned creature upgrades it to shiny (outcome "shiny")
+  const r = SAVE.applyEvolution("1-1", "1-0");
+  assert.equal(r.outcome, "shiny");
+  assert.equal(SAVE.shinyCount(), 10);
+  assert.ok(r.newTrophies.some(t => t.id === "shiny-10"), "shiny-10 milestone fired via evolution");
+  assert.equal(SAVE.state.trophies["shiny-10"], true);
+});
+
 // ---- Trophy table sanity ---------------------------------------------------
 
 test("trophies: all ids are unique", () => {
