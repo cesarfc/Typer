@@ -317,6 +317,46 @@ test("save: a malformed backup imports the good trainer, skips the scrambled one
   assert.equal(g2.SAVE.root.players.b, undefined, "no scrambled blob on disk");
 });
 
+// ---- Raid claim safety -----------------------------------------------------
+
+test("raid: a claimed legendary is granted before typing, so an interruption never forfeits it", () => {
+  const g = loadGame();
+  const { SAVE, WORLDS, RAID_HP, HALL_W } = g;
+  freshPlayer(g, "Raider");
+  unlockAllWorlds(SAVE, WORLDS);              // opens the Dragon's Den (world 3) gate
+  SAVE.raidNow();                             // spin up this week's boss
+  const pid = SAVE.root.active;
+  SAVE.raidDamage(RAID_HP);                   // one big hit drops the boss + records contrib
+  assert.equal(SAVE.root.raid.defeated, true);
+
+  const claim = SAVE.claimRaid();
+  assert.equal(claim.ok, true, "the contributor can claim");
+
+  // the engine grants the creature AT THE REVEAL (grantRaidReward -> addCreature),
+  // before the no-fail name-typing ceremony. Model that grant here:
+  const raid = SAVE.raidNow();
+  const key = `${HALL_W}-${raid.i}`;
+  SAVE.addCreature(HALL_W, raid.i, false);
+  SAVE.save();
+
+  // simulate an interruption: the tab reloads from disk mid-ceremony
+  const disk = g.localStorage.getItem(SAVE.KEY);
+  const g2 = loadGame({ seed: { [SAVE.KEY]: disk } });
+  const state = g2.SAVE.load();
+  assert.ok(state, "reboots cleanly");
+  assert.ok(state.dex[key], "the raid legendary is safely in the dex after the reload");
+
+  // re-entry: already claimed, and nothing was lost
+  const again = g2.SAVE.claimRaid();
+  assert.equal(again.ok, false);
+  assert.equal(again.reason, "claimed", "re-entry reports already-claimed");
+
+  // completing the ceremony can never double-add the same creature
+  const before = g2.SAVE.caughtCount();
+  g2.SAVE.addCreature(HALL_W, raid.i, false);
+  assert.equal(g2.SAVE.caughtCount(), before, "a second add is idempotent — no double-count");
+});
+
 // ---- XP / reward math ------------------------------------------------------
 
 test("reward: applyPractice pays XP and never lowers a stored best on a worse replay", () => {

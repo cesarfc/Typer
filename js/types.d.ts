@@ -242,6 +242,9 @@ interface Session {
   raid?: any;
   raidDealt?: number;
   raidClaim?: any;
+  /** set once the raid legendary has been granted at the reveal, so
+   *  catchSuccess never adds it a second time */
+  raidGranted?: boolean;
   wild?: any;
   hatch?: any;
   evo?: any;
