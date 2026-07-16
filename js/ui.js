@@ -47,6 +47,7 @@ const UI = {
       return;
     }
     this.probeSprites();
+    this.watchOtherTabs();
     this.kbHidden = SAVE.state ? !SAVE.state.settings.hints : false;
     this.buildTitle();
     this.buildKeyboard();
@@ -76,6 +77,36 @@ const UI = {
       const btn = document.getElementById("tq-reload");
       if (btn) btn.addEventListener("click", () => location.reload());
     } catch (e) { /* nothing more we can safely do */ }
+  },
+
+  // Two tabs open on the same save race each other — the last to write wins and
+  // silently erases the other's progress. A `storage` event fires in THIS tab
+  // whenever ANOTHER tab writes localStorage; when it touches our save key we
+  // put this window to sleep (SAVE goes read-only) and show a one-time banner
+  // with a Reload button. Simplest policy that guarantees nobody loses progress.
+  watchOtherTabs() {
+    try {
+      window.addEventListener("storage", e => {
+        if (!e || e.key !== SAVE.KEY || SAVE.napping) return;
+        SAVE.napNow();
+        this.showNapBanner();
+      });
+    } catch (err) { /* no window/storage available — nothing to guard */ }
+  },
+
+  showNapBanner() {
+    if (this._napShown) return;
+    this._napShown = true;
+    try {
+      const bar = document.createElement("div");
+      bar.setAttribute("style", "position:fixed;left:0;right:0;bottom:0;z-index:9998;background:#12203a;color:#fff;font-family:system-ui,sans-serif;padding:14px 16px;display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;box-shadow:0 -4px 16px rgba(0,0,0,.35)");
+      bar.innerHTML =
+        `<span>😴 Looks like someone's playing in another window! This window will nap so no progress gets lost.</span>` +
+        `<button id="tq-nap-reload" style="font-size:16px;padding:8px 16px;border:0;border-radius:12px;background:#ffcb05;color:#12203a;font-weight:700;cursor:pointer">🔄 Reload</button>`;
+      document.body.appendChild(bar);
+      const btn = document.getElementById("tq-nap-reload");
+      if (btn) btn.addEventListener("click", () => location.reload());
+    } catch (err) { /* best-effort comfort UI */ }
   },
 
   // ---------- save backup / restore ----------

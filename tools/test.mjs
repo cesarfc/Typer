@@ -357,6 +357,21 @@ test("raid: a claimed legendary is granted before typing, so an interruption nev
   assert.equal(g2.SAVE.caughtCount(), before, "a second add is idempotent — no double-count");
 });
 
+test("save: a napping tab blocks save() so a second window can't be clobbered", () => {
+  const g = loadGame();
+  const { SAVE } = g;
+  freshPlayer(g, "Sleepy");
+  SAVE.state.xp = 111;
+  SAVE.save();
+  const before = g.localStorage.getItem(SAVE.KEY);
+  SAVE.napNow();               // another tab took over -> this tab goes read-only
+  SAVE.state.xp = 999;         // an in-memory change we must NOT persist
+  SAVE.save();
+  const after = g.localStorage.getItem(SAVE.KEY);
+  assert.equal(after, before, "a napping tab writes nothing to disk");
+  assert.ok(!after.includes("999"), "the un-persisted change never reached disk");
+});
+
 // ---- XP / reward math ------------------------------------------------------
 
 test("reward: applyPractice pays XP and never lowers a stored best on a worse replay", () => {

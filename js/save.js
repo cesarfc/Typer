@@ -7,6 +7,11 @@ const SAVE = {
   KEY: "typequest_save_v2",
   OLD_KEY: "typequest_save_v1",
   MAX_PLAYERS: 8,
+  // Set true when another browser tab is detected writing our save (see the
+  // storage listener in ui.js). A napping tab blocks all further writes so it
+  // can never clobber the other window's progress — the safest no-data-loss
+  // policy for two windows open at once.
+  napping: false,
   // Typed as always-present because every method below runs only once a player
   // is active (load() populates both). The null sentinels are a pre-load
   // transient the game never operates on, so a non-null cast keeps the checker
@@ -376,7 +381,13 @@ const SAVE = {
     return { ok: true, imported, skipped };
   },
 
+  // Another tab took over — go read-only so we never overwrite its progress.
+  napNow() {
+    this.napping = true;
+  },
+
   save() {
+    if (this.napping) return; // read-only: another window owns the save now
     try { localStorage.setItem(this.KEY, JSON.stringify(this.root)); } catch (e) { /* private mode */ }
   },
 
