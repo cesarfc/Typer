@@ -1,3 +1,4 @@
+// @ts-check
 // ============================================================
 // TypeQuest — Puzzle Lab: a no-keyboard side building. Snap code blocks to
 // guide a Pokemon through a grid, then catch it with the type-its-name
@@ -12,8 +13,21 @@
 // inside an if/else's else lane. Palette taps insert at the caret wherever it is.
 // ============================================================
 
+/**
+ * Nearest ancestor (or self) of a click's target matching `sel`.
+ * Centralizes the `e.target` -> Element narrowing every handler needs.
+ * @param {Event} e
+ * @param {string} sel
+ * @returns {HTMLElement | null}
+ */
+function pzHit(e, sel) {
+  const t = e.target;
+  return t instanceof Element ? /** @type {HTMLElement | null} */ (t.closest(sel)) : null;
+}
+
 const Puzzle = {
-  stage: null,       // the mounted stage def
+  /** @type {Stage} */
+  stage: /** @type {any} */ (null),       // the mounted stage def
   program: [],       // the current plan (nested nodes)
   caret: { cont: "", idx: 0 }, // insertion slot: which body/else array + index
   hintIdx: 0,        // which escalating hint to show next
@@ -53,7 +67,7 @@ const Puzzle = {
     // palette: tap a block to drop it at the glowing caret
     this.$("puzzle-palette").addEventListener("click", e => {
       if (this._dragSuppress) return; // a real drag just ended — not a tap
-      const b = e.target.closest(".pz-pal");
+      const b = pzHit(e, ".pz-pal");
       if (!b || this.playing) return;
       SFX.init();
       this.insertBlock(b.dataset.block);
@@ -63,15 +77,15 @@ const Puzzle = {
     this.$("puzzle-program").addEventListener("click", e => {
       if (this._dragSuppress) return; // a real drag just ended — not a tap
       if (this.playing) return;
-      const step = e.target.closest(".pz-step");
+      const step = pzHit(e, ".pz-step");
       if (step) { SFX.click(); this.stepRepeat(step.dataset.path, step.dataset.dir); return; }
-      const chip = e.target.closest(".pz-cond");
+      const chip = pzHit(e, ".pz-cond");
       if (chip) { SFX.click(); this.openCondPicker(chip.dataset.path); return; }
-      const del = e.target.closest(".pz-del");
+      const del = pzHit(e, ".pz-del");
       if (del) { SFX.init(); this.deleteBlock(del.dataset.path); return; }
-      const slot = e.target.closest(".pz-caret, .pz-bodyslot");
+      const slot = pzHit(e, ".pz-caret, .pz-bodyslot");
       if (slot) { SFX.click(); this.caret = { cont: slot.dataset.cont, idx: +slot.dataset.idx }; this.renderProgram(); return; }
-      const card = e.target.closest(".pz-card");
+      const card = pzHit(e, ".pz-card");
       if (card) { SFX.click(); this.caret = { cont: card.dataset.cont, idx: +card.dataset.idx + 1 }; this.renderProgram(); return; }
     });
 
@@ -97,29 +111,29 @@ const Puzzle = {
     cp.className = "hidden";
     cp.addEventListener("click", e => {
       if (e.target === cp) { this.closeCondPicker(); return; } // tap the dim backdrop
-      const done = e.target.closest("[data-cpdone]");
+      const done = pzHit(e, "[data-cpdone]");
       if (done) { SFX.click(); this.closeCondPicker(); return; }
-      const sens = e.target.closest("[data-cpsensor]");
+      const sens = pzHit(e, "[data-cpsensor]");
       if (sens) { SFX.click(); this._cond[sens.dataset.cpslot].sensor = sens.dataset.cpsensor; this.applyCond(); return; }
-      const cmp = e.target.closest("[data-cpcmp]");
+      const cmp = pzHit(e, "[data-cpcmp]");
       if (cmp) { SFX.click(); this._cond[cmp.dataset.cpslot].cmp = cmp.dataset.cpcmp; this.applyCond(); return; }
-      const val = e.target.closest("[data-cpval]");
+      const val = pzHit(e, "[data-cpval]");
       if (val) { SFX.click(); const s = this._cond[val.dataset.cpslot];
         s.val = Math.max(0, Math.min(20, s.val + (val.dataset.cpval === "inc" ? 1 : -1))); this.applyCond(); return; }
-      const not = e.target.closest("[data-cpnot]");
+      const not = pzHit(e, "[data-cpnot]");
       if (not) { SFX.click(); const s = this._cond[not.dataset.cpnot]; s.not = !s.not; this.applyCond(); return; }
-      const join = e.target.closest("[data-cpjoin]");
+      const join = pzHit(e, "[data-cpjoin]");
       if (join) { SFX.click(); this._cond.join = join.dataset.cpjoin === "none" ? null : join.dataset.cpjoin; this.applyCond(); return; }
     });
     this.$("screen-puzzle").appendChild(cp);
 
     // the isle scene (trail nodes + the fly-home button)
     this.$("lab-body").addEventListener("click", e => {
-      const home = e.target.closest(".fly-home");
+      const home = pzHit(e, ".fly-home");
       if (home) { SFX.click(); UI.flyHome(); return; }
-      const next = e.target.closest(".isle-next");
+      const next = pzHit(e, ".isle-next");
       if (next) { SFX.init(); this.openStage(next.dataset.stage); return; }
-      const hut = e.target.closest(".isle-hut");
+      const hut = pzHit(e, ".isle-hut");
       if (hut) {
         SFX.init();
         if (hut.classList.contains("locked")) {
@@ -131,7 +145,7 @@ const Puzzle = {
         }
         return;
       }
-      const node = e.target.closest(".isle-node");
+      const node = pzHit(e, ".isle-node");
       if (node) {
         SFX.init();
         if (node.classList.contains("locked")) {
@@ -562,8 +576,8 @@ const Puzzle = {
     if (this.isLine()) return this.renderLine();
     const rows = this.stage.grid;
     const H = rows.length, W = rows[0].length;
-    host.style.setProperty("--cols", W);
-    host.style.setProperty("--rows", H);
+    host.style.setProperty("--cols", String(W));
+    host.style.setProperty("--rows", String(H));
     let html = "";
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
@@ -585,8 +599,8 @@ const Puzzle = {
   renderLine() {
     const host = this.$("puzzle-grid");
     const N = this.stage.line;
-    host.style.setProperty("--cols", N + 1);
-    host.style.setProperty("--rows", 1);
+    host.style.setProperty("--cols", String(N + 1));
+    host.style.setProperty("--rows", "1");
     let html = "";
     for (let n = 0; n <= N; n++) {
       const target = n === this.stage.need;
@@ -610,8 +624,8 @@ const Puzzle = {
     const spr = this.$("puzzle-sprite");
     if (spr) {
       spr.classList.add("nomove");
-      spr.style.setProperty("--tx", this.stage.start.x);
-      spr.style.setProperty("--ty", this.stage.start.y);
+      spr.style.setProperty("--tx", String(this.stage.start.x));
+      spr.style.setProperty("--ty", String(this.stage.start.y));
       this.setFacing(this.stage.start.dir);
       spr.classList.remove("pbonk", "phop");
       void spr.offsetWidth;
@@ -734,13 +748,13 @@ const Puzzle = {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     let info;
     if (kind === "palette") {
-      const b = e.target.closest(".pz-pal");
+      const b = pzHit(e, ".pz-pal");
       if (!b) return;
       info = { block: b.dataset.block, srcEl: b };
     } else {
       // a card grab must not steal taps meant for its controls or nested slots
-      if (e.target.closest(".pz-step, .pz-cond, .pz-del, .pz-caret, .pz-bodyslot")) return;
-      const card = e.target.closest(".pz-card");
+      if (pzHit(e, ".pz-step, .pz-cond, .pz-del, .pz-caret, .pz-bodyslot")) return;
+      const card = pzHit(e, ".pz-card");
       if (!card) return;
       info = { path: card.dataset.path, srcEl: card };
     }
@@ -770,7 +784,8 @@ const Puzzle = {
     const prog = this.$("puzzle-program");
     prog.classList.add("pz-dropping");
     d.slots = [];
-    prog.querySelectorAll(".pz-caret, .pz-bodyslot").forEach(el => {
+    prog.querySelectorAll(".pz-caret, .pz-bodyslot").forEach(node => {
+      const el = /** @type {HTMLElement} */ (node);
       const cont = el.dataset.cont;
       if (d.forbid && (cont === d.forbid || cont.startsWith(d.forbid + "."))) return;
       el.classList.add("pz-dropbar");
@@ -903,7 +918,7 @@ const Puzzle = {
   emptySlot(cont) {
     const d = document.createElement("div");
     d.className = "pz-bodyslot" + (this.caret.cont === cont && this.caret.idx === 0 ? " on" : "");
-    d.dataset.cont = cont; d.dataset.idx = 0;
+    d.dataset.cont = cont; d.dataset.idx = "0";
     d.textContent = "do this →";
     return d;
   },
@@ -1532,7 +1547,7 @@ const Puzzle = {
       <div class="pz-win-btns">${buttons}</div>`;
 
     box.onclick = e => {
-      const btn = e.target.closest("[data-act]");
+      const btn = pzHit(e, "[data-act]");
       if (!btn) return;
       SFX.init();
       const act = btn.dataset.act;
@@ -1577,7 +1592,7 @@ const Puzzle = {
         <button class="mid-btn" data-act="mk-editproof">✏️ Keep building</button>
       </div>`;
     box.onclick = e => {
-      const btn = e.target.closest("[data-act]");
+      const btn = pzHit(e, "[data-act]");
       if (!btn) return;
       SFX.init();
       Maker.afterProof(sim.blocks, btn.dataset.act === "mk-publish");
@@ -1604,7 +1619,7 @@ const Puzzle = {
         <button class="mid-btn" data-act="replay">↺ Play again</button>
       </div>`;
     box.onclick = e => {
-      const btn = e.target.closest("[data-act]");
+      const btn = pzHit(e, "[data-act]");
       if (!btn) return;
       SFX.init();
       if (btn.dataset.act === "mk-hut") Maker.openHut();
@@ -1640,7 +1655,7 @@ const Puzzle = {
       <div class="pz-hint-btns">${watchBtn}
         <button class="pz-hint-close" data-act="replay" title="Got it">Got it 👍</button></div>`;
     box.onclick = e => {
-      const btn = e.target.closest("[data-act]");
+      const btn = pzHit(e, "[data-act]");
       if (!btn) return;
       SFX.click();
       if (btn.dataset.act === "watch") this.watchABit();

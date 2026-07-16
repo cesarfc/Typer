@@ -1,3 +1,4 @@
+// @ts-check
 // ============================================================
 // TypeQuest — save data (localStorage), XP, trophies, streaks
 // ============================================================
@@ -6,8 +7,14 @@ const SAVE = {
   KEY: "typequest_save_v2",
   OLD_KEY: "typequest_save_v1",
   MAX_PLAYERS: 8,
-  root: null,   // { active: id|null, players: { id: state } }
-  state: null,  // the active player's state (everything below operates on it)
+  // Typed as always-present because every method below runs only once a player
+  // is active (load() populates both). The null sentinels are a pre-load
+  // transient the game never operates on, so a non-null cast keeps the checker
+  // honest about field names without drowning real code in null guards.
+  /** @type {SaveRoot} */
+  root: /** @type {any} */ (null),   // { active: id|null, players: { id: state } }
+  /** @type {PlayerState} */
+  state: /** @type {any} */ (null),  // the active player's state (everything below operates on it)
 
   // v2 saves had 5 levels + boss(5) per world; v3 has 8 levels + boss(8).
   // Old cleared stages map to their new spots, and the new in-between
@@ -1204,12 +1211,15 @@ const SAVE = {
   // the puzzle save object under an underscore key so it never collides with a
   // stage id. Persists across reloads; defaults to medium. ----
   puzzleSpeed() {
-    const s = this.state.puzzle && this.state.puzzle._speed;
+    // `_speed` is a lone number tucked into the same map as the PuzzleRec
+    // stage records (underscore key can't collide with a stage id), so it's
+    // cast at these two sites rather than widening every stage record's type.
+    const s = this.state.puzzle && /** @type {number} */ (/** @type {any} */ (this.state.puzzle)._speed);
     return (s === 0 || s === 1 || s === 2) ? s : 1;
   },
   setPuzzleSpeed(idx) {
     if (!this.state.puzzle) this.state.puzzle = {};
-    this.state.puzzle._speed = idx;
+    /** @type {any} */ (this.state.puzzle)._speed = idx;
     this.save();
   },
 

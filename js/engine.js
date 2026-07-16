@@ -1,12 +1,15 @@
+// @ts-check
 // ============================================================
 // TypeQuest — core game engine: prompts, typing, timers,
 // combos, boss fights and creature catching.
 // ============================================================
 
 const Engine = {
-  session: null,
+  /** @type {Session} */
+  session: /** @type {any} */ (null),
   paused: false,
   pendingNext: false,
+  /** @type {number|null} */
   timerRAF: null,
 
   difficulty() {
@@ -932,6 +935,8 @@ const Engine = {
     const shiny = !pick.duplicate && Math.random() < SAVE.eggShinyChance();
     this.paused = false;
     this.pendingNext = false;
+    // typed as Session (not the narrow literal) so the later S.hatch.candy add typechecks
+    /** @type {Session} */
     const S = this.session = {
       w: pick.w, s: -3, world: WORLDS[pick.w], isBoss: false,
       prompts: [], idx: 0,

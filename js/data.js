@@ -1,3 +1,4 @@
+// @ts-check
 // ============================================================
 // TypeQuest — game data: curriculum, worlds, Pokemon, trophies
 // Curriculum: home row first, then reaching up/down, then words,

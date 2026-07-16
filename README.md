@@ -103,6 +103,7 @@ The game is plain script-tag JavaScript — no build step. A few Node scripts
 node --test tools/test.mjs        # unit tests for the pure game logic
 node tools/validate-content.mjs   # check the curriculum/puzzles/roster data
 node tools/bump-cache.mjs         # bump every ?v=N in index.html after a deploy
+./tools/typecheck.sh              # static type check (tsc --noEmit, no build)
 ```
 
 - **`tools/test.mjs`** loads the real `js/data.js` + `js/save.js` + `js/puzzle.js`
@@ -116,6 +117,12 @@ node tools/bump-cache.mjs         # bump every ?v=N in index.html after a deploy
 - **`tools/bump-cache.mjs`** rewrites the `?v=N` cache-busters in `index.html`
   (bump all to N+1, or `--set N`; `--dry` previews). Run it whenever you change
   CSS/JS so the iPad web-app fetches the new files instead of a stale cache.
+- **`tools/typecheck.sh`** runs the TypeScript compiler in check-only mode
+  (`tsc --noEmit -p jsconfig.json`) — no transpile, no bundler. The four core
+  modules (`data.js`, `save.js`, `engine.js`, `puzzle.js`) opt in with a
+  top-of-file `// @ts-check` and are annotated with JSDoc + `js/types.d.ts`, so
+  a call to a nonexistent method, a misspelled save field, or a wrong argument
+  count fails the check. Needs network the first run (`npx` fetches TypeScript).
 
 ## Never lose progress (backup → commit)
 
