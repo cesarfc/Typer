@@ -681,7 +681,7 @@ const SAVE = {
     const out = { floor, xp: 0, voucher: false, shiny: null, trophies: [] };
     out.xp = 20 + 5 * Math.floor(floor / 5);   // 25 at 5, 30 at 10, 35 at 15...
     st.xp += out.xp;
-    if (floor === 10) { st.vouchers++; out.voucher = true; }   // a candy voucher at floor 10
+    if (floor % 10 === 0) { st.vouchers++; out.voucher = true; }   // a candy voucher every 10th floor (10, 20, 30…)
     // floor 15+ : a small chance to shiny-upgrade a random owned Pokemon (delight)
     if (floor >= 15) {
       const dull = Object.keys(st.dex).filter(k => !st.dex[k].shiny);

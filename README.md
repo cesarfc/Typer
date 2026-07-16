@@ -305,7 +305,7 @@ mystery Pokemon — then the clock starts.
   reach it) offers an endless typing climb: each floor is four battle words
   drawn from every world you've unlocked, and the clock tightens a little each
   floor. Three hearts last the whole climb and a missed word costs one. Rewards
-  bank every 5 floors — XP, a candy voucher at floor 10, and from floor 15 a
+  bank every 5 floors — XP, a candy voucher every 10th floor, and from floor 15 a
   small chance to shiny-upgrade one of your Pokemon — and they are **never
   lost**: quitting or running out of hearts keeps everything already earned.
   Your best floor is saved. Trophies: 🗼 Tower Challenger (floor 5) and

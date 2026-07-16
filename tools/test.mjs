@@ -387,18 +387,23 @@ test("reward: applyPuzzle scales XP by stars and never lowers stars/blocks on re
   assert.equal(SAVE.state.puzzle[stage.id].bestBlocks, rec.bestBlocks, "fewest blocks kept");
 });
 
-test("reward: applyTowerFloor grants milestone XP and a voucher at floor 10", () => {
+test("reward: applyTowerFloor grants milestone XP and a voucher every 10th floor", () => {
   const g = loadGame();
   const { SAVE } = g;
   freshPlayer(g, "Climber");
   const xp0 = SAVE.state.xp;
   const f5 = SAVE.applyTowerFloor(5);
   assert.equal(f5.xp, 20 + 5 * 1);           // 25 at floor 5
+  assert.equal(f5.voucher, false, "no voucher on floor 5");
   const f10 = SAVE.applyTowerFloor(10);
   assert.equal(f10.xp, 20 + 5 * 2);           // 30 at floor 10
   assert.equal(f10.voucher, true, "a candy voucher drops at floor 10");
-  assert.equal(SAVE.state.vouchers, 1);
-  assert.equal(SAVE.state.xp, xp0 + 25 + 30);
+  const f15 = SAVE.applyTowerFloor(15);
+  assert.equal(f15.voucher, false, "no voucher on floor 15");
+  const f20 = SAVE.applyTowerFloor(20);
+  assert.equal(f20.voucher, true, "a candy voucher drops again at floor 20");
+  assert.equal(SAVE.state.vouchers, 2, "floors 10 and 20 both grant a voucher");
+  assert.equal(SAVE.state.xp, xp0 + 25 + 30 + 35 + 40);
 });
 
 test("trophies: the 10th shiny earned via evolution still awards the shiny-10 milestone", () => {
