@@ -3866,6 +3866,29 @@ const UI = {
           `<span class="key-pill bad">${this.esc(e.k)} ${Math.round(e.acc * 100)}%</span>`).join("")
           : `<span class="dim">No tricky keys — amazing! 🌟</span>`}</div>`
       : `<p class="dim">Type more to discover your power keys! 🔑</p>`;
+
+    this.renderHiccups();
+  },
+
+  // grown-ups' "recent hiccups" list — a quiet, parent-only view of the rolling
+  // error log (see Hiccups in main.js). Kids never see stack traces.
+  renderHiccups() {
+    const box = this.$("hiccups-list");
+    if (!box || typeof Hiccups === "undefined") return;
+    const items = Hiccups.list().slice().reverse(); // newest first
+    box.innerHTML = items.length
+      ? `<ul class="hiccup-list">${items.map(h => {
+          const when = new Date(h.time);
+          const stamp = isNaN(when) ? "" : when.toLocaleString();
+          const where = h.src ? ` <span class="dim">(${this.esc(h.src)}${h.line ? ":" + h.line : ""})</span>` : "";
+          return `<li><span class="dim">${this.esc(stamp)}</span> — ${this.esc(h.msg)}${where}</li>`;
+        }).join("")}</ul>`
+      : `<p class="dim">No hiccups — smooth sailing! ⛵</p>`;
+    const clearBtn = this.$("hiccups-clear");
+    if (clearBtn) {
+      clearBtn.classList.toggle("hidden", items.length === 0);
+      clearBtn.onclick = () => { Hiccups.clear(); this.renderHiccups(); this.toast("🧹 Cleared the hiccup list.", "gold"); };
+    }
   },
 
 

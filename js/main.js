@@ -2,6 +2,71 @@
 // TypeQuest — boot & global input
 // ============================================================
 
+// ---- Kind error net (for the iPad) -------------------------------------
+// Runtime errors shouldn't scare a kid or look like a crash. We keep a small
+// rolling log of the last few hiccups in its OWN localStorage key (never
+// inside a player's save), show one gentle, reassuring toast per session, and
+// surface the details only in the grown-ups' Stats corner. No stack traces
+// ever reach the child — just the message, file, and line for a parent.
+const Hiccups = {
+  KEY: "typequest_hiccups",
+  MAX: 20,
+  _toastedThisSession: false,
+
+  list() {
+    try {
+      const raw = localStorage.getItem(this.KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) { return []; }
+  },
+
+  log(msg, src, line) {
+    const entry = {
+      msg: String(msg || "Something went wrong").slice(0, 300),
+      src: String(src || "").replace(/^.*\//, "").slice(0, 80), // basename only
+      line: Number(line) || 0,
+      time: new Date().toISOString(),
+    };
+    try {
+      const arr = this.list();
+      arr.push(entry);
+      while (arr.length > this.MAX) arr.shift();
+      localStorage.setItem(this.KEY, JSON.stringify(arr));
+    } catch (e) { /* private mode / quota — the net is best-effort */ }
+    this.reassureOnce();
+  },
+
+  clear() {
+    try { localStorage.removeItem(this.KEY); } catch (e) { /* ignore */ }
+  },
+
+  // one calm toast per session — never a wall of errors
+  reassureOnce() {
+    if (this._toastedThisSession) return;
+    this._toastedThisSession = true;
+    try {
+      if (typeof UI !== "undefined" && UI.toast && document.getElementById("toasts")) {
+        UI.toast("🌈 Oops, a little hiccup — your progress is safe!", "gold");
+      }
+    } catch (e) { /* toast is optional comfort, never a second failure point */ }
+  },
+};
+window.Hiccups = Hiccups;
+
+window.addEventListener("error", e => {
+  // ignore resource-load errors (e.g. a missing sprite falls back to emoji) —
+  // those arrive with no `message`; only log real script errors.
+  if (!e || !e.message) return;
+  Hiccups.log(e.message, e.filename, e.lineno);
+});
+
+window.addEventListener("unhandledrejection", e => {
+  const r = e && e.reason;
+  const msg = r && r.message ? r.message : (typeof r === "string" ? r : "A promise was rejected");
+  Hiccups.log(msg, "", 0);
+});
+
 window.addEventListener("DOMContentLoaded", () => {
   UI.init();
   SFX.setEnabled(SAVE.state ? SAVE.state.settings.sound : true);
