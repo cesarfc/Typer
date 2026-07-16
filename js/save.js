@@ -351,15 +351,21 @@ const SAVE = {
   // never erase newer live progress
   importData(data) {
     if (!data || typeof data !== "object" || !data.players || typeof data.players !== "object") {
-      return { ok: false };
+      return { ok: false, imported: 0, skipped: 0 };
     }
-    let added = 0, updated = 0, kept = 0;
-    for (const [id, p] of Object.entries(data.players)) {
-      if (!p || !p.profile || !p.profile.name) continue;
+    // Repair each incoming player on a STAGING copy first. A blob that can't be
+    // made whole is skipped and NEVER touches the live root — otherwise the
+    // next save() would persist the poison and brick the game on reboot.
+    let imported = 0, skipped = 0;
+    for (const [id, raw] of Object.entries(data.players)) {
+      let p;
+      try { p = this.normalizePlayer(raw); }
+      catch (e) { skipped++; continue; }
+      if (!p.profile || !p.profile.name) { skipped++; continue; }
       const mine = this.root.players[id];
-      if (!mine) { this.root.players[id] = p; added++; }
-      else if ((p.xp || 0) > (mine.xp || 0)) { this.root.players[id] = p; updated++; }
-      else kept++;
+      if (!mine) { this.root.players[id] = p; imported++; }
+      else if ((p.xp || 0) > (mine.xp || 0)) { this.root.players[id] = p; imported++; }
+      // else the live copy has >= XP — keep it (a stale backup never erases progress)
     }
     if (!this.root.active && data.active && this.root.players[data.active]) {
       this.root.active = data.active;
@@ -367,7 +373,7 @@ const SAVE = {
     this.normalizePlayers();
     this.state = this.root.active ? this.root.players[this.root.active] || null : null;
     this.save();
-    return { ok: true, added, updated, kept };
+    return { ok: true, imported, skipped };
   },
 
   save() {

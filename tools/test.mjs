@@ -291,6 +291,32 @@ test("save: import keeps the higher-XP copy so a stale backup never erases progr
   assert.equal(SAVE.root.players[a].xp, 500, "live higher-XP copy is kept");
 });
 
+test("save: a malformed backup imports the good trainer, skips the scrambled one, reboots clean", () => {
+  const g = loadGame();
+  const { SAVE } = g;
+  freshPlayer(g, "Home"); // a live player already in the root
+  const backup = { active: "g", players: {
+    g: { v: 3, profile: { name: "Good", avatar: "🦊" }, xp: 300, dex: { "0-1": { shiny: false } } },
+    b: "not a player at all",          // scrambled -> normalizePlayer throws -> skipped
+    n: { v: 3, xp: 5 },                // no profile.name -> skipped
+  } };
+  const res = SAVE.importData(backup);
+  assert.equal(res.ok, true);
+  assert.equal(res.imported, 1, "only the good trainer is imported");
+  assert.equal(res.skipped, 2, "the scrambled blob and the nameless one are skipped");
+  assert.ok(SAVE.root.players.g, "good trainer landed");
+  assert.equal(SAVE.root.players.g.xp, 300);
+  assert.equal(SAVE.root.players.b, undefined, "the scrambled blob never entered the live root");
+
+  // the on-disk state after save() must reboot cleanly — no poison persisted
+  const disk = g.localStorage.getItem(SAVE.KEY);
+  const g2 = loadGame({ seed: { [SAVE.KEY]: disk } });
+  const state = g2.SAVE.load();
+  assert.ok(state, "reboots into a valid state");
+  assert.ok(g2.SAVE.root.players.g, "the good trainer survives the reboot");
+  assert.equal(g2.SAVE.root.players.b, undefined, "no scrambled blob on disk");
+});
+
 // ---- XP / reward math ------------------------------------------------------
 
 test("reward: applyPractice pays XP and never lowers a stored best on a worse replay", () => {

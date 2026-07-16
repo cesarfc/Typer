@@ -87,11 +87,14 @@ const UI = {
       .then(data => {
         if (!data) return;
         const res = SAVE.importData(data);
-        if (res.ok && (res.added || res.updated)) {
+        if (res.ok && res.imported) {
           this.kbHidden = SAVE.state ? !SAVE.state.settings.hints : this.kbHidden;
           this.applyKbVisibility();
           this.renderTitle();
           this.toast("💾 Progress restored from the backup file!", "gold");
+          if (res.skipped) {
+            this.toast(`💛 ${res.skipped} trainer${res.skipped === 1 ? "" : "s"} looked scrambled and ${res.skipped === 1 ? "was" : "were"} skipped.`);
+          }
         }
       })
       .catch(() => { /* no backup file — that's fine */ });
@@ -147,7 +150,10 @@ const UI = {
       let res = { ok: false };
       try { res = SAVE.importData(JSON.parse(reader.result)); } catch (e) { /* bad json */ }
       if (!res.ok) { alert("That file does not look like a TypeQuest backup."); return; }
-      alert(`Restored! ${res.added} player(s) added, ${res.updated} updated, ${res.kept} already up to date.`);
+      const skip = res.skipped
+        ? ` ${res.skipped} trainer${res.skipped === 1 ? "" : "s"} looked scrambled and ${res.skipped === 1 ? "was" : "were"} skipped.`
+        : "";
+      alert(`Restored! ${res.imported} trainer(s) brought in from the backup.${skip}`);
       location.reload();
     };
     reader.readAsText(file);
