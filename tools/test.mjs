@@ -372,6 +372,20 @@ test("save: a napping tab blocks save() so a second window can't be clobbered", 
   assert.ok(!after.includes("999"), "the un-persisted change never reached disk");
 });
 
+test("save: a forced save failure records exactly one hiccup, guarding against recursion", () => {
+  const g = loadGame();
+  const { SAVE } = g;
+  freshPlayer(g, "Quota");                    // this initial save succeeds
+  const logged = [];
+  // the stub re-enters save() the way a real logger writing localStorage would,
+  // proving the recursion guard keeps a single failure to one entry
+  g.ctx.Hiccups = { log: (msg) => { logged.push(msg); SAVE.save(); } };
+  g.localStorage.setItem = () => { throw new Error("QuotaExceeded"); };
+  SAVE.save();
+  assert.equal(logged.length, 1, "one failed save surfaces exactly one hiccup, no recursion");
+  assert.match(logged[0], /save/i);
+});
+
 // ---- XP / reward math ------------------------------------------------------
 
 test("reward: applyPractice pays XP and never lowers a stored best on a worse replay", () => {

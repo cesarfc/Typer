@@ -12,6 +12,9 @@ const SAVE = {
   // can never clobber the other window's progress — the safest no-data-loss
   // policy for two windows open at once.
   napping: false,
+  // re-entry guard: save()'s failure path logs a hiccup, and the hiccup writer
+  // itself touches localStorage, so we must not recurse back into logging.
+  _loggingHiccup: false,
   // Typed as always-present because every method below runs only once a player
   // is active (load() populates both). The null sentinels are a pre-load
   // transient the game never operates on, so a non-null cast keeps the checker
@@ -388,7 +391,21 @@ const SAVE = {
 
   save() {
     if (this.napping) return; // read-only: another window owns the save now
-    try { localStorage.setItem(this.KEY, JSON.stringify(this.root)); } catch (e) { /* private mode */ }
+    try {
+      localStorage.setItem(this.KEY, JSON.stringify(this.root));
+    } catch (e) {
+      // A persistent save failure (quota, private mode) must not vanish
+      // silently — surface it in the grown-ups' hiccup list. Everything here is
+      // wrapped and re-entry-guarded because the hiccup writer also touches
+      // localStorage; the save itself is still best-effort either way.
+      try {
+        if (!this._loggingHiccup && typeof Hiccups !== "undefined" && Hiccups && Hiccups.log) {
+          this._loggingHiccup = true;
+          Hiccups.log("Couldn't save progress: " + ((e && e.message) || e), "save.js", 0);
+          this._loggingHiccup = false;
+        }
+      } catch (e2) { this._loggingHiccup = false; /* the net is best-effort */ }
+    }
   },
 
   players() {
