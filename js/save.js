@@ -1,3 +1,4 @@
+// @ts-check
 // ============================================================
 // TypeQuest — save data (localStorage), XP, trophies, streaks
 // ============================================================
@@ -6,8 +7,22 @@ const SAVE = {
   KEY: "typequest_save_v2",
   OLD_KEY: "typequest_save_v1",
   MAX_PLAYERS: 8,
-  root: null,   // { active: id|null, players: { id: state } }
-  state: null,  // the active player's state (everything below operates on it)
+  // Set true when another browser tab is detected writing our save (see the
+  // storage listener in ui.js). A napping tab blocks all further writes so it
+  // can never clobber the other window's progress — the safest no-data-loss
+  // policy for two windows open at once.
+  napping: false,
+  // re-entry guard: save()'s failure path logs a hiccup, and the hiccup writer
+  // itself touches localStorage, so we must not recurse back into logging.
+  _loggingHiccup: false,
+  // Typed as always-present because every method below runs only once a player
+  // is active (load() populates both). The null sentinels are a pre-load
+  // transient the game never operates on, so a non-null cast keeps the checker
+  // honest about field names without drowning real code in null guards.
+  /** @type {SaveRoot} */
+  root: /** @type {any} */ (null),   // { active: id|null, players: { id: state } }
+  /** @type {PlayerState} */
+  state: /** @type {any} */ (null),  // the active player's state (everything below operates on it)
 
   // v2 saves had 5 levels + boss(5) per world; v3 has 8 levels + boss(8).
   // Old cleared stages map to their new spots, and the new in-between
@@ -118,12 +133,73 @@ const SAVE = {
 
   normalizePlayers() {
     for (const id of Object.keys(this.root.players)) {
-      const raw = this.root.players[id];
-      const p = this.root.players[id] = Object.assign(this.defaults(), raw, { v: raw.v || 2 });
-      if (!DIFFICULTY[p.settings.difficulty]) p.settings.difficulty = "normal";
-      p.party = (p.party || []).filter(k => p.dex[k]).slice(0, PARTY_MAX);
-      this.migratePlayer(p);
+      try {
+        const p = this.root.players[id] = this.normalizePlayer(this.root.players[id]);
+        if (!DIFFICULTY[p.settings.difficulty]) p.settings.difficulty = "normal";
+        p.party = (p.party || []).filter(k => p.dex[k]).slice(0, PARTY_MAX);
+        this.migratePlayer(p);
+      } catch (e) {
+        // one scrambled blob must never brick the whole family — set it aside
+        this.quarantinePlayer(id, e);
+      }
     }
+  },
+
+  // Repair a single player's blob into a valid PlayerState. Every field is
+  // coerced to its default when it's null or the wrong KIND (a stray string
+  // where an object belongs, an object where an array belongs, …), and the
+  // nested defaults (settings/stats/streak/unlocks) are deep-merged so a
+  // sub-field added to defaults() in a future version always backfills instead
+  // of being missing on an old save. Throws only when the blob can't be a
+  // player object at all (e.g. a string/number/null) — the caller quarantines
+  // that one player rather than letting the dereference throw and blank the
+  // game for everyone.
+  normalizePlayer(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+      throw new Error("player blob is not an object");
+    }
+    const def = this.defaults();
+    const p = /** @type {any} */ ({});
+    for (const key of Object.keys(def)) {
+      const dv = def[key];
+      const rv = raw[key];
+      if (dv !== null && typeof dv === "object") {
+        // an object/array default: the raw value must match the kind exactly
+        const wantArray = Array.isArray(dv);
+        if (rv == null || typeof rv !== "object" || wantArray !== Array.isArray(rv)) {
+          p[key] = dv;                         // null / wrong-type / array↔object mismatch
+        } else if (wantArray) {
+          p[key] = rv;                         // arrays copy through as-is
+        } else {
+          p[key] = Object.assign({}, dv, rv);  // deep-merge one level so nested defaults backfill
+        }
+      } else {
+        // scalar or null-default field (profile, egg, …): take raw when present
+        p[key] = key in raw ? rv : dv;
+      }
+    }
+    // carry forward any keys defaults() doesn't know about (e.g. lazily-created
+    // `wild`, or a field from a newer version) so a round-trip never drops data
+    for (const key of Object.keys(raw)) {
+      if (!(key in p)) p[key] = raw[key];
+    }
+    p.v = raw.v || 2;
+    return /** @type {PlayerState} */ (p);
+  },
+
+  // move a hopelessly-corrupt player out of the active roster into
+  // root._quarantine (so nothing is ever silently deleted) and drop it from
+  // the active slot. A quiet console note for a grown-up; the child sees only
+  // the rest of the family, intact.
+  quarantinePlayer(id, err) {
+    const bad = this.root.players[id];
+    delete this.root.players[id];
+    if (!this.root._quarantine) this.root._quarantine = {};
+    this.root._quarantine[id] = bad;
+    if (this.root.active === id) this.root.active = null;
+    try {
+      console.warn(`TypeQuest: a scrambled save for "${id}" was set aside so the game could keep going.`, err);
+    } catch (e) { /* console is best-effort */ }
   },
 
   // ---- party of 6 ----
@@ -283,15 +359,21 @@ const SAVE = {
   // never erase newer live progress
   importData(data) {
     if (!data || typeof data !== "object" || !data.players || typeof data.players !== "object") {
-      return { ok: false };
+      return { ok: false, imported: 0, skipped: 0 };
     }
-    let added = 0, updated = 0, kept = 0;
-    for (const [id, p] of Object.entries(data.players)) {
-      if (!p || !p.profile || !p.profile.name) continue;
+    // Repair each incoming player on a STAGING copy first. A blob that can't be
+    // made whole is skipped and NEVER touches the live root — otherwise the
+    // next save() would persist the poison and brick the game on reboot.
+    let imported = 0, skipped = 0;
+    for (const [id, raw] of Object.entries(data.players)) {
+      let p;
+      try { p = this.normalizePlayer(raw); }
+      catch (e) { skipped++; continue; }
+      if (!p.profile || !p.profile.name) { skipped++; continue; }
       const mine = this.root.players[id];
-      if (!mine) { this.root.players[id] = p; added++; }
-      else if ((p.xp || 0) > (mine.xp || 0)) { this.root.players[id] = p; updated++; }
-      else kept++;
+      if (!mine) { this.root.players[id] = p; imported++; }
+      else if ((p.xp || 0) > (mine.xp || 0)) { this.root.players[id] = p; imported++; }
+      // else the live copy has >= XP — keep it (a stale backup never erases progress)
     }
     if (!this.root.active && data.active && this.root.players[data.active]) {
       this.root.active = data.active;
@@ -299,11 +381,31 @@ const SAVE = {
     this.normalizePlayers();
     this.state = this.root.active ? this.root.players[this.root.active] || null : null;
     this.save();
-    return { ok: true, added, updated, kept };
+    return { ok: true, imported, skipped };
+  },
+
+  // Another tab took over — go read-only so we never overwrite its progress.
+  napNow() {
+    this.napping = true;
   },
 
   save() {
-    try { localStorage.setItem(this.KEY, JSON.stringify(this.root)); } catch (e) { /* private mode */ }
+    if (this.napping) return; // read-only: another window owns the save now
+    try {
+      localStorage.setItem(this.KEY, JSON.stringify(this.root));
+    } catch (e) {
+      // A persistent save failure (quota, private mode) must not vanish
+      // silently — surface it in the grown-ups' hiccup list. Everything here is
+      // wrapped and re-entry-guarded because the hiccup writer also touches
+      // localStorage; the save itself is still best-effort either way.
+      try {
+        if (!this._loggingHiccup && typeof Hiccups !== "undefined" && Hiccups && Hiccups.log) {
+          this._loggingHiccup = true;
+          Hiccups.log("Couldn't save progress: " + ((e && e.message) || e), "save.js", 0);
+          this._loggingHiccup = false;
+        }
+      } catch (e2) { this._loggingHiccup = false; /* the net is best-effort */ }
+    }
   },
 
   players() {
@@ -607,7 +709,7 @@ const SAVE = {
     const out = { floor, xp: 0, voucher: false, shiny: null, trophies: [] };
     out.xp = 20 + 5 * Math.floor(floor / 5);   // 25 at 5, 30 at 10, 35 at 15...
     st.xp += out.xp;
-    if (floor === 10) { st.vouchers++; out.voucher = true; }   // a candy voucher at floor 10
+    if (floor % 10 === 0) { st.vouchers++; out.voucher = true; }   // a candy voucher every 10th floor (10, 20, 30…)
     // floor 15+ : a small chance to shiny-upgrade a random owned Pokemon (delight)
     if (floor >= 15) {
       const dull = Object.keys(st.dex).filter(k => !st.dex[k].shiny);
@@ -616,10 +718,7 @@ const SAVE = {
         st.dex[key].shiny = true;
         out.shiny = this.creatureByKey(key);
         this.award("shiny", out.trophies);
-        const n = this.shinyCount();
-        if (n >= 10) this.award("shiny-10", out.trophies);
-        if (n >= 25) this.award("shiny-25", out.trophies);
-        if (n >= 50) this.award("shiny-50", out.trophies);
+        this.checkShinyMilestones(out.trophies);
       }
     }
     this.save();
@@ -712,14 +811,22 @@ const SAVE = {
     this.award("first-catch", newTrophies);
     if (shiny) {
       this.award("shiny", newTrophies);
-      const n = this.shinyCount();
-      if (n >= 10) this.award("shiny-10", newTrophies);
-      if (n >= 25) this.award("shiny-25", newTrophies);
-      if (n >= 50) this.award("shiny-50", newTrophies);
+      this.checkShinyMilestones(newTrophies);
     }
     this.collectTrophies(newTrophies);
     this.save();
     return newTrophies;
+  },
+
+  // Shiny-count milestone trophies (🌟 shiny-10 / -25 / -50). Called from every
+  // site that flips a Pokemon shiny — a fresh catch, a Battle Tower upgrade, an
+  // evolution, or a duplicate legendary — so a milestone can never be missed.
+  // Assumes the shiny flag is ALREADY set (so shinyCount() includes it).
+  checkShinyMilestones(list) {
+    const n = this.shinyCount();
+    if (n >= 10) this.award("shiny-10", list);
+    if (n >= 25) this.award("shiny-25", list);
+    if (n >= 50) this.award("shiny-50", list);
   },
 
   collectTrophies(list) {
@@ -818,7 +925,7 @@ const SAVE = {
     const t = this.state.dex[targetKey];
     let outcome;
     if (!t) { this.state.dex[targetKey] = { shiny: false }; outcome = "new"; }
-    else if (!t.shiny) { t.shiny = true; outcome = "shiny"; this.award("shiny", newTrophies); }
+    else if (!t.shiny) { t.shiny = true; outcome = "shiny"; this.award("shiny", newTrophies); this.checkShinyMilestones(newTrophies); }
     else { this.state.xp += 15; outcome = "xp"; }
     this.state.stats.evolutions = (this.state.stats.evolutions || 0) + 1;
     this.award("evolve-1", newTrophies);
@@ -1204,12 +1311,15 @@ const SAVE = {
   // the puzzle save object under an underscore key so it never collides with a
   // stage id. Persists across reloads; defaults to medium. ----
   puzzleSpeed() {
-    const s = this.state.puzzle && this.state.puzzle._speed;
+    // `_speed` is a lone number tucked into the same map as the PuzzleRec
+    // stage records (underscore key can't collide with a stage id), so it's
+    // cast at these two sites rather than widening every stage record's type.
+    const s = this.state.puzzle && /** @type {number} */ (/** @type {any} */ (this.state.puzzle)._speed);
     return (s === 0 || s === 1 || s === 2) ? s : 1;
   },
   setPuzzleSpeed(idx) {
     if (!this.state.puzzle) this.state.puzzle = {};
-    this.state.puzzle._speed = idx;
+    /** @type {any} */ (this.state.puzzle)._speed = idx;
     this.save();
   },
 

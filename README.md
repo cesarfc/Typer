@@ -94,6 +94,36 @@ the artwork belongs to Nintendo/The Pokemon Company, so it stays on your
 computer rather than in the repository. If you skip this step the game
 still works and shows emoji instead.
 
+## Developer tools
+
+The game is plain script-tag JavaScript — no build step. A few Node scripts
+(no npm install needed) keep it healthy:
+
+```bash
+node --test tools/test.mjs        # unit tests for the pure game logic
+node tools/validate-content.mjs   # check the curriculum/puzzles/roster data
+node tools/bump-cache.mjs         # bump every ?v=N in index.html after a deploy
+./tools/typecheck.sh              # static type check (tsc --noEmit, no build)
+```
+
+- **`tools/test.mjs`** loads the real `js/data.js` + `js/save.js` + `js/puzzle.js`
+  and tests trades, save migration/backup, XP math, and the trophy table.
+  (`node --test tools/` scans a directory only on newer Node builds; the
+  explicit path above always works, as does `node --test` from the repo root.)
+- **`tools/validate-content.mjs`** mechanically verifies the content promises —
+  every word is typeable with the keys taught so far, every Puzzle Lab stage is
+  solvable for 3 stars within budget (checked with the real interpreter), and
+  the roster/trophy/README counts line up. Exits non-zero on any violation.
+- **`tools/bump-cache.mjs`** rewrites the `?v=N` cache-busters in `index.html`
+  (bump all to N+1, or `--set N`; `--dry` previews). Run it whenever you change
+  CSS/JS so the iPad web-app fetches the new files instead of a stale cache.
+- **`tools/typecheck.sh`** runs the TypeScript compiler in check-only mode
+  (`tsc --noEmit -p jsconfig.json`) — no transpile, no bundler. The four core
+  modules (`data.js`, `save.js`, `engine.js`, `puzzle.js`) opt in with a
+  top-of-file `// @ts-check` and are annotated with JSDoc + `js/types.d.ts`, so
+  a call to a nonexistent method, a misspelled save field, or a wrong argument
+  count fails the check. Needs network the first run (`npx` fetches TypeScript).
+
 ## Never lose progress (backup → commit)
 
 Progress autosaves in the browser, but browsers can lose it (cache clears,
@@ -275,7 +305,7 @@ mystery Pokemon — then the clock starts.
   reach it) offers an endless typing climb: each floor is four battle words
   drawn from every world you've unlocked, and the clock tightens a little each
   floor. Three hearts last the whole climb and a missed word costs one. Rewards
-  bank every 5 floors — XP, a candy voucher at floor 10, and from floor 15 a
+  bank every 5 floors — XP, a candy voucher every 10th floor, and from floor 15 a
   small chance to shiny-upgrade one of your Pokemon — and they are **never
   lost**: quitting or running out of hearts keeps everything already earned.
   Your best floor is saved. Trophies: 🗼 Tower Challenger (floor 5) and

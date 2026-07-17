@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="img/icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192.png">
-<link rel="stylesheet" href="css/style.css?v=68">
+<link rel="stylesheet" href="css/style.css?v=71">
 </head>
 <body>
 <div id="app">
@@ -309,6 +309,13 @@
         </div>
         <button id="btn-reset" class="danger-btn">🗑 Erase everything and start over</button>
       </details>
+      <details id="hiccups">
+        <summary>⚙️ For parents: recent hiccups</summary>
+        <p class="backup-note">If something ever glitches, the game jots a quiet note here (the
+          last 20). Progress is always saved separately — this list is just for grown-ups.</p>
+        <div id="hiccups-list"></div>
+        <button id="hiccups-clear" class="mid-btn">🧹 Clear this list</button>
+      </details>
     </section>
 
   </main>
@@ -372,15 +379,19 @@
 <!-- printable diploma: hidden on screen, the only thing shown in print -->
 <div id="diploma-print"></div>
 
-<script src="js/data.js?v=68"></script>
-<script src="js/audio.js?v=68"></script>
-<script src="js/save.js?v=68"></script>
-<script src="js/engine.js?v=68"></script>
-<script src="js/sprites.js?v=68"></script>
-<script src="js/ui.js?v=68"></script>
-<script src="js/puzzle.js?v=68"></script>
-<script src="js/maker.js?v=68"></script>
-<script src="js/tutorial.js?v=68"></script>
-<script src="js/main.js?v=68"></script>
+<script src="js/data.js?v=71"></script>
+<script src="js/audio.js?v=71"></script>
+<script src="js/save.js?v=71"></script>
+<script src="js/engine.js?v=71"></script>
+<script src="js/sprites.js?v=71"></script>
+<script src="js/ui.js?v=71"></script>
+<script src="js/ui-map.js?v=71"></script>
+<script src="js/ui-game.js?v=71"></script>
+<script src="js/ui-cards.js?v=71"></script>
+<script src="js/ui-screens.js?v=71"></script>
+<script src="js/puzzle.js?v=71"></script>
+<script src="js/maker.js?v=71"></script>
+<script src="js/tutorial.js?v=71"></script>
+<script src="js/main.js?v=71"></script>
 </body>
 </html>

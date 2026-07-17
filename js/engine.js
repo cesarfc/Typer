@@ -1,12 +1,15 @@
+// @ts-check
 // ============================================================
 // TypeQuest — core game engine: prompts, typing, timers,
 // combos, boss fights and creature catching.
 // ============================================================
 
 const Engine = {
-  session: null,
+  /** @type {Session} */
+  session: /** @type {any} */ (null),
   paused: false,
   pendingNext: false,
+  /** @type {number|null} */
   timerRAF: null,
 
   difficulty() {
@@ -626,7 +629,12 @@ const Engine = {
     const c = S.catchCreature;
     res.bestCombo = Math.max(res.bestCombo, S.bestCombo);
     let more;
-    if (S.wild && S.wild.source === "legendary" && c.duplicate) {
+    if (S.raidGranted) {
+      // a raid claim already added the legendary (or its candy/XP) to the save
+      // at the reveal — here we only fold in the combo trophies, never a second
+      // dex add. res.caught / res.candy / res.dupXp were set by grantRaidReward.
+      more = SAVE.bumpCombo(S.bestCombo);
+    } else if (S.wild && S.wild.source === "legendary" && c.duplicate) {
       // a duplicate legendary turns the owned one shiny (or pays XP)
       const key = `${c.w}-${c.i}`;
       const entry = SAVE.state.dex[key];
@@ -635,6 +643,7 @@ const Engine = {
         res.legendShiny = c;
         more = [];
         SAVE.award("shiny", more);
+        SAVE.checkShinyMilestones(more);
       } else {
         SAVE.state.xp += 30;
         res.dupXp = { creature: c, xp: 30 };
@@ -842,10 +851,41 @@ const Engine = {
     UI.raidClaimScene(S);
     UI.catchReveal(S, c, () => {
       if (this.session !== S || S.state !== "reveal") return;
+      // Grant the legendary right here at the reveal — matching the egg / puzzle
+      // catch pattern — so a reload during the celebration can never forfeit the
+      // reward the family already earned (the claim was consumed at the top of
+      // startRaidClaim). The name-typing below is then pure, no-fail ceremony.
+      this.grantRaidReward(S);
       S.state = "catch";
       UI.showCatch(S, c);
       UI.announce("🎉 Type its name to add it to your Pokedex!", 2000);
     });
+  },
+
+  // Add the raid legendary to the dex (or bank candy / XP for a duplicate) and
+  // stash the outcome on the results object, exactly once. Called at the reveal
+  // so nothing can be lost afterward; catchSuccess sees S.raidGranted and skips
+  // a second add.
+  grantRaidReward(S) {
+    if (S.raidGranted) return;
+    const c = S.catchCreature;
+    const res = S.pendingRes;
+    const shiny = !!(S.wild && S.wild.shiny);
+    if (c.duplicate) {
+      const baseKey = `${c.w}-${c.i}`;
+      if (SAVE.familyFor(baseKey)) {
+        const count = SAVE.addCandy(baseKey);
+        res.candy = { creature: c, count, ready: SAVE.evoTargetsFor(baseKey).length > 0 };
+      } else {
+        SAVE.state.xp += 12;
+        res.dupXp = { creature: c, xp: 12 };
+      }
+    } else {
+      res.caught = { ...c, shiny };
+      res.trophies = (res.trophies || []).concat(SAVE.addCreature(c.w, c.i, shiny));
+    }
+    SAVE.save();
+    S.raidGranted = true;
   },
 
   startFishing() {
@@ -932,6 +972,8 @@ const Engine = {
     const shiny = !pick.duplicate && Math.random() < SAVE.eggShinyChance();
     this.paused = false;
     this.pendingNext = false;
+    // typed as Session (not the narrow literal) so the later S.hatch.candy add typechecks
+    /** @type {Session} */
     const S = this.session = {
       w: pick.w, s: -3, world: WORLDS[pick.w], isBoss: false,
       prompts: [], idx: 0,
