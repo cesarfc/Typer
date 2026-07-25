@@ -101,6 +101,7 @@ The game is plain script-tag JavaScript — no build step. A few Node scripts
 
 ```bash
 node --test tools/test.mjs        # unit tests for the pure game logic
+node tools/smoke.mjs              # boot the UI and drive core flows in jsdom
 node tools/validate-content.mjs   # check the curriculum/puzzles/roster data
 node tools/bump-cache.mjs         # bump every ?v=N in index.html after a deploy
 ./tools/typecheck.sh              # static type check (tsc --noEmit, no build)
@@ -110,6 +111,11 @@ node tools/bump-cache.mjs         # bump every ?v=N in index.html after a deploy
   and tests trades, save migration/backup, XP math, and the trophy table.
   (`node --test tools/` scans a directory only on newer Node builds; the
   explicit path above always works, as does `node --test` from the repo root.)
+- **`tools/smoke.mjs`** loads `index.html` and every shipping script in jsdom,
+  then creates a trainer and drives a level, its catch round, and Trainer School
+  practice through the real DOM controls. It downloads its pinned jsdom runtime
+  into the system temporary directory on the first run, so no install step is
+  required.
 - **`tools/validate-content.mjs`** mechanically verifies the content promises —
   every word is typeable with the keys taught so far, every Puzzle Lab stage is
   solvable for 3 stars within budget (checked with the real interpreter), and
