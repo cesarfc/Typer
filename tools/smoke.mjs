@@ -57,6 +57,7 @@ test("boots the game and drives its core UI flows", async t => {
     pretendToBeVisual: true,
     virtualConsole,
     beforeParse(window) {
+      window.Math.random = () => 0.5;
       const nativeSetTimeout = window.setTimeout.bind(window);
       window.setTimeout = (callback, ms, ...args) =>
         nativeSetTimeout(callback, Math.min(Number(ms) || 0, 10), ...args);
