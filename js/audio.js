@@ -65,6 +65,9 @@ const SFX = {
     this.tone(660, 0.09, { gain: 0.1 });
     this.tone(880, 0.12, { gain: 0.1, when: 0.08 });
   },
+  level() {
+    [523, 659, 784].forEach((f, i) => this.tone(f, 0.1, { gain: 0.09, when: i * 0.08 }));
+  },
   combo() {
     this.tone(500, 0.3, { type: "sawtooth", gain: 0.05, slideTo: 1400 });
   },
@@ -94,6 +97,16 @@ const SFX = {
     this.tone(392, 0.5, { gain: 0.12 });
     this.tone(587.9, 0.7, { gain: 0.1, when: 0.06 });
   },
+  mastery() {
+    this.noise(0.025, { gain: 0.025, freq: 2200 });
+    this.tone(659, 0.34, { type: "triangle", gain: 0.075 });
+    this.tone(1319, 0.18, { gain: 0.025 });
+  },
+  record() {
+    this.noise(0.025, { gain: 0.03, freq: 2800 });
+    this.tone(784, 0.32, { type: "triangle", gain: 0.08 });
+    this.tone(988, 0.34, { type: "triangle", gain: 0.06, when: 0.06 });
+  },
   bossHit() {
     this.noise(0.18, { gain: 0.18, freq: 900 });
     this.tone(160, 0.18, { type: "square", gain: 0.1, slideTo: 60 });
@@ -111,6 +124,7 @@ const SFX = {
   },
   trophy() {
     [659, 784, 1047, 1319].forEach((f, i) => this.tone(f, 0.14, { gain: 0.1, when: i * 0.09 }));
+    this.tone(1047, 0.3, { gain: 0.07, when: 0.38 });
   },
   thump() {
     this.tone(110, 0.14, { type: "sine", gain: 0.2, slideTo: 55 });

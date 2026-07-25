@@ -39,6 +39,56 @@ function freshPlayer(game, name = "Tester") {
   return pid;
 }
 
+test("audio: celebration voices climb from keypress through ceremony", () => {
+  const ctx = { window: {}, Math };
+  ctx.window = ctx;
+  ctx.globalThis = ctx;
+  vm.createContext(ctx);
+  vm.runInContext(
+    fs.readFileSync(path.join(JS, "audio.js"), "utf8") +
+      "\n;globalThis.__sfxUnderTest = SFX;",
+    ctx,
+    { filename: "audio.js" },
+  );
+  const sfx = ctx.__sfxUnderTest;
+  const originalTone = sfx.tone;
+  const originalNoise = sfx.noise;
+  const shape = name => {
+    const events = [];
+    sfx.tone = (freq, dur, opts = {}) => events.push({ freq, dur, when: opts.when || 0 });
+    sfx.noise = (dur, opts = {}) => events.push({ freq: opts.freq || 0, dur, when: opts.when || 0 });
+    sfx[name]();
+    return {
+      voices: events.length,
+      span: Math.max(...events.map(event => event.when + event.dur)),
+      frequencies: events.map(event => event.freq),
+    };
+  };
+
+  const ladder = ["click", "word", "level", "catchJingle", "trophy", "fanfare"].map(shape);
+  assert.deepEqual(ladder.map(sound => sound.voices), [1, 2, 3, 4, 5, 6]);
+  for (let i = 1; i < ladder.length; i++) {
+    assert.ok(ladder[i].span > ladder[i - 1].span);
+  }
+
+  const mastery = shape("mastery");
+  const record = shape("record");
+  assert.notDeepEqual(mastery.frequencies, record.frequencies);
+  for (const sound of [mastery, record]) {
+    assert.ok(sound.voices < ladder[4].voices);
+    assert.ok(sound.span < ladder[4].span);
+  }
+
+  sfx.tone = originalTone;
+  sfx.noise = originalNoise;
+  let initCalls = 0;
+  sfx.init = () => { initCalls++; };
+  sfx.enabled = false;
+  sfx.mastery();
+  sfx.record();
+  assert.equal(initCalls, 0);
+});
+
 // ---- Typing analytics ------------------------------------------------------
 
 test("analytics: worstKeys ranks sampled keys by accuracy and gates sparse keys", () => {
