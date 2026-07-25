@@ -549,6 +549,7 @@ const Engine = {
       firstClear: SAVE.stageStars(S.w, S.s) === 0,
     };
     const applied = SAVE.applyResult(res);
+    res.masteredKey = SAVE.claimMasteredKey();
     res.trophies = applied.newTrophies;
     res.levelUp = applied.levelUps;
     res.egg = applied.egg;

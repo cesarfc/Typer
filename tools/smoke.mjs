@@ -169,6 +169,10 @@ test("boots the game and drives its core UI flows", async t => {
   must("#tut-skip").click();
   assertScreen("map");
   assert.equal(window.TQ.SAVE.state.profile.name, "Smoke");
+  window.TQ.SAVE.state.stats.perKey = {
+    f: { ok: 19, miss: 0 },
+    j: { ok: 19, miss: 0 },
+  };
 
   const firstStage = must('.mnode[data-w="0"][data-s="0"]');
   assert.ok(!firstStage.classList.contains("locked"), "world 1 level 1 is locked");
@@ -187,6 +191,10 @@ test("boots the game and drives its core UI flows", async t => {
   assert.match(must("#results-title").textContent, /Complete/);
   assert.equal(must("#results-grid").children.length, 4);
   assert.ok(!must("#results-catch").classList.contains("hidden"), "catch result is hidden");
+  assert.match(must("#results-mastery").textContent, /You mastered the F key!/);
+  assert.deepEqual(JSON.parse(JSON.stringify(window.TQ.SAVE.state.flags.masteredKeys)), { f: true });
+  window.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  assertScreen("results");
 
   must("#btn-tomap").click();
   assertScreen("map");
