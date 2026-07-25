@@ -291,11 +291,15 @@ const Engine = {
     if (typeof tierId === "string" && tierId.startsWith("license-")) { this.startLicense(tierId.slice(8), ghostPid); return; }
     const tier = PRACTICE_TIERS.find(t => t.id === tierId);
     if (!tier || !SAVE.worldUnlocked(tier.need)) return;
+    const worlds = tier.weakKeys
+      ? WORLDS.filter((_, wi) => SAVE.worldUnlocked(wi))
+      : tier.worlds.map(w => WORLDS[w]);
     const pool = new Set();
-    tier.worlds.forEach(w => WORLDS[w].levels.forEach(l =>
+    worlds.forEach(w => w.levels.forEach(l =>
       l.pool.forEach(p => { if (p.length >= 3) pool.add(p); })));
+    const words = tier.weakKeys ? SAVE.weakKeyPool(worlds, [...pool]) : [...pool];
     let prompts = [];
-    while (prompts.length < tier.count) prompts = prompts.concat(shuffle([...pool]));
+    while (prompts.length < tier.count) prompts = prompts.concat(shuffle(words.slice()));
     prompts = prompts.slice(0, tier.count);
 
     // Practice Ghost: race the per-word pace of your best-TIME run so far.
