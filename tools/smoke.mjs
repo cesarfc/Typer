@@ -169,6 +169,16 @@ test("boots the game and drives its core UI flows", async t => {
   must("#tut-skip").click();
   assertScreen("map");
   assert.equal(window.TQ.SAVE.state.profile.name, "Smoke");
+  const particleCount = window.TQ.UI.fx.parts.length;
+  window.TQ.UI.confetti();
+  assert.equal(window.TQ.UI.fx.parts.length, particleCount, "reduced-motion confetti was not skipped");
+  window.TQ.UI.trophyToast({ id: "queue-1", e: "1", name: "First reward" });
+  window.TQ.UI.trophyToast({ id: "queue-2", e: "2", name: "Second reward" });
+  assert.equal(must("#ts-name").textContent, "First reward");
+  assert.equal(window.TQ.UI._splashQ.length, 1, "second trophy did not queue");
+  await waitFor(() => must("#ts-name").textContent === "Second reward", "second trophy splash");
+  assert.ok(!must("#trophy-splash").classList.contains("hidden"), "second trophy splash overlapped the first");
+  await waitFor(() => must("#trophy-splash").classList.contains("hidden"), "trophy splash queue");
   window.TQ.SAVE.state.stats.perKey = {
     f: { ok: 19, miss: 0 },
     j: { ok: 19, miss: 0 },
