@@ -195,6 +195,9 @@ test("boots the game and drives its core UI flows", async t => {
   assert.deepEqual(JSON.parse(JSON.stringify(window.TQ.SAVE.state.flags.masteredKeys)), { f: true });
   window.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
   assertScreen("results");
+  window.TQ.UI.showDefeat(window.TQ.Engine.session);
+  assert.ok(must("#results-mastery").classList.contains("hidden"), "mastery chip leaked onto defeat");
+  assert.equal(must("#results-mastery").textContent, "");
 
   must("#btn-tomap").click();
   assertScreen("map");
