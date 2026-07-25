@@ -569,12 +569,42 @@ Object.assign(UI, {
       <div class="stat-card"><div class="stat-v">${SAVE.state.streak.count || 0}</div><div class="stat-l">day streak</div></div>
       ${SAVE.state.tower && SAVE.state.tower.best ? `<div class="stat-card"><div class="stat-v">🗼 ${SAVE.state.tower.best}</div><div class="stat-l">best tower floor</div></div>` : ""}`;
 
-    const hist = s.history.slice(-12);
-    const max = Math.max(10, ...hist.map(h => h.wpm));
-    this.$("stats-chart").innerHTML = hist.length
-      ? hist.map(h => `<div class="bar-wrap" title="${h.wpm} wpm · ${Math.round(h.acc * 100)}%">
-          <div class="bar" style="height:${Math.max(6, 100 * h.wpm / max)}%"></div><span>${h.wpm}</span></div>`).join("")
-      : `<p class="dim">Play some levels to see your speed grow! 📈</p>`;
+    const hist = s.history.slice(-20)
+      .filter(h => Number.isFinite(h.wpm) && Number.isFinite(h.acc));
+    if (hist.length) {
+      const plot = values => {
+        const low = Math.min(...values);
+        const high = Math.max(...values);
+        const range = high - low;
+        return values.map((value, i) => ({
+          x: hist.length === 1 ? 150 : 12 + i * 276 / (hist.length - 1),
+          y: range ? 80 - 68 * (value - low) / range : 46,
+        }));
+      };
+      const wpmPlot = plot(hist.map(h => h.wpm));
+      const accPlot = plot(hist.map(h => h.acc));
+      const points = line => line.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+      const latest = hist[hist.length - 1];
+      this.$("stats-chart").innerHTML = `
+        <svg class="trend-chart" viewBox="0 0 300 92" role="img"
+             aria-label="${hist.length} recent games. Latest: ${latest.wpm} words per minute at ${Math.round(latest.acc * 100)} percent accuracy.">
+          <line class="trend-baseline" x1="12" y1="80" x2="288" y2="80"></line>
+          <polyline class="trend-line speed" points="${points(wpmPlot)}"></polyline>
+          <polyline class="trend-line accuracy" points="${points(accPlot)}"></polyline>
+          ${hist.map((h, i) => `<g>
+            <circle class="trend-point speed" cx="${wpmPlot[i].x}" cy="${wpmPlot[i].y}" r="2.5"><title>${this.esc(h.d || `Game ${i + 1}`)}: ${h.wpm} wpm</title></circle>
+            <circle class="trend-point accuracy" cx="${accPlot[i].x}" cy="${accPlot[i].y}" r="2.5"><title>${this.esc(h.d || `Game ${i + 1}`)}: ${Math.round(h.acc * 100)}% accuracy</title></circle>
+          </g>`).join("")}
+        </svg>
+        <div class="trend-legend">
+          <span><i class="trend-swatch speed"></i>Speed <b>${latest.wpm} wpm</b></span>
+          <span><i class="trend-swatch accuracy"></i>Accuracy <b>${Math.round(latest.acc * 100)}%</b></span>
+        </div>
+        <p class="trend-cheer">Every run adds another step to your adventure.</p>`;
+    } else {
+      this.$("stats-chart").innerHTML =
+        `<p class="dim trend-empty">Play some levels and your progress trail will appear here.</p>`;
+    }
 
     // grown-ups corner: recent form + backup nudge
     const ps = this.$("parent-stats");
@@ -585,28 +615,42 @@ Object.assign(UI, {
       let totalStars = 0;
       WORLDS.forEach((w, wi) => { totalStars += SAVE.worldStars(wi); });
       const sinceBackup = SAVE.state.xp - ((SAVE.state.flags && SAVE.state.flags.lastBackupXp) || 0);
-      ps.innerHTML = recent.length
+      const form = recent.length
         ? `Recent form (last ${recent.length === 1 ? "game" : `${recent.length} games`}): <b>${avgW} wpm</b> at <b>${avgA}%</b> accuracy.<br>
            Total stars: <b>${totalStars}</b> · Pokemon: <b>${SAVE.caughtCount()}</b> · Day streak: <b>${SAVE.state.streak.count || 0}</b>.
            ${sinceBackup > 150 ? `<br><span class="backup-nudge">📥 Lots of new progress since the last backup — a download is wise!</span>` : ""}`
         : `No games played yet — the trend will appear here.`;
+      const sampledKeys = KB_ROWS.flat().filter(k => SAVE.keyAccuracy(k) !== null).length;
+      ps.innerHTML = `${form}<br>Key map: <b>${sampledKeys} of ${KB_ROWS.flat().length}</b> keys have at least
+        <b>${SAVE.KEY_SAMPLE_MIN} tries</b>; neutral keys are still gathering data.`;
     }
 
-    const entries = Object.keys(s.perKey)
-      .map(k => ({ k, acc: SAVE.keyAccuracy(k) }))
-      .filter(e => e.acc !== null);
-    entries.sort((a, b) => b.acc - a.acc);
-    const best = entries.slice(0, 3);
-    const worst = SAVE.worstKeys(3)
-      .map(k => entries.find(e => e.k === k))
-      .filter(e => e && e.acc < 0.97 && !best.includes(e));
-    this.$("stats-keys").innerHTML = entries.length
-      ? `<div class="key-list"><h4>💪 Power keys</h4>${best.map(e =>
-          `<span class="key-pill good">${this.esc(e.k)} ${Math.round(e.acc * 100)}%</span>`).join("")}</div>
-         <div class="key-list"><h4>🎯 Train these</h4>${worst.length ? worst.map(e =>
-          `<span class="key-pill bad">${this.esc(e.k)} ${Math.round(e.acc * 100)}%</span>`).join("")
-          : `<span class="dim">No tricky keys — amazing! 🌟</span>`}</div>`
-      : `<p class="dim">Type more to discover your power keys! 🔑</p>`;
+    const heatRows = KB_ROWS.map((row, rowIndex) =>
+      `<div class="heat-row row-${rowIndex}">${row.map(k => {
+        const keyAcc = SAVE.keyAccuracy(k);
+        const band = keyAcc === null ? "neutral"
+          : keyAcc >= 0.9 ? "strong"
+            : keyAcc >= 0.75 ? "growing" : "practice";
+        const score = keyAcc === null ? "–" : `${Math.round(keyAcc * 100)}%`;
+        const label = keyAcc === null
+          ? `${k.toUpperCase()}: keep typing to reveal a score`
+          : `${k.toUpperCase()}: ${Math.round(keyAcc * 100)} percent accuracy`;
+        return `<div class="heat-key f${KEY_FINGER[k] ?? 8} ${band}" data-key="${this.esc(k)}"
+                     role="img" aria-label="${this.esc(label)}" title="${this.esc(label)}">
+          <span>${this.esc(k)}</span><small>${score}</small>
+        </div>`;
+      }).join("")}</div>`
+    ).join("");
+    this.$("stats-keys").innerHTML = `
+      <p class="key-map-cheer">Every key gets stronger as you train.</p>
+      <div class="key-heatmap" aria-label="Keyboard accuracy map">${heatRows}</div>
+      <div class="heat-legend" aria-label="Key color legend">
+        <span><i class="strong"></i>Strong (90%+)</span>
+        <span><i class="growing"></i>Growing (75–89%)</span>
+        <span><i class="practice"></i>Keep going</span>
+        <span><i class="neutral"></i>More tries</span>
+      </div>
+      <p class="finger-legend">The colored edges match your finger guide.</p>`;
 
     this.renderHiccups();
   },

@@ -213,5 +213,31 @@ test("boots the game and drives its core UI flows", async t => {
   assertScreen("practice");
   must('.navbtn[data-nav="map"]').click();
   assertScreen("map");
+
+  window.TQ.SAVE.state.stats.perKey = {
+    q: { ok: 8, miss: 0 },
+    w: { ok: 7, miss: 1 },
+    e: { ok: 4, miss: 4 },
+    r: { ok: 3, miss: 4 },
+  };
+  window.TQ.SAVE.state.stats.history = [
+    { d: "2026-07-23", wpm: 12, acc: 0.75 },
+    { d: "2026-07-24", wpm: 15, acc: 0.82 },
+    { d: "2026-07-25", wpm: 18, acc: 0.9 },
+  ];
+  must('.navbtn[data-nav="stats"]').click();
+  assertScreen("stats");
+  assert.equal(document.querySelectorAll(".heat-row").length, 3);
+  assert.ok(must('.heat-key[data-key="q"]').classList.contains("strong"));
+  assert.ok(must('.heat-key[data-key="w"]').classList.contains("growing"));
+  assert.ok(must('.heat-key[data-key="e"]').classList.contains("practice"));
+  assert.ok(must('.heat-key[data-key="r"]').classList.contains("neutral"));
+  assert.ok(must('.heat-key[data-key="q"]').classList.contains("f0"));
+  assert.equal(document.querySelectorAll(".trend-line").length, 2);
+  assert.match(must("#parent-stats").textContent, /at least 8 tries/);
+
+  window.TQ.SAVE.state.stats.history = [];
+  window.TQ.UI.renderStats();
+  assert.match(must("#stats-chart").textContent, /progress trail will appear/);
   assertClean();
 });
