@@ -114,7 +114,7 @@ window.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     if (e.inputType === "insertText" || e.inputType === "insertCompositionText") {
       for (const ch of e.data || "") {
-        routeKey({ key: ch, preventDefault() {}, ctrlKey: false, metaKey: false, altKey: false });
+        routeKey({ key: normalizeKey(ch), preventDefault() {}, ctrlKey: false, metaKey: false, altKey: false });
       }
     } else if (e.inputType === "insertLineBreak" || e.inputType === "insertParagraph") {
       routeKey({ key: "Enter", preventDefault() {}, ctrlKey: false, metaKey: false, altKey: false });
