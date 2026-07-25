@@ -192,10 +192,15 @@ test("boots the game and drives its core UI flows", async t => {
   assertScreen("map");
   must("#school-chip").click();
   assertScreen("practice");
-  const practice = must(".tier-card:not(.locked)");
+  const practice = must('.tier-card[data-tier="target"]');
+  assert.match(practice.textContent, /Target Practice/);
+  assert.match(practice.textContent, /Practice your trickiest keys/);
   practice.click();
   assertScreen("game");
   assert.match(must("#hud-stage").textContent, /Practice/);
+  assert.equal(window.TQ.Engine.session.practice.id, "target");
+  assert.ok(must("#timer-bar").classList.contains("hidden"), "practice countdown is visible");
+  assert.ok(!must("#stopwatch").classList.contains("hidden"), "practice stopwatch is hidden");
 
   must("#btn-pause").click();
   assert.ok(!must("#pause-overlay").classList.contains("hidden"), "pause overlay is hidden");
@@ -209,6 +214,8 @@ test("boots the game and drives its core UI flows", async t => {
   await typeUntil(() => window.TQ.UI.current === "results", "Trainer School practice");
   assertScreen("results");
   assert.match(must("#results-title").textContent, /Practice/);
+  assert.ok(window.TQ.SAVE.state.practice.target.time > 0, "Target Practice best time was not saved");
+  assert.ok(window.TQ.SAVE.state.practice.target.wpm > 0, "Target Practice best WPM was not saved");
   must("#btn-replay").click();
   assertScreen("practice");
   must('.navbtn[data-nav="map"]').click();

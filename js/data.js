@@ -771,6 +771,7 @@ const PARTY_MAX = 6;
 // Trainer School practice: no countdown, race your own records.
 // Tiers draw words from story worlds and unlock with them (need = world idx).
 const PRACTICE_TIERS = [
+  { id: "target", label: "Target Practice", e: "🎯", desc: "Practice your trickiest keys", worlds: [], count: 12, need: 0, weakKeys: true },
   { id: "easy",   label: "Easy",   e: "🐣", desc: "Short words · Meadow & Mt. Moon",      worlds: [0, 1], count: 12, need: 0 },
   { id: "medium", label: "Medium", e: "⭐", desc: "Words & moves · Stadium & Dragon's Den", worlds: [2, 3], count: 12, need: 2 },
   { id: "hard",   label: "Hard",   e: "🔥", desc: "Expert moves & long phrases · Eterna",  worlds: [4],    count: 10, need: 4 },

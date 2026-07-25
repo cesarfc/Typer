@@ -105,6 +105,58 @@ test("analytics: Daily Drill composes Capital Day before Weak Key Day", () => {
   assert.ok(engine.session.prompts.every(word => word[0] === word[0].toUpperCase()));
 });
 
+test("practice: Target Practice drills worst keys without a countdown", () => {
+  const g = loadGame({ includePuzzle: false });
+  const { SAVE, WORLDS } = g;
+  freshPlayer(g);
+  unlockAllWorlds(SAVE, WORLDS);
+  SAVE.state.stats.perKey = {
+    q: { ok: 1, miss: 9 },
+    z: { ok: 2, miss: 8 },
+    x: { ok: 3, miss: 7 },
+  };
+  vm.runInContext(
+    fs.readFileSync(path.join(JS, "engine.js"), "utf8") +
+      "\n;globalThis.__engineUnderTest = Engine;",
+    g.ctx,
+    { filename: "engine.js" },
+  );
+  const engine = g.ctx.__engineUnderTest;
+  engine.nextPrompt = () => {};
+
+  engine.startPractice("target");
+
+  assert.equal(engine.session.practice.id, "target");
+  assert.equal(engine.session.baseTime, 0);
+  assert.equal(engine.session.prompts.length, 12);
+  assert.ok(engine.session.prompts.every(word =>
+    [...word.toLowerCase()].some(ch => ["q", "z", "x"].includes(ch))));
+});
+
+test("practice: Target Practice falls back to an unlocked mixed pool with sparse data", () => {
+  const g = loadGame({ includePuzzle: false });
+  const { SAVE, WORLDS } = g;
+  freshPlayer(g);
+  SAVE.state.stats.perKey = {
+    a: { ok: 2, miss: 1 },
+  };
+  vm.runInContext(
+    fs.readFileSync(path.join(JS, "engine.js"), "utf8") +
+      "\n;globalThis.__engineUnderTest = Engine;",
+    g.ctx,
+    { filename: "engine.js" },
+  );
+  const engine = g.ctx.__engineUnderTest;
+  engine.nextPrompt = () => {};
+  const mixed = new Set(WORLDS[0].levels.flatMap(l =>
+    l.pool.filter(word => word.length >= 3)));
+
+  engine.startPractice("target");
+
+  assert.equal(engine.session.prompts.length, 12);
+  assert.ok(engine.session.prompts.every(word => mixed.has(word)));
+});
+
 test("analytics: fingerStats rolls key counts up by the shared finger map", () => {
   const g = loadGame();
   const { SAVE } = g;
