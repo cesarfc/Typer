@@ -7,6 +7,8 @@ const SAVE = {
   KEY: "typequest_save_v2",
   OLD_KEY: "typequest_save_v1",
   MAX_PLAYERS: 8,
+  HISTORY_LIMIT: 90,
+  KEY_SAMPLE_MIN: 8,
   // Set true when another browser tab is detected writing our save (see the
   // storage listener in ui.js). A napping tab blocks all further writes so it
   // can never clobber the other window's progress — the safest no-data-loss
@@ -755,6 +757,48 @@ const SAVE = {
     }
   },
 
+  keyAccuracy(key) {
+    const stats = this.state.stats.perKey[key.toLowerCase()];
+    if (!stats) return null;
+    const total = stats.ok + stats.miss;
+    return total >= this.KEY_SAMPLE_MIN ? stats.ok / total : null;
+  },
+
+  worstKeys(n = 3) {
+    return Object.keys(this.state.stats.perKey)
+      .map(k => ({ k, acc: this.keyAccuracy(k) }))
+      .filter(x => x.acc !== null)
+      .sort((a, b) => a.acc - b.acc)
+      .slice(0, Math.max(0, n))
+      .map(x => x.k);
+  },
+
+  weakKeyPool(worlds, currentPool = null) {
+    const pool = currentPool || [...new Set(worlds.flatMap(w =>
+      w.levels.flatMap(l => l.pool.filter(word => word.length >= 3))))];
+    const worst = this.worstKeys(3);
+    if (!worst.length) return pool;
+    const weak = pool.filter(word =>
+      [...word.toLowerCase()].some(ch => worst.includes(ch)));
+    return weak.length >= 12 ? weak : pool;
+  },
+
+  fingerStats() {
+    /** @type {Array<{name:string, ok:number, miss:number, total:number, acc:number|null}>} */
+    const fingers = FINGER_NAMES.map(name => ({ name, ok: 0, miss: 0, total: 0, acc: null }));
+    for (const [key, stats] of Object.entries(this.state.stats.perKey)) {
+      const finger = KEY_FINGER[SHIFT_MAP[key] || key];
+      if (finger === undefined) continue;
+      fingers[finger].ok += stats.ok;
+      fingers[finger].miss += stats.miss;
+    }
+    for (const finger of fingers) {
+      finger.total = finger.ok + finger.miss;
+      finger.acc = finger.total >= this.KEY_SAMPLE_MIN ? finger.ok / finger.total : null;
+    }
+    return fingers;
+  },
+
   stageStars(w, s) {
     return this.state.stages[`${w}-${s}`] || 0;
   },
@@ -969,7 +1013,9 @@ const SAVE = {
     st.stats.bestWpm = Math.max(st.stats.bestWpm, wpm);
     st.stats.bestCombo = Math.max(st.stats.bestCombo, bestCombo);
     st.stats.history.push({ d: new Date().toISOString().slice(0, 10), wpm, acc });
-    if (st.stats.history.length > 30) st.stats.history = st.stats.history.slice(-30);
+    if (st.stats.history.length > this.HISTORY_LIMIT) {
+      st.stats.history = st.stats.history.slice(-this.HISTORY_LIMIT);
+    }
     if (bestCombo >= 10) this.award("combo-10", newTrophies);
     if (bestCombo >= 25) this.award("combo-25", newTrophies);
     if (bestCombo >= 50) this.award("combo-50", newTrophies);
@@ -1493,7 +1539,9 @@ const SAVE = {
     st.stats.bestCombo = Math.max(st.stats.bestCombo, res.bestCombo);
     st.stats.bestWpm = Math.max(st.stats.bestWpm, res.wpm);
     st.stats.history.push({ d: new Date().toISOString().slice(0, 10), wpm: res.wpm, acc: res.acc });
-    if (st.stats.history.length > 30) st.stats.history = st.stats.history.slice(-30);
+    if (st.stats.history.length > this.HISTORY_LIMIT) {
+      st.stats.history = st.stats.history.slice(-this.HISTORY_LIMIT);
+    }
 
     // personal bests per stage — the raw material of mastery medals.
     // Explorer-band runs count for stars and Crown, but Silver/Gold speed

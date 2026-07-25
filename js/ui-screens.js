@@ -592,12 +592,14 @@ Object.assign(UI, {
         : `No games played yet — the trend will appear here.`;
     }
 
-    const entries = Object.entries(s.perKey)
-      .map(([k, v]) => ({ k, total: v.ok + v.miss, acc: v.ok / (v.ok + v.miss) }))
-      .filter(e => e.total >= 8);
+    const entries = Object.keys(s.perKey)
+      .map(k => ({ k, acc: SAVE.keyAccuracy(k) }))
+      .filter(e => e.acc !== null);
     entries.sort((a, b) => b.acc - a.acc);
     const best = entries.slice(0, 3);
-    const worst = entries.filter(e => e.acc < 0.97 && !best.includes(e)).slice(-3).reverse();
+    const worst = SAVE.worstKeys(3)
+      .map(k => entries.find(e => e.k === k))
+      .filter(e => e && e.acc < 0.97 && !best.includes(e));
     this.$("stats-keys").innerHTML = entries.length
       ? `<div class="key-list"><h4>💪 Power keys</h4>${best.map(e =>
           `<span class="key-pill good">${this.esc(e.k)} ${Math.round(e.acc * 100)}%</span>`).join("")}</div>
