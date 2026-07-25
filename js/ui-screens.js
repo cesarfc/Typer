@@ -621,8 +621,7 @@ Object.assign(UI, {
            ${sinceBackup > 150 ? `<br><span class="backup-nudge">📥 Lots of new progress since the last backup — a download is wise!</span>` : ""}`
         : `No games played yet — the trend will appear here.`;
       const sampledKeys = KB_ROWS.flat().filter(k => SAVE.keyAccuracy(k) !== null).length;
-      ps.innerHTML = `${form}<br>Key map: <b>${sampledKeys} of ${KB_ROWS.flat().length}</b> keys have at least
-        <b>${SAVE.KEY_SAMPLE_MIN} tries</b>; neutral keys are still gathering data.`;
+      ps.innerHTML = `${form}<br>Key map: <b>${sampledKeys} of ${KB_ROWS.flat().length}</b> keys have at least <b>${SAVE.KEY_SAMPLE_MIN} tries</b>; neutral keys are still gathering data.`;
     }
 
     const heatRows = KB_ROWS.map((row, rowIndex) =>
