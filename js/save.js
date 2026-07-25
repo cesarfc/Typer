@@ -9,6 +9,8 @@ const SAVE = {
   MAX_PLAYERS: 8,
   HISTORY_LIMIT: 90,
   KEY_SAMPLE_MIN: 8,
+  KEY_MASTERY_MIN: 20,
+  KEY_MASTERY_ACCURACY: 0.97,
   // Set true when another browser tab is detected writing our save (see the
   // storage listener in ui.js). A napping tab blocks all further writes so it
   // can never clobber the other window's progress — the safest no-data-loss
@@ -762,6 +764,22 @@ const SAVE = {
     if (!stats) return null;
     const total = stats.ok + stats.miss;
     return total >= this.KEY_SAMPLE_MIN ? stats.ok / total : null;
+  },
+
+  claimMasteredKey() {
+    const mastered = this.state.flags.masteredKeys ||
+      (this.state.flags.masteredKeys = {});
+    const key = Object.keys(this.state.stats.perKey).find(k => {
+      const stats = this.state.stats.perKey[k];
+      const total = stats.ok + stats.miss;
+      return !mastered[k] &&
+        total >= this.KEY_MASTERY_MIN &&
+        this.keyAccuracy(k) >= this.KEY_MASTERY_ACCURACY;
+    });
+    if (!key) return null;
+    mastered[key] = true;
+    this.save();
+    return key;
   },
 
   worstKeys(n = 3) {

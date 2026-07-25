@@ -58,6 +58,28 @@ test("analytics: worstKeys ranks sampled keys by accuracy and gates sparse keys"
   assert.equal(SAVE.keyAccuracy("C"), 0.5);
 });
 
+test("analytics: mastered keys are claimed once and extra keys are deferred", () => {
+  const g = loadGame();
+  const { SAVE } = g;
+  freshPlayer(g);
+  SAVE.state.stats.perKey = {
+    e: { ok: 20, miss: 0 },
+    f: { ok: 97, miss: 3 },
+    j: { ok: 19, miss: 0 },
+    k: { ok: 96, miss: 4 },
+  };
+
+  assert.equal(SAVE.claimMasteredKey(), "e");
+  assert.deepEqual(norm(SAVE.state.flags.masteredKeys), { e: true });
+  const restored = loadGame({
+    seed: { [SAVE.KEY]: g.localStorage.getItem(SAVE.KEY) },
+  }).SAVE;
+  restored.load();
+  assert.equal(restored.claimMasteredKey(), "f");
+  assert.deepEqual(norm(restored.state.flags.masteredKeys), { e: true, f: true });
+  assert.equal(restored.claimMasteredKey(), null);
+});
+
 test("analytics: weakKeyPool deterministically filters the current Daily Drill pool", () => {
   const g = loadGame();
   const { SAVE, WORLDS } = g;

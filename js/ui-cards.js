@@ -6,6 +6,17 @@
 // ============================================================
 Object.assign(UI, {
 
+  renderKeyMastery(key) {
+    const box = this.$("results-mastery");
+    if (!key) {
+      box.className = "hidden";
+      box.innerHTML = "";
+      return;
+    }
+    box.className = "mastery-on";
+    box.innerHTML = `<span class="key-mastery-chip">&#10024; You mastered the <b>${this.esc(key.toUpperCase())}</b> key!</span>`;
+  },
+
   // ---------- catch round ----------
   // suspense intro: the ball drops in, wobbles three times, then bursts
   // open in a white flash and the Pokemon pops out — like the show
@@ -109,6 +120,7 @@ Object.assign(UI, {
     const card = this.$("results-card");
     card.classList.remove("defeat");
     card.style.setProperty("--wa", w.accent);
+    this.renderKeyMastery(res.masteredKey);
 
     title.textContent = res.rematch
       ? (res.rematchMedal ? `${res.rematchMedal.tier.e} REMATCH WON!` : `${w.boss.emoji} Rematch Complete`)
@@ -317,6 +329,7 @@ Object.assign(UI, {
     this._resultsAt = performance.now();
     this.$("results-egg").className = "hidden";          // no stale egg note
     this.$("results-medal").className = "hidden";        // no stale medal beat
+    this.renderKeyMastery(null);
     this.$("btn-replay").classList.add("hidden");        // same as Try Again
     // a second stumble earns a gentle one-run time assist — offered, never forced
     const fk = `${S.w}-${S.s}`;
@@ -403,6 +416,7 @@ Object.assign(UI, {
     catchBox.innerHTML = `<div class="record-note ${record || newStamp ? "gold" : ""}">${lines.join("<br>")}</div>`;
     this.$("results-egg").className = "hidden";
     this.$("results-medal").className = "hidden";
+    this.renderKeyMastery(null);
     this.$("results-offer").className = "hidden";
 
     this.$("xp-gained").textContent = `+${res.xp} XP`;
@@ -468,6 +482,7 @@ Object.assign(UI, {
     catchBox.innerHTML = `<div class="record-note ${record ? "gold" : ""}">${lines.join("<br>")}</div>`;
     this.$("results-egg").className = "hidden";
     this.$("results-medal").className = "hidden";
+    this.renderKeyMastery(null);
     this.$("results-offer").className = "hidden";
 
     this.$("xp-gained").textContent = `+${res.xp} XP`;
@@ -529,6 +544,7 @@ Object.assign(UI, {
     catchBox.innerHTML = `<div class="record-note ${down ? "gold" : ""}">${lines.join("<br>")}</div>`;
     this.$("results-egg").className = "hidden";
     this.$("results-medal").className = "hidden";
+    this.renderKeyMastery(null);
     this.$("results-offer").className = "hidden";
 
     this.$("xp-gained").textContent = `+${info.xp} XP`;
@@ -844,6 +860,7 @@ Object.assign(UI, {
     </div>`;
     this.$("results-egg").className = "hidden";
     this.$("results-medal").className = "hidden";
+    this.renderKeyMastery(null);
     this.$("results-offer").className = "hidden";
 
     const lv = levelFromXp(SAVE.state.xp);
