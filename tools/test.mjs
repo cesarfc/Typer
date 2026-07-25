@@ -12,6 +12,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import vm from "node:vm";
 import { loadGame, JS } from "./_gameEnv.mjs";
 
 // Objects returned from the vm context carry that realm's prototypes, so
@@ -37,6 +38,93 @@ function freshPlayer(game, name = "Tester") {
   const pid = SAVE.createPlayer(name, "🦊", "normal", null);
   return pid;
 }
+
+// ---- Typing analytics ------------------------------------------------------
+
+test("analytics: worstKeys ranks sampled keys by accuracy and gates sparse keys", () => {
+  const g = loadGame();
+  const { SAVE } = g;
+  freshPlayer(g);
+  SAVE.state.stats.perKey = {
+    a: { ok: 6, miss: 2 },
+    b: { ok: 2, miss: 5 },
+    c: { ok: 4, miss: 4 },
+    d: { ok: 7, miss: 1 },
+    e: { ok: 6, miss: 2 },
+  };
+
+  assert.deepEqual(norm(SAVE.worstKeys(4)), ["c", "a", "e", "d"]);
+  assert.equal(SAVE.keyAccuracy("b"), null);
+  assert.equal(SAVE.keyAccuracy("C"), 0.5);
+});
+
+test("analytics: weakKeyPool deterministically filters the current Daily Drill pool", () => {
+  const g = loadGame();
+  const { SAVE, WORLDS } = g;
+  freshPlayer(g);
+  unlockAllWorlds(SAVE, WORLDS);
+  SAVE.state.stats.perKey = {
+    q: { ok: 1, miss: 9 },
+    z: { ok: 2, miss: 8 },
+    x: { ok: 3, miss: 7 },
+  };
+  const worlds = WORLDS.filter((_, wi) => SAVE.worldUnlocked(wi));
+  const base = [...new Set(worlds.flatMap(w =>
+    w.levels.flatMap(l => l.pool.filter(word => word.length >= 3))))];
+  const capitalized = base.map(word => word[0].toUpperCase() + word.slice(1));
+  const expected = capitalized.filter(word =>
+    [...word.toLowerCase()].some(ch => ["q", "z", "x"].includes(ch)));
+
+  assert.ok(expected.length >= 12);
+  assert.deepEqual(norm(SAVE.weakKeyPool(worlds, capitalized)), expected);
+  assert.deepEqual(norm(SAVE.weakKeyPool(worlds, capitalized)), expected);
+});
+
+test("analytics: Daily Drill composes Capital Day before Weak Key Day", () => {
+  const g = loadGame({ includePuzzle: false });
+  const { SAVE, WORLDS } = g;
+  freshPlayer(g);
+  unlockAllWorlds(SAVE, WORLDS);
+  SAVE.state.stats.perKey = {
+    a: { ok: 1, miss: 9 },
+    e: { ok: 2, miss: 8 },
+    s: { ok: 3, miss: 7 },
+  };
+  vm.runInContext(
+    fs.readFileSync(path.join(JS, "engine.js"), "utf8") +
+      "\n;globalThis.__engineUnderTest = Engine;",
+    g.ctx,
+    { filename: "engine.js" },
+  );
+  const engine = g.ctx.__engineUnderTest;
+  SAVE.dailyInfo = () => ({ done: false, mutators: ["caps", "weakkey"] });
+  engine.nextPrompt = () => {};
+
+  engine.startDaily();
+
+  assert.ok(engine.session.prompts.every(word => word[0] === word[0].toUpperCase()));
+});
+
+test("analytics: fingerStats rolls key counts up by the shared finger map", () => {
+  const g = loadGame();
+  const { SAVE } = g;
+  freshPlayer(g);
+  SAVE.state.stats.perKey = {
+    a: { ok: 7, miss: 1 },
+    q: { ok: 6, miss: 2 },
+    j: { ok: 8, miss: 0 },
+    "!": { ok: 4, miss: 4 },
+  };
+
+  const fingers = SAVE.fingerStats();
+  assert.deepEqual(norm(fingers[0]), {
+    name: "left pinky", ok: 17, miss: 7, total: 24, acc: 17 / 24,
+  });
+  assert.deepEqual(norm(fingers[4]), {
+    name: "right index", ok: 8, miss: 0, total: 8, acc: 1,
+  });
+  assert.equal(fingers[1].acc, null);
+});
 
 // ---- Trade semantics -------------------------------------------------------
 

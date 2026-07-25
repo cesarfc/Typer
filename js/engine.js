@@ -1248,26 +1248,16 @@ const Engine = {
     const muts = d.mutators.map(id => DAILY_MUTATORS.find(m => m.id === id)).filter(Boolean);
 
     // words from every world the player has opened up
+    const worlds = WORLDS.filter((_, wi) => SAVE.worldUnlocked(wi));
     let pool = [];
-    WORLDS.forEach((w, wi) => {
-      if (!SAVE.worldUnlocked(wi)) return;
+    worlds.forEach(w => {
       w.levels.forEach(l => l.pool.forEach(p => { if (p.length >= 3) pool.push(p); }));
     });
     pool = [...new Set(pool)];
 
     let timeScale = 1, xpScale = 1, forceNinja = false, requeue = false;
     for (const m of muts) {
-      if (m.id === "weakkey") {
-        const worst = Object.entries(SAVE.state.stats.perKey)
-          .map(([k, v]) => ({ k, total: v.ok + v.miss, acc: v.ok / (v.ok + v.miss) }))
-          .filter(e => e.total >= 8)
-          .sort((a, b) => a.acc - b.acc)
-          .slice(0, 3).map(e => e.k);
-        if (worst.length) {
-          const f = pool.filter(wd => [...wd.toLowerCase()].some(ch => worst.includes(ch)));
-          if (f.length >= 12) pool = f;
-        }
-      }
+      if (m.id === "weakkey") pool = SAVE.weakKeyPool(worlds, pool);
       if (m.id === "long") {
         const f = pool.filter(x => x.length >= 6);
         pool = f.length >= 12 ? f : pool.slice().sort((a, b) => b.length - a.length).slice(0, 20);
