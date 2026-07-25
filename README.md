@@ -225,11 +225,11 @@ mystery Pokemon — then the clock starts.
   Practice** is always open and fills each run with words for your trickiest
   keys. Four more difficulties — Easy, Medium, Hard, Expert — unlock alongside
   the story worlds and keep separate records. New records pay bonus XP; relaxed
-  practice, real progress. **Race a sibling's ghost:** once another family member has set a
-  record, a little "🏁 Race:" picker under each drill lets you chase their
-  👻 ghost instead of your own — the marker shows their name and the results
-  card cheers "You beat Maya's ghost by 3.2s!" (earning the 🏁 Family Race
-  trophy the first time).
+  practice, real progress. **Race a sibling's ghost:** once another family
+  member has set a record, a little "🏁 Race:" picker under each drill lets you
+  chase their 👻 ghost instead of your own — the marker shows their name and
+  the results card cheers "You beat Maya's ghost by 3.2s!" (earning the 🏁
+  Family Race trophy the first time).
 - **📚 My Words (custom spelling packs)** — inside the Trainer School, parents
   can add weekly spelling lists (one word per line) that run as their own
   stopwatch drills, with best times, ghost racing, and the 📚 Word Collector
