@@ -704,26 +704,32 @@ const UI = {
   },
 
   trophyToast(t) {
-    SFX.trophy();
     if (SAVE.state && SAVE.state.flags) {
       SAVE.state.flags.newTrophies = SAVE.state.flags.newTrophies || {};
       SAVE.state.flags.newTrophies[t.id] = true;
       SAVE.save();
     }
-    // trophies deserve a moment, not just a toast
-    if (!this._splashBusy) {
-      this._splashBusy = true;
-      this.$("ts-emoji").textContent = t.e;
-      this.$("ts-name").textContent = t.name;
-      const sp = this.$("trophy-splash");
-      sp.classList.remove("hidden");
-      setTimeout(() => {
-        sp.classList.add("hidden");
-        this._splashBusy = false;
-      }, 1800);
-    } else {
-      this.toast(`🏆 Trophy unlocked: <b>${t.e} ${t.name}</b>`, "gold");
-    }
+    this._splashQ.push(t);
+    this._pumpSplashes();
+  },
+
+  _splashQ: [],
+  _splashBusy: false,
+
+  _pumpSplashes() {
+    if (this._splashBusy || !this._splashQ.length) return;
+    const t = this._splashQ.shift();
+    this._splashBusy = true;
+    SFX.trophy();
+    this.$("ts-emoji").textContent = t.e;
+    this.$("ts-name").textContent = t.name;
+    const sp = this.$("trophy-splash");
+    sp.classList.remove("hidden");
+    setTimeout(() => {
+      sp.classList.add("hidden");
+      this._splashBusy = false;
+      this._pumpSplashes();
+    }, 1800);
   },
 
   // erasing progress is a grown-up action: typing the player's name is a

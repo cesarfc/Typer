@@ -2192,7 +2192,7 @@ button, .screen, #topbar { touch-action: manipulation; }
 @media (prefers-reduced-motion: reduce) {
   .spot-target { animation: none; }
   #spot-caption.spot-in { animation: none; opacity: 1; }
-  .key-mastery-chip { animation: none; }
+  .key-mastery-chip, .medal-drop, .ts-card { animation: none; }
 }
 
 /* ============ Phase 2-3: bands, Journal, Daily Drill, Elite, ceremony ============ */
