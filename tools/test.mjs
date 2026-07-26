@@ -39,6 +39,20 @@ function freshPlayer(game, name = "Tester") {
   return pid;
 }
 
+test("input: CHAR_EQUIV folds smart punctuation and preserves other keys", () => {
+  const { CHAR_EQUIV, normalizeKey } = loadGame({ includePuzzle: false });
+  const expected = {
+    "‘": "'", "’": "'", "“": "\"", "”": "\"",
+    "–": "-", "—": "-", "×": "x", "÷": "/",
+  };
+
+  assert.deepEqual(norm(CHAR_EQUIV), expected);
+  for (const [input, output] of Object.entries(expected)) {
+    assert.equal(normalizeKey(input), output);
+  }
+  assert.equal(normalizeKey("a"), "a");
+});
+
 // ---- Typing analytics ------------------------------------------------------
 
 test("analytics: worstKeys ranks sampled keys by accuracy and gates sparse keys", () => {

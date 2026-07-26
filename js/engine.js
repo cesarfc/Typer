@@ -182,7 +182,7 @@ const Engine = {
     UI.capsCheck(e);
     if (!UI.kbHidden) S.ninjaEligible = false;
 
-    const key = normalizeKey(e.key);
+    const key = e.key;
     const expected = S.text[S.pos];
     SAVE.recordKey(expected, key === expected);
 
