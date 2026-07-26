@@ -65,6 +65,17 @@ const SFX = {
     this.tone(660, 0.09, { gain: 0.1 });
     this.tone(880, 0.12, { gain: 0.1, when: 0.08 });
   },
+  level() {
+    [523, 659, 784].forEach((f, i) => this.tone(f, 0.1, { gain: 0.09, when: i * 0.08 }));
+  },
+  mastery() {
+    this.tone(1047, 0.36, { type: "triangle", gain: 0.075 });
+    this.tone(2093, 0.16, { gain: 0.035 });
+  },
+  record() {
+    this.tone(880, 0.34, { type: "triangle", gain: 0.07 });
+    this.tone(1320, 0.2, { gain: 0.03, when: 0.015 });
+  },
   combo() {
     this.tone(500, 0.3, { type: "sawtooth", gain: 0.05, slideTo: 1400 });
   },
@@ -72,7 +83,7 @@ const SFX = {
     this.tone(500, 0.25, { type: "triangle", gain: 0.08, slideTo: 220 });
   },
   catchJingle() {
-    [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.12, { gain: 0.12, when: i * 0.1 }));
+    [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.12, { gain: 0.1, when: i * 0.1 }));
   },
   // a bright sparkly twinkle for a shiny reveal
   shiny() {
@@ -110,7 +121,8 @@ const SFX = {
     this.tone(1200, 0.25, { gain: 0.1, when: 0.38 });
   },
   trophy() {
-    [659, 784, 1047, 1319].forEach((f, i) => this.tone(f, 0.14, { gain: 0.1, when: i * 0.09 }));
+    [659, 784, 1047, 1319].forEach((f, i) => this.tone(f, 0.14, { gain: 0.11, when: i * 0.09 }));
+    this.tone(1047, 0.3, { gain: 0.08, when: 0.36 });
   },
   thump() {
     this.tone(110, 0.14, { type: "sine", gain: 0.2, slideTo: 55 });

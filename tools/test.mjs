@@ -39,6 +39,20 @@ function freshPlayer(game, name = "Tester") {
   return pid;
 }
 
+function loadSfx(AudioContext) {
+  const ctx = {};
+  ctx.window = ctx;
+  if (AudioContext) ctx.AudioContext = AudioContext;
+  vm.createContext(ctx);
+  vm.runInContext(
+    fs.readFileSync(path.join(JS, "audio.js"), "utf8") +
+      "\n;globalThis.__sfxUnderTest = SFX;",
+    ctx,
+    { filename: "audio.js" },
+  );
+  return ctx.__sfxUnderTest;
+}
+
 test("input: CHAR_EQUIV folds smart punctuation and preserves other keys", () => {
   const { CHAR_EQUIV, normalizeKey } = loadGame({ includePuzzle: false });
   const expected = {
@@ -51,6 +65,67 @@ test("input: CHAR_EQUIV folds smart punctuation and preserves other keys", () =>
     assert.equal(normalizeKey(input), output);
   }
   assert.equal(normalizeKey("a"), "a");
+});
+
+test("audio: success cues rise from keypress to ceremony", () => {
+  const sfx = loadSfx();
+  const recipe = name => {
+    const tones = [];
+    sfx.tone = (freq, dur, options = {}) => tones.push({ freq, dur, ...options });
+    sfx[name]();
+    return tones;
+  };
+  const length = tones => Math.max(...tones.map(tone => (tone.when || 0) + tone.dur));
+  const ladder = ["click", "word", "level", "catchJingle", "trophy", "fanfare"].map(recipe);
+
+  assert.deepEqual(ladder.map(tones => tones.length), [1, 2, 3, 4, 5, 6]);
+  assert.ok(ladder.every((tones, i) => !i || length(tones) > length(ladder[i - 1])));
+
+  const mastery = recipe("mastery");
+  const record = recipe("record");
+  assert.equal(mastery.length, 2);
+  assert.equal(record.length, 2);
+  assert.ok(length(mastery) < length(ladder[4]));
+  assert.ok(length(record) < length(ladder[4]));
+  assert.notDeepEqual(mastery.map(tone => tone.freq), record.map(tone => tone.freq));
+});
+
+test("audio: struck success cues respect mute", () => {
+  let oscillators = 0;
+  class AudioContext {
+    constructor() {
+      this.currentTime = 0;
+      this.state = "running";
+      this.destination = {};
+    }
+    createOscillator() {
+      oscillators++;
+      return {
+        type: "sine",
+        frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} },
+        connect(node) { return node; },
+        start() {},
+        stop() {},
+      };
+    }
+    createGain() {
+      return {
+        gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} },
+        connect(node) { return node; },
+      };
+    }
+  }
+  const sfx = loadSfx(AudioContext);
+
+  sfx.setEnabled(false);
+  sfx.mastery();
+  sfx.record();
+  assert.equal(oscillators, 0);
+
+  sfx.setEnabled(true);
+  sfx.mastery();
+  sfx.record();
+  assert.equal(oscillators, 4);
 });
 
 // ---- Typing analytics ------------------------------------------------------

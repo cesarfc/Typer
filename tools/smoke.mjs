@@ -162,6 +162,9 @@ test("boots the game and drives its core UI flows", async t => {
   await waitFor(() => window.TQ, "game boot");
   assertScreen("title");
   assert.ok(!must("#title-new").classList.contains("hidden"), "new-player form is hidden");
+  const soundMoments = [];
+  window.TQ.SFX.mastery = () => soundMoments.push("mastery");
+  window.TQ.SFX.record = () => soundMoments.push("record");
 
   must("#name-input").value = "Smoke";
   must("#btn-start").click();
@@ -203,6 +206,7 @@ test("boots the game and drives its core UI flows", async t => {
   assert.ok(!must("#results-catch").classList.contains("hidden"), "catch result is hidden");
   assert.match(must("#results-mastery").textContent, /You mastered the F key!/);
   assert.deepEqual(JSON.parse(JSON.stringify(window.TQ.SAVE.state.flags.masteredKeys)), { f: true });
+  assert.equal(soundMoments.filter(name => name === "mastery").length, 1);
   window.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
   assertScreen("results");
   window.TQ.UI.showDefeat(window.TQ.Engine.session);
@@ -237,6 +241,7 @@ test("boots the game and drives its core UI flows", async t => {
   assert.match(must("#results-title").textContent, /Practice/);
   assert.ok(window.TQ.SAVE.state.practice.target.time > 0, "Target Practice best time was not saved");
   assert.ok(window.TQ.SAVE.state.practice.target.wpm > 0, "Target Practice best WPM was not saved");
+  assert.equal(soundMoments.filter(name => name === "record").length, 1);
   must("#btn-replay").click();
   assertScreen("practice");
   must('.navbtn[data-nav="map"]').click();
