@@ -310,7 +310,9 @@ Object.assign(UI, {
     if (nextLabel) next.innerHTML = `${nextLabel} <small class="key-hint">Enter</small>`;
     else next.classList.add("hidden");
     this._nextTarget = res.rematch ? null : !res.isBoss ? [res.w, res.s + 1] : res.w < lastWorld ? [res.w + 1, 0] : null;
-    SFX.fanfare();
+    if (res.masteredKey) SFX.mastery();
+    else if (res.isBoss || res.rematch) SFX.fanfare();
+    else SFX.level();
     // a win can push trophies / gold rematches past a wardrobe gate
     this.flashWardrobeUnlocks();
   },
@@ -431,7 +433,8 @@ Object.assign(UI, {
     (res.newTrophies || []).forEach((t, i) => setTimeout(() => this.trophyToast(t), 900 + i * 800));
     if (record || newStamp) {
       this.confetti();
-      SFX.fanfare();
+      if (res.tier.id === "target" && record) SFX.record();
+      else SFX.fanfare();
       const msg = newStamp
         ? `🪪 ${res.tier.label} stamp earned — one step to your license!`
         : `🏫 New ${res.tier.label} record! Can you beat it?`;
